@@ -1,0 +1,73 @@
+"use client";
+
+import { api } from "@/lib/api";
+
+export function LogoutButton() {
+  return (
+    <button
+      type="button"
+      className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink hover:border-brand hover:text-brand"
+      onClick={() => {
+        void api("/api/auth/logout", { body: {} }).then(() => {
+          window.location.href = "/login";
+        });
+      }}>
+      Keluar
+    </button>
+  );
+}
+
+export function AppBar({ title, name }: { title: string; name?: string }) {
+  return (
+    <header className="sticky top-0 z-20 border-b border-line bg-paper">
+      <div className="h-1 bg-brand" />
+      <div className="flex items-center justify-between gap-4 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <img src="/brand/logo.svg" alt="" className="h-9 w-auto" />
+          <div className="min-w-0">
+            <p className="truncate text-xs text-ink-muted">Majelis Dikdasmen dan PNF PP Muhammadiyah</p>
+            <p className="truncate font-semibold leading-tight">{title}</p>
+          </div>
+        </div>
+        {name ? (
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="hidden max-w-40 truncate text-sm sm:inline">{name}</span>
+            <LogoutButton />
+          </div>
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
+export function StatusChip({ label, tone }: { label: string; tone: "idle" | "live" | "done" | "warn" }) {
+  const toneClass = {
+    idle: "bg-page text-ink-muted",
+    live: "bg-brand-soft text-brand",
+    done: "bg-brand text-white",
+    warn: "bg-mark text-mark-ink",
+  }[tone];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs font-semibold ${toneClass}`}>
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+export function SubmittedNotice() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-page px-6">
+      <section className="w-full max-w-md rounded-md border border-line bg-paper p-8 text-center shadow-paper">
+        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-brand text-xl text-white" aria-hidden="true">
+          ✓
+        </div>
+        <h1 className="text-lg font-semibold">Jawaban sudah terkirim</h1>
+        <p className="mt-2 text-ink-muted">Ujian telah terkirim. Hasil tidak ditampilkan pada halaman ini.</p>
+        <a href="/peserta" className="mt-6 inline-flex min-h-11 items-center rounded-md border border-line-strong px-4 text-sm font-semibold hover:border-brand hover:text-brand">
+          Kembali ke daftar ujian
+        </a>
+      </section>
+    </main>
+  );
+}

@@ -1,0 +1,439 @@
+// =============================================================================
+// Skema database: Web Ujian Online (MySQL 8, Prisma)
+// Acuan: PRD v2.0 bagian 4 (fitur), 5 (arsitektur), 6 (model data)
+//
+// Konvensi
+// - Nama model dan kolom berbahasa Inggris (camelCase); nama tabel snake_case
+//   lewat @@map. Kolom TIDAK di-@map, jadi pada raw SQL pakai nama kolom
+//   persis seperti di bawah, dengan backtick (contoh: `attemptId`).
+// - Semua waktu disimpan dalam UTC. Kolom `examDate` (tanggal saja) dihitung
+//   aplikasi dengan zona Asia/Jakarta.
+// - Koneksi database TIDAK diatur di sini. Pada Prisma 7, URL koneksi dan
+//   pengaturan pool diatur di berkas konfigurasi Prisma dan driver adapter
+//   MySQL (@prisma/adapter-mariadb). Sesuaikan blok generator dengan versi
+//   Prisma yang dipakai.
+// - Gunakan charset utf8mb4 pada database.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// -----------------------------------------------------------------------------
+// Enum
+// -----------------------------------------------------------------------------
+
+enum Role {
+  PARTICIPANT // peserta
+  ADMIN
+  GRADER // petugas penilai uraian
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE // pilihan ganda
+  ESSAY // uraian
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS // sedang mengerjakan
+  SUBMITTED // dikirim peserta
+  TIME_EXPIRED // dikirim otomatis karena waktu habis
+}
+
+// Status penilaian tingkat peserta (khusus soal uraian)
+enum GradingStatus {
+  NOT_GRADED
+  PARTIAL
+  COMPLETED
+}
+
+// Status penilaian tingkat jawaban
+enum AnswerGradingState {
+  NOT_REQUIRED // pilihan ganda: dinilai otomatis
+  PENDING // uraian: menunggu petugas
+  LOCKED // uraian: sedang dibuka satu petugas
+  GRADED // uraian: sudah dinilai
+}
+
+enum ViolationType {
+  FULLSCREEN_EXIT
+  TAB_SWITCH
+  WINDOW_BLUR
+  COPY_PASTE
+  RIGHT_CLICK
+}
+
+// -----------------------------------------------------------------------------
+// Pengguna (data berasal dari sistem asal; tidak ada password di sini)
+// -----------------------------------------------------------------------------
+
+model User {
+  id           Int       @id @default(autoincrement())
+  externalId   String    @unique @db.VarChar(100) // ID stabil dari sistem asal
+  identity     String    @db.VarChar(100) // identitas login (NIS/username/email)
+  name         String    @db.VarChar(200)
+  role         Role      @default(PARTICIPANT) // dari respons API sistem asal
+  groupName    String?   @db.VarChar(150) // kelompok/kelas (opsional)
+  isActive     Boolean   @default(true)
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  createdQuestions    Question[]
+  createdExams        Exam[]
+  sessionParticipants SessionParticipant[]
+  attendances         Attendance[]
+  attempts            ExamAttempt[]
+  lockedAnswers       AttemptAnswer[]      @relation("AnswerLockedBy")
+  gradedAnswers       AttemptAnswer[]      @relation("AnswerGradedBy")
+  syncLogs            SyncLog[]
+  auditLogs           AuditLog[]
+
+  @@index([identity])
+  @@index([role, isActive])
+  @@map("users")
+}
+
+model SyncLog {
+  id            Int       @id @default(autoincrement())
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  successCount  Int       @default(0)
+  failedCount   Int       @default(0)
+  message       String?   @db.Text
+  triggeredById Int? // null bila dijalankan terjadwal
+
+  triggeredBy User?         @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  failures    SyncFailure[]
+
+  @@index([startedAt])
+  @@map("sync_logs")
+}
+
+// Alasan gagal per baris, sesuai PRD 4.1.1 (bukan hanya agregat di SyncLog).
+model SyncFailure {
+  id         Int      @id @default(autoincrement())
+  syncLogId  Int
+  externalId String?  @db.VarChar(100)
+  identity   String?  @db.VarChar(100)
+  reason     String   @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  syncLog SyncLog @relation(fields: [syncLogId], references: [id], onDelete: Cascade)
+
+  @@index([syncLogId])
+  @@map("sync_failures")
+}
+
+// -----------------------------------------------------------------------------
+// Bank soal dan bank jawaban
+// -----------------------------------------------------------------------------
+
+model QuestionCategory {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(150)
+  description String? @db.VarChar(500)
+
+  questions Question[]
+
+  @@map("question_categories")
+}
+
+model Question {
+  id            Int          @id @default(autoincrement())
+  code          String       @unique @db.VarChar(50)
+  categoryId    Int
+  type          QuestionType
+  body          String       @db.Text
+  imagePath     String?      @db.VarChar(255)
+  defaultWeight Decimal      @default(1) @db.Decimal(6, 2)
+  isActive      Boolean      @default(true)
+  createdById   Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  category      QuestionCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  options       AnswerOption[]
+  essayKey      EssayKey?
+  examQuestions ExamQuestion[]
+  answers       AttemptAnswer[]
+
+  @@index([categoryId, type])
+  @@index([isActive])
+  @@map("questions")
+}
+
+// Bank jawaban pilihan ganda: opsi dan kunci
+model AnswerOption {
+  id         Int     @id @default(autoincrement())
+  questionId Int
+  label      String  @db.VarChar(5) // A, B, C, D, ...
+  body       String  @db.Text
+  imagePath  String? @db.VarChar(255)
+  isCorrect  Boolean @default(false) // tepat satu per soal (validasi di aplikasi)
+  sortOrder  Int     @default(0)
+
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  AttemptAnswer[]
+
+  @@unique([questionId, label])
+  @@index([questionId])
+  @@map("answer_options")
+}
+
+// Bank jawaban uraian: kunci/pedoman dan rubrik skor
+model EssayKey {
+  id         Int     @id @default(autoincrement())
+  questionId Int     @unique
+  answerKey  String  @db.Text
+  rubric     String? @db.Text
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("essay_keys")
+}
+
+// -----------------------------------------------------------------------------
+// Jadwal (ujian), paket soal, dan sesi
+// -----------------------------------------------------------------------------
+
+model Exam {
+  id               Int        @id @default(autoincrement())
+  name             String     @db.VarChar(200)
+  examDate         DateTime   @db.Date
+  durationMinutes  Int
+  shuffleQuestions Boolean    @default(false)
+  shuffleOptions   Boolean    @default(false)
+  status           ExamStatus @default(DRAFT)
+  createdById      Int
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  createdBy User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  questions ExamQuestion[]
+  sessions  ExamSession[]
+
+  @@index([examDate])
+  @@index([status])
+  @@map("exams")
+}
+
+// Paket soal sebuah ujian. Bobot disalin dari bank soal agar nilai lama tidak
+// berubah bila bobot soal diedit kemudian.
+model ExamQuestion {
+  id         Int     @id @default(autoincrement())
+  examId     Int
+  questionId Int
+  sortOrder  Int
+  weight     Decimal @db.Decimal(6, 2)
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([examId, questionId])
+  @@unique([examId, sortOrder])
+  @@index([questionId])
+  @@map("exam_questions")
+}
+
+model ExamSession {
+  id                Int      @id @default(autoincrement())
+  examId            Int
+  name              String   @db.VarChar(100)
+  startsAt          DateTime
+  endsAt            DateTime
+  attendanceOpensAt DateTime // awal jendela absensi
+  capacity          Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  exam         Exam                 @relation(fields: [examId], references: [id], onDelete: Restrict)
+  participants SessionParticipant[]
+  attendances  Attendance[]
+  attempts     ExamAttempt[]
+
+  @@index([examId])
+  @@index([startsAt])
+  @@map("exam_sessions")
+}
+
+// Penugasan peserta ke sesi.
+// `examDate` adalah salinan tanggal ujian (Exam.examDate). Unik per peserta,
+// sehingga database sendiri menolak penugasan kedua pada hari yang sama
+// (aturan 1 ujian per hari). Jika tanggal ujian diubah, perbarui kolom ini
+// dalam transaksi yang sama.
+model SessionParticipant {
+  id        Int      @id @default(autoincrement())
+  sessionId Int
+  userId    Int
+  examDate  DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, userId])
+  @@unique([userId, examDate])
+  @@index([sessionId])
+  @@map("session_participants")
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  sessionId   Int
+  userId      Int
+  checkedInAt DateTime @default(now())
+  ipAddress   String?  @db.VarChar(45)
+  userAgent   String?  @db.VarChar(255)
+
+  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@map("attendances")
+}
+
+// -----------------------------------------------------------------------------
+// Pengerjaan, jawaban, dan penilaian
+// -----------------------------------------------------------------------------
+
+model ExamAttempt {
+  id                Int           @id @default(autoincrement())
+  sessionId         Int
+  userId            Int
+  startedAt         DateTime
+  // Batas akhir dihitung server: min(startedAt + durasi, sesi.endsAt)
+  deadlineAt        DateTime
+  extraSeconds      Int           @default(0) // tambahan waktu dari admin
+  submittedAt       DateTime?
+  status            AttemptStatus @default(IN_PROGRESS)
+  // Urutan soal dan opsi untuk peserta ini (hasil pengacakan), agar tampilan
+  // tetap sama setelah refresh. questionOrder: [questionId, ...]
+  // optionOrder: { "<questionId>": [optionId, ...] }
+  questionOrder     Json
+  optionOrder       Json?
+  lastQuestionIndex Int           @default(0)
+  mcScore           Decimal?      @db.Decimal(8, 2)
+  essayScore        Decimal?      @db.Decimal(8, 2)
+  totalScore        Decimal?      @db.Decimal(8, 2)
+  gradingStatus     GradingStatus @default(NOT_GRADED)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  session    ExamSession      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  answers    AttemptAnswer[]
+  violations ViolationLog[]
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, status])
+  @@index([sessionId, gradingStatus])
+  @@map("exam_attempts")
+}
+
+// Satu baris per (pengerjaan, soal). Kunci unik (attemptId, questionId) adalah
+// target INSERT ... ON DUPLICATE KEY UPDATE dari worker. Contoh:
+//
+//   INSERT INTO attempt_answers
+//     (attemptId, questionId, selectedOptionId, essayText, isDoubtful, answeredAt, updatedAt)
+//   VALUES (?, ?, ?, ?, ?, ?, NOW(3)), ...
+//   AS new
+//   ON DUPLICATE KEY UPDATE
+//     selectedOptionId = new.selectedOptionId,
+//     essayText        = new.essayText,
+//     isDoubtful       = new.isDoubtful,
+//     answeredAt       = new.answeredAt,
+//     updatedAt        = NOW(3);
+//
+// `@updatedAt` Prisma tidak berlaku pada raw SQL, jadi isi updatedAt manual.
+// Worker tidak boleh menimpa baris setelah pengerjaan berstatus bukan
+// IN_PROGRESS (cek di aplikasi).
+//
+// Klaim penilaian satu petugas per jawaban (atomik, satu query):
+//
+//   UPDATE attempt_answers
+//      SET gradingState = 'LOCKED', lockedById = ?, lockedAt = NOW(3)
+//    WHERE id = ?
+//      AND (gradingState = 'PENDING'
+//           OR (gradingState = 'LOCKED' AND lockedAt < NOW(3) - INTERVAL ? SECOND));
+//
+// Bila jumlah baris terubah = 0, jawaban sudah diambil petugas lain.
+model AttemptAnswer {
+  id               Int                @id @default(autoincrement())
+  attemptId        Int
+  questionId       Int
+  selectedOptionId Int? // pilihan ganda
+  essayText        String?            @db.MediumText // uraian
+  isDoubtful       Boolean            @default(false) // ragu-ragu
+  answeredAt       DateTime?
+  isCorrect        Boolean? // pilihan ganda, diisi saat pengiriman
+  score            Decimal?           @db.Decimal(6, 2)
+  gradingState     AnswerGradingState @default(NOT_REQUIRED)
+  lockedById       Int?
+  lockedAt         DateTime?
+  gradedById       Int?
+  gradedAt         DateTime?
+  gradingNote      String?            @db.Text
+  updatedAt        DateTime           @default(now())
+
+  attempt        ExamAttempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question      @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOption AnswerOption? @relation(fields: [selectedOptionId], references: [id], onDelete: Restrict)
+  lockedBy       User?         @relation("AnswerLockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
+  gradedBy       User?         @relation("AnswerGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([attemptId, questionId])
+  @@index([gradingState, lockedAt])
+  @@index([questionId])
+  @@index([gradedById])
+  @@map("attempt_answers")
+}
+
+model ViolationLog {
+  id             Int           @id @default(autoincrement())
+  attemptId      Int
+  type           ViolationType
+  occurredAt     DateTime      @default(now())
+  questionNumber Int?
+  detail         String?       @db.VarChar(255)
+
+  attempt ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId, occurredAt])
+  @@map("violation_logs")
+}
+
+// -----------------------------------------------------------------------------
+// Log audit: login, absensi, pengiriman ujian, penilaian, perubahan admin
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   @db.VarChar(60)
+  entityType String   @db.VarChar(60)
+  entityId   String?  @db.VarChar(60)
+  meta       Json?
+  ipAddress  String?  @db.VarChar(45)
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
