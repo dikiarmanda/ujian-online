@@ -1,7 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
+
+const SummernoteEditor = dynamic(() => import("./summernote-editor"), {
+  ssr: false,
+  loading: () => <p className="text-sm text-ink-muted">Memuat editor…</p>,
+});
+
+function stripHtml(input: string): string {
+  return input
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
 
 function ErrorText({ error }: { error: string | null }) {
   if (!error) return null;
@@ -105,6 +118,9 @@ export function QuestionForm({
           { label: "B", body: "", isCorrect: false },
         ],
   );
+  const [bodyHtml, setBodyHtml] = useState(initial?.body ?? "");
+  const [answerKeyHtml, setAnswerKeyHtml] = useState(initial?.answerKey ?? "");
+  const [rubricHtml, setRubricHtml] = useState(initial?.rubric ?? "");
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -112,18 +128,29 @@ export function QuestionForm({
       className="flex max-w-3xl flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!stripHtml(bodyHtml)) {
+          setError("Teks soal tidak boleh kosong.");
+          return;
+        }
+        if (type === "MULTIPLE_CHOICE") {
+          const emptyOption = options.find((option) => !stripHtml(option.body));
+          if (emptyOption) {
+            setError(`Jawaban ${emptyOption.label} masih kosong.`);
+            return;
+          }
+        }
         const form = new FormData(event.currentTarget);
         const payload = {
           id: initial?.id,
           code: String(form.get("code") ?? ""),
           categoryId: Number(form.get("categoryId")),
           type,
-          body: String(form.get("body") ?? ""),
+          body: bodyHtml,
           defaultWeight: Number(form.get("defaultWeight") || 1),
           isActive: form.get("isActive") === "on",
           options,
-          answerKey: String(form.get("answerKey") ?? ""),
-          rubric: String(form.get("rubric") ?? ""),
+          answerKey: answerKeyHtml,
+          rubric: rubricHtml,
         };
         void api<{ id: number }>("/api/admin/soal", { body: payload })
           .then(() => {
@@ -152,10 +179,10 @@ export function QuestionForm({
           <option value="ESSAY">Uraian</option>
         </select>
       </label>
-      <label className="text-sm">
-        Teks soal
-        <textarea name="body" required defaultValue={initial?.body} className="mt-1 block min-h-32 w-full rounded-sm border border-line-strong px-3 py-2" />
-      </label>
+      <div className="text-sm">
+        <span className="mb-1 block">Teks soal</span>
+        <SummernoteEditor value={bodyHtml} onChange={setBodyHtml} placeholder="Tulis soal di sini… (mendukung tabel, gambar, format teks)" height={200} />
+      </div>
       <label className="text-sm">
         Bobot
         <input name="defaultWeight" type="number" min="0.01" step="0.01" defaultValue={initial?.defaultWeight ?? 1} className="mt-1 block w-32 rounded-sm border border-line-strong px-3 py-2" />
@@ -165,31 +192,44 @@ export function QuestionForm({
         Aktif
       </label>
       {type === "MULTIPLE_CHOICE" ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
+          <span className="text-sm font-semibold">Jawaban (Summernote)</span>
           {options.map((option, index) => (
-            <div key={option.label} className="grid grid-cols-[4rem_1fr_auto] gap-2">
-              <input
-                value={option.label}
-                onChange={(event) => {
-                  const next = [...options];
-                  next[index] = { ...option, label: event.target.value };
-                  setOptions(next);
-                }}
-                className="rounded-sm border border-line-strong px-2 py-2"
-              />
-              <input
+            <div key={`${option.label}-${index}`} className="rounded-md border border-line bg-paper p-3">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <input
+                  aria-label={`Label opsi ${index + 1}`}
+                  value={option.label}
+                  onChange={(event) => {
+                    const next = [...options];
+                    next[index] = { ...option, label: event.target.value };
+                    setOptions(next);
+                  }}
+                  className="w-16 rounded-sm border border-line-strong px-2 py-2"
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="kunci" checked={option.isCorrect} onChange={() => setOptions(options.map((item, itemIndex) => ({ ...item, isCorrect: itemIndex === index })))} />
+                  Kunci
+                </label>
+                {options.length > 2 ? (
+                  <button
+                    type="button"
+                    className="ml-auto text-sm text-alert"
+                    onClick={() => setOptions(options.filter((_, itemIndex) => itemIndex !== index))}>
+                    Hapus
+                  </button>
+                ) : null}
+              </div>
+              <SummernoteEditor
                 value={option.body}
-                onChange={(event) => {
+                placeholder={`Tulis jawaban ${option.label}…`}
+                height={110}
+                onChange={(html) => {
                   const next = [...options];
-                  next[index] = { ...option, body: event.target.value };
+                  next[index] = { ...option, body: html };
                   setOptions(next);
                 }}
-                className="rounded-sm border border-line-strong px-2 py-2"
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="radio" name="kunci" checked={option.isCorrect} onChange={() => setOptions(options.map((item, itemIndex) => ({ ...item, isCorrect: itemIndex === index })))} />
-                Kunci
-              </label>
             </div>
           ))}
           <button type="button" className="w-fit text-sm text-brand" onClick={() => setOptions([...options, { label: String.fromCharCode(65 + options.length), body: "", isCorrect: false }])}>
@@ -198,14 +238,14 @@ export function QuestionForm({
         </div>
       ) : (
         <>
-          <label className="text-sm">
-            Pedoman jawaban
-            <textarea name="answerKey" defaultValue={initial?.answerKey} className="mt-1 block min-h-24 w-full rounded-sm border border-line-strong px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Rubrik
-            <textarea name="rubric" defaultValue={initial?.rubric} className="mt-1 block min-h-24 w-full rounded-sm border border-line-strong px-3 py-2" />
-          </label>
+          <div className="text-sm">
+            <span className="mb-1 block">Pedoman jawaban</span>
+            <SummernoteEditor value={answerKeyHtml} onChange={setAnswerKeyHtml} placeholder="Tulis pedoman jawaban…" height={150} />
+          </div>
+          <div className="text-sm">
+            <span className="mb-1 block">Rubrik</span>
+            <SummernoteEditor value={rubricHtml} onChange={setRubricHtml} placeholder="Tulis rubrik penilaian…" height={150} />
+          </div>
         </>
       )}
       <ErrorText error={error} />
