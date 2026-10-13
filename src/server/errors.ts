@@ -13,6 +13,17 @@ export class OriginRejectedError extends AppError {
   }
 }
 
+export class IntegrationError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly status: number,
+    readonly retryAfter?: number,
+  ) {
+    super(message);
+  }
+}
+
 export class OriginDownError extends AppError {
   constructor(message = "Layanan masuk sedang tidak dapat dihubungi. Coba lagi dalam beberapa saat.") {
     super(message, 503);

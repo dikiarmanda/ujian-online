@@ -54,7 +54,7 @@ export function ResetSessionButton({ userId }: { userId: number }) {
         type="button"
         className="text-sm text-brand"
         onClick={() => {
-          void api("/api/admin/sesi-login", { body: { userId } })
+          void api(`/api/admin/users/${userId}/revoke-session`, { body: {} })
             .then(() => setError(null))
             .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Gagal mereset sesi."));
         }}>

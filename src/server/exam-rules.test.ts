@@ -5,13 +5,20 @@ import {
   assertSingleCorrectOption,
   computeDeadline,
   countAnswerStats,
+  mapOmbnAdminRole,
   mapOriginRole,
 } from "./exam-rules";
 
-test("production menolak driver mock", () => {
-  assert.throws(() => assertAuthDriver("production", "mock"));
+test("login tidak bergantung pada AUTH_DRIVER", () => {
+  assert.doesNotThrow(() => assertAuthDriver("production", "mock"));
   assert.doesNotThrow(() => assertAuthDriver("production", "remote"));
-  assert.doesNotThrow(() => assertAuthDriver("development", "mock"));
+});
+
+test("role admin OMBN dipetakan", () => {
+  assert.equal(mapOmbnAdminRole("SUPERADMIN"), "ADMIN");
+  assert.equal(mapOmbnAdminRole("ADMIN"), "ADMIN");
+  assert.equal(mapOmbnAdminRole("JURI"), "GRADER");
+  assert.equal(mapOmbnAdminRole("LAIN"), null);
 });
 
 test("role sistem asal dipetakan", () => {

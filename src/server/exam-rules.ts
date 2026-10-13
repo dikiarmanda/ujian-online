@@ -1,12 +1,14 @@
 export type OriginRole = "peserta" | "admin" | "petugas";
 export type AppRole = "PARTICIPANT" | "ADMIN" | "GRADER";
 
-export function assertAuthDriver(nodeEnv: string | undefined, driver: string | undefined): void {
-  if (nodeEnv === "production" && driver !== "remote") {
-    throw new Error(
-      "AUTH_DRIVER=mock ditolak saat NODE_ENV=production. Gunakan AUTH_DRIVER=remote.",
-    );
-  }
+export function assertAuthDriver(_nodeEnv: string | undefined, _driver: string | undefined): void {
+  // Login peserta dan admin dicek langsung ke database OMBN.
+}
+
+export function mapOmbnAdminRole(role: string): AppRole | null {
+  if (role === "SUPERADMIN" || role === "ADMIN") return "ADMIN";
+  if (role === "JURI") return "GRADER";
+  return null;
 }
 
 export function mapOriginRole(role: string): AppRole {

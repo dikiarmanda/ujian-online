@@ -23,7 +23,7 @@ export function AppBar({ title, name }: { title: string; name?: string }) {
       <div className="h-1 bg-brand" />
       <div className="flex items-center justify-between gap-4 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          <img src="/brand/logo.svg" alt="" className="h-9 w-auto" />
+          <img src="/brand/logo-dikdas.png" alt="Logo Majelis Dikdasmen dan PNF PP Muhammadiyah" className="h-9 w-auto" />
           <div className="min-w-0">
             <p className="truncate text-xs text-ink-muted">Majelis Dikdasmen dan PNF PP Muhammadiyah</p>
             <p className="truncate font-semibold leading-tight">{title}</p>

@@ -12,8 +12,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/server/exam-rules.test.ts",
+    "test": "tsx --test src/server/exam-rules.test.ts src/server/login-rules.test.ts src/server/integration-rules.test.ts",
     "worker": "tsx src/worker/index.ts",
+    "db:generate": "prisma generate && prisma generate --schema prisma/ombn/schema.prisma && prisma generate --schema prisma/sekolah/schema.prisma",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "load-test": "node scripts/load-test.mjs"
@@ -23,6 +24,7 @@
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@prisma/adapter-mariadb": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "bcrypt": "^6.0.0",
     "bullmq": "^6.3.11",
     "dotenv": "^18.0.5",
     "ioredis": "^6.0.0",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
     "@types/jquery": "^4.0.1",
     "@types/node": "^20",
     "@types/pdfkit": "^0.17.6",

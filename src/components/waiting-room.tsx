@@ -25,7 +25,7 @@ export function WaitingRoom({ sessionId, examName, sessionName, startsAt, server
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
       <section className="w-full max-w-lg rounded-md border border-line bg-paper p-8 shadow-paper">
-        <img src="/brand/logo.svg" alt="" className="h-12 w-auto" />
+        <img src="/brand/logo-dikdas.png" alt="Logo Majelis Dikdasmen dan PNF PP Muhammadiyah" className="h-12 w-auto" />
         <p className="mt-6 text-xs font-semibold tracking-wide text-brand uppercase">Ruang tunggu</p>
         <h1 className="mt-1 text-xl font-semibold">{examName}</h1>
         <p className="text-sm text-ink-muted">{sessionName}</p>

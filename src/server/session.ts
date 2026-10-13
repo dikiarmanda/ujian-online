@@ -37,6 +37,8 @@ export async function readSession(sid: string): Promise<SessionRecord | null> {
     await redis.del(sessionKey(sid));
     return null;
   }
+  await redis.expire(sessionKey(sid), TTL_SECONDS);
+  await redis.expire(userKey(parsed.userId), TTL_SECONDS);
   return parsed;
 }
 

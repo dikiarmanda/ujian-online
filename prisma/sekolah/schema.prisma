@@ -1,0 +1,905 @@
+// Skema hasil introspeksi database sekolah_dikdasmen. Jangan jalankan migrasi Prisma ke database ini.
+// Tabel quran diabaikan karena tidak punya kunci unik.
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/sekolah"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model admin {
+  id                Int    @id @default(autoincrement())
+  nik               String @default("") @db.VarChar(50)
+  nama              String @db.VarChar(100)
+  username          String @db.VarChar(100)
+  password          String @db.VarChar(100)
+  level             Int    @default(0)
+  kd_unit           Int    @default(0)
+  login_saku        String @default("") @db.VarChar(10)
+  jabatan           String @default("") @db.VarChar(100)
+  tgl_akhir_jabatan String @default("0000-00-00") @db.VarChar(100)
+  label             String @default("") @db.VarChar(100)
+  wilayah           String @default("") @db.VarChar(100)
+  asesor            String @default("BUKAN") @db.VarChar(100)
+  juri_mea          String @default("") @db.VarChar(100)
+  status            String @default("AKTIF") @db.VarChar(100)
+  penilai           String @db.Text
+  pdm               String @db.Text
+  pcm               String @db.Text
+  hak_akses         String @db.Text
+}
+
+model ayat {
+  id         Int    @id @default(autoincrement())
+  no_surah   String @db.VarChar(15)
+  no_ayat    String @db.VarChar(15)
+  ayat       String @db.Text
+  terjemahan String @db.Text
+  tafsir     String @db.Text
+}
+
+model bot_wa_config {
+  id           Int       @id @default(autoincrement())
+  config_key   String    @unique(map: "uk_config_key") @db.VarChar(64)
+  config_value String    @db.Text
+  keterangan   String?   @db.VarChar(255)
+  updated_at   DateTime? @default(now()) @db.DateTime(0)
+}
+
+model bot_wa_flow {
+  id        Int     @id @default(autoincrement())
+  flow_code String  @unique(map: "uk_flow_code") @db.VarChar(50)
+  nama_flow String  @db.VarChar(100)
+  deskripsi String? @db.VarChar(255)
+  aktif     Boolean @default(true)
+  urutan    Int     @default(0)
+}
+
+model bot_wa_keyword {
+  id         Int                       @id @default(autoincrement())
+  kategori   String                    @db.VarChar(50)
+  keyword    String                    @db.VarChar(100)
+  match_type bot_wa_keyword_match_type @default(exact)
+  aktif      Boolean                   @default(true)
+
+  @@index([kategori, aktif], map: "idx_kategori")
+}
+
+model bot_wa_log {
+  id            BigInt          @id @default(autoincrement())
+  arah          bot_wa_log_arah
+  wa_message_id String?         @db.VarChar(64)
+  wa_phone      String?         @db.VarChar(20)
+  wa_name       String?         @db.VarChar(120)
+  flow_code     String?         @db.VarChar(50)
+  step          String?         @db.VarChar(50)
+  npsn          String?         @db.Char(8)
+  pesan         String          @db.Text
+  status        String          @default("success") @db.VarChar(30)
+  response_api  String?         @db.Text
+  created_at    DateTime        @default(now()) @db.DateTime(0)
+
+  @@index([flow_code, created_at], map: "idx_flow")
+  @@index([wa_phone, created_at], map: "idx_wa_phone_time")
+}
+
+model bot_wa_processed {
+  message_id   String  @id @db.VarChar(64)
+  msg_hash     String  @db.VarChar(64)
+  wa_phone     String? @db.VarChar(20)
+  pesan_masuk  String? @db.VarChar(500)
+  processed_at Int
+
+  @@index([msg_hash, processed_at], map: "idx_hash_time")
+}
+
+model bot_wa_session {
+  id                 Int                   @id @default(autoincrement())
+  session_uuid       String                @unique(map: "uk_session_uuid") @db.VarChar(36)
+  wa_phone           String?               @db.VarChar(20)
+  wa_lid             String?               @db.VarChar(32)
+  push_name          String?               @db.VarChar(120)
+  flow_code          String                @default("bantuan_reset") @db.VarChar(50)
+  step               String                @db.VarChar(50)
+  npsn               String?               @db.Char(8)
+  nama_sekolah       String?               @db.VarChar(200)
+  data_json          String?               @db.Text
+  status             bot_wa_session_status @default(active)
+  created_at         DateTime              @default(now()) @db.DateTime(0)
+  updated_at         DateTime              @default(now()) @db.DateTime(0)
+  expired_at         DateTime?             @db.DateTime(0)
+  bot_wa_session_key bot_wa_session_key[]
+
+  @@index([status, updated_at], map: "idx_status_updated")
+  @@index([wa_lid], map: "idx_wa_lid")
+  @@index([wa_phone], map: "idx_wa_phone")
+}
+
+model bot_wa_session_key {
+  wa_key         String         @id @db.VarChar(64)
+  session_id     Int
+  bot_wa_session bot_wa_session @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_session_key_session")
+
+  @@index([session_id], map: "idx_session_id")
+}
+
+model bot_wa_template {
+  id           Int     @id @default(autoincrement())
+  flow_code    String  @db.VarChar(50)
+  template_key String  @db.VarChar(80)
+  judul        String? @db.VarChar(120)
+  keterangan   String? @db.VarChar(255)
+  isi_pesan    String  @db.Text
+  aktif        Boolean @default(true)
+
+  @@unique([flow_code, template_key], map: "uk_template")
+}
+
+model gmail_inbox_messages {
+  id                 Int       @id @default(autoincrement())
+  admin_id           Int
+  gmail_message_id   String    @db.VarChar(128)
+  thread_id          String?   @db.VarChar(128)
+  from_email         String?   @db.VarChar(255)
+  from_name          String?   @db.VarChar(255)
+  to_email           String?   @db.Text
+  subject            String?   @db.VarChar(500)
+  snippet            String?   @db.Text
+  body_text          String?   @db.LongText
+  body_html          String?   @db.LongText
+  received_at        DateTime? @db.DateTime(0)
+  is_read            Boolean   @default(false)
+  labels             String?   @db.Text
+  synced_at          DateTime  @db.DateTime(0)
+  payment_processed  Boolean   @default(false)
+  payment_status     String?   @db.VarChar(20)
+  matched_tagihan_id Int?
+  parsed_amount      Int?
+
+  @@unique([admin_id, gmail_message_id], map: "uniq_admin_message")
+  @@index([admin_id, received_at], map: "idx_admin_received")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model gmail_oauth_tokens {
+  id               Int       @id @default(autoincrement())
+  admin_id         Int       @unique(map: "uniq_admin_id")
+  email            String    @db.VarChar(255)
+  access_token     String    @db.Text
+  refresh_token    String?   @db.Text
+  token_expires_at DateTime? @db.DateTime(0)
+  cron_filter      String?   @db.Text
+  created_at       DateTime  @db.DateTime(0)
+  updated_at       DateTime  @db.DateTime(0)
+}
+
+model jawaban_mfs {
+  id                 Int     @id @default(autoincrement())
+  npsn               String? @default("") @db.VarChar(255)
+  tgl_upload         String? @default("") @db.VarChar(255)
+  id_mfs             String? @default("") @db.VarChar(255)
+  pengajuan_mfs      String? @db.VarChar(100)
+  jawaban            String  @db.Text
+  skor               String? @default("") @db.VarChar(255)
+  total_skor         String? @default("") @db.VarChar(255)
+  skor_mandiri       String? @default("") @db.VarChar(255)
+  total_skor_mandiri String? @default("") @db.VarChar(255)
+  skor_pwm           String? @default("") @db.VarChar(255)
+  total_skor_pwm     String? @default("") @db.VarChar(255)
+  ket_asesor         String? @db.Text
+
+  @@index([npsn, pengajuan_mfs], map: "idx_npsn_pengajuan")
+  @@index([pengajuan_mfs], map: "idx_pengajuan_mfs")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kegiatan_master {
+  id          Int      @id @default(autoincrement())
+  kd_kegiatan String   @db.VarChar(50)
+  nm_kegiatan String   @db.Text
+  kategori    String   @db.Text
+  tempat      String   @db.Text
+  tgl_mulai   String   @db.VarChar(50)
+  tgl_selesai String   @db.VarChar(50)
+  waktu       String   @db.VarChar(50)
+  link_maps   String   @db.Text
+  kuota       String   @db.VarChar(255)
+  harga       String   @db.VarChar(255)
+  cp          String   @db.Text
+  status      Int      @default(0)
+  pamflet     String   @db.VarChar(255)
+  surat       String   @db.VarChar(255)
+  keterangan  String   @db.Text
+  tgl_buat    DateTime @db.Timestamp(0)
+  presensi    String   @db.Text
+  sertifikat  String   @db.Text
+  nm_bank     String   @default("BANK MUAMALAT") @db.VarChar(100)
+  no_rek      String   @default("7010181912") @db.VarChar(100)
+  an_rek      String   @default("a/n Pimpinan Wilayah Muhammadiyah Jawa Timur") @db.VarChar(100)
+  nom_acak    String   @default("0") @db.VarChar(100)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kegiatan_peserta {
+  id             Int     @id @default(autoincrement())
+  kd_kegiatan    String  @db.VarChar(250)
+  kd_peserta     String  @db.VarChar(255)
+  nik            String  @db.VarChar(200)
+  npsn           String  @db.VarChar(200)
+  tgl_daftar     String? @default("") @db.VarChar(255)
+  pembayaran     String? @default("") @db.VarChar(255)
+  total_bayar    String? @default("") @db.VarChar(255)
+  group_bayar    String? @default("") @db.VarChar(255)
+  tgl_bayar      String? @default("") @db.VarChar(250)
+  bukti_bayar    String? @default("") @db.VarChar(250)
+  val_bayar      String? @default("") @db.VarChar(255)
+  tgl_val        String? @default("") @db.VarChar(255)
+  ket_val        String? @default("") @db.VarChar(255)
+  presensi       String? @default("") @db.VarChar(255)
+  val_sertifikat String? @default("0") @db.VarChar(255)
+  tgl_presensi   String? @default("") @db.VarChar(255)
+  sesi_presensi  String? @default("") @db.VarChar(255)
+  ots            String? @default("0") @db.VarChar(255)
+}
+
+model kepsek_form {
+  id           Int                @id @default(autoincrement())
+  judul        String             @db.VarChar(255)
+  deskripsi    String?            @db.Text
+  periode      Int?
+  id_sekolah   Int?
+  npsn         String?            @db.VarChar(20)
+  nama_sekolah String?            @db.VarChar(255)
+  status       kepsek_form_status @default(AKTIF)
+  created_at   DateTime           @db.DateTime(0)
+  updated_at   DateTime           @db.DateTime(0)
+
+  @@index([periode], map: "idx_kepsek_form_periode")
+  @@index([status], map: "idx_kepsek_form_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kepsek_form_field {
+  id            Int      @id @default(autoincrement())
+  form_id       Int
+  field_key     String   @db.VarChar(100)
+  label         String   @db.VarChar(255)
+  field_type    String   @default("text") @db.VarChar(50)
+  placeholder   String?  @db.VarChar(255)
+  options       String?  @db.Text
+  urutan        Int      @default(1)
+  is_required   Boolean  @default(false)
+  max_upload_kb Int      @default(2048)
+  help_text     String?  @db.VarChar(500)
+  sample_file   String?  @db.VarChar(255)
+  created_at    DateTime @db.DateTime(0)
+
+  @@unique([form_id, field_key], map: "uniq_form_field_key")
+  @@index([form_id], map: "idx_kepsek_field_form")
+  @@index([form_id, urutan], map: "idx_kepsek_field_urutan")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kepsek_form_jawaban {
+  id                Int                                   @id @default(autoincrement())
+  form_id           Int
+  npsn              String                                @db.VarChar(20)
+  id_sekolah        Int?
+  nama_sekolah      String?                               @db.VarChar(255)
+  npsn_asal         String?                               @db.VarChar(20)
+  id_sekolah_asal   Int?
+  nama_sekolah_asal String?                               @db.VarChar(255)
+  npsn_pengirim     String?                               @db.VarChar(20)
+  id_guru_tendik    Int?
+  nama_calon        String?                               @db.VarChar(255)
+  jawaban           String                                @db.LongText
+  file_upload       String?                               @db.Text
+  status_verifikasi kepsek_form_jawaban_status_verifikasi @default(MENUNGGU)
+  catatan_revisi    String?                               @db.Text
+  field_revisi      String?                               @db.Text
+  tgl_verifikasi    DateTime?                             @db.DateTime(0)
+  verified_by       Int?
+  skor_akhir        Decimal?                              @db.Decimal(6, 2)
+  tgl_kirim         DateTime                              @db.DateTime(0)
+  updated_at        DateTime?                             @db.DateTime(0)
+
+  @@index([form_id], map: "idx_kepsek_jawaban_form")
+  @@index([form_id, npsn], map: "idx_kepsek_jawaban_form_npsn")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kepsek_form_penilaian {
+  id               Int      @id @default(autoincrement())
+  jawaban_id       Int
+  urutan_penilai   Boolean
+  penilai_admin_id Int
+  penilai_nama     String?  @db.VarChar(255)
+  komitmen_1       Decimal? @db.Decimal(5, 2)
+  komitmen_2       Decimal? @db.Decimal(5, 2)
+  komitmen_3       Decimal? @db.Decimal(5, 2)
+  leadership_1     Decimal? @db.Decimal(5, 2)
+  leadership_2     Decimal? @db.Decimal(5, 2)
+  leadership_3     Decimal? @db.Decimal(5, 2)
+  visi_makalah     Decimal? @db.Decimal(5, 2)
+  visi_performance Decimal? @db.Decimal(5, 2)
+  visi_ict         Decimal? @db.Decimal(5, 2)
+  skor_total       Decimal? @db.Decimal(6, 2)
+  catatan          String?  @db.Text
+  created_by       Int?
+  created_at       DateTime @db.DateTime(0)
+  updated_at       DateTime @db.DateTime(0)
+
+  @@unique([jawaban_id, urutan_penilai], map: "uniq_kepsek_penilaian_jawaban_urutan")
+  @@index([penilai_admin_id], map: "idx_kepsek_penilaian_admin")
+  @@index([jawaban_id], map: "idx_kepsek_penilaian_jawaban")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kepsek_sekolah_master {
+  id                Int                                    @id @default(autoincrement())
+  form_id           Int
+  npsn              String                                 @db.VarChar(20)
+  id_sekolah        Int?
+  nama_sekolah      String?                                @db.VarChar(255)
+  status_keputusan  kepsek_sekolah_master_status_keputusan @default(MENUNGGU)
+  catatan_keputusan String?                                @db.Text
+  keputusan         String?                                @db.Text
+  sk_kepala_sekolah String?                                @db.VarChar(255)
+  tgl_awal_periode  DateTime?                              @db.Date
+  tgl_akhir_periode DateTime?                              @db.Date
+  decided_by        Int?
+  tgl_keputusan     DateTime?                              @db.DateTime(0)
+  created_at        DateTime                               @db.DateTime(0)
+  updated_at        DateTime                               @db.DateTime(0)
+
+  @@unique([form_id, npsn], map: "uniq_kepsek_master_form_npsn")
+  @@index([form_id], map: "idx_kepsek_master_form")
+  @@index([status_keputusan], map: "idx_kepsek_master_status")
+}
+
+model kuesioner_responden {
+  id               Int              @id @default(autoincrement())
+  kuesioner_id     Int
+  nama             String           @db.VarChar(255)
+  asal             String           @db.VarChar(255)
+  tlp              String?          @db.VarChar(30)
+  bintang          Boolean
+  kritik           String?          @db.Text
+  saran            String?          @db.Text
+  tgljam           DateTime         @db.DateTime(0)
+  ip_address       String?          @db.VarChar(45)
+  device_id        String?          @db.VarChar(64)
+  user_agent       String?          @db.VarChar(500)
+  master_kuesioner master_kuesioner @relation(fields: [kuesioner_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_responden_kuesioner")
+
+  @@index([kuesioner_id, device_id], map: "idx_responden_device")
+  @@index([kuesioner_id], map: "idx_responden_kuesioner")
+  @@index([tgljam], map: "idx_responden_tgljam")
+}
+
+model last_login {
+  id       Int    @id @default(autoincrement())
+  waktu    String @default("") @db.VarChar(255)
+  ip       String @default("") @db.VarChar(255)
+  username String @default("") @db.VarChar(255)
+  browse   String @default("") @db.VarChar(255)
+  os       String @default("") @db.VarChar(255)
+  status   String @default("") @db.VarChar(255)
+  lokasi   String @db.Text
+}
+
+model master_guru_tendik {
+  id_gurutendik          Int     @id @default(autoincrement())
+  id_sekolah             Int
+  nama_lengkap           String  @default("") @db.VarChar(100)
+  alamat                 String  @default("-") @db.VarChar(255)
+  temp_lahir             String  @default("") @db.VarChar(200)
+  tgl_lahir              String  @default("") @db.VarChar(200)
+  nik                    String  @default("0") @db.VarChar(200)
+  nbm                    String  @default("0") @db.VarChar(200)
+  nomor_wa               String  @default("") @db.VarChar(200)
+  status_guru_kar        String  @default("") @db.VarChar(200)
+  masa_kerja             String  @default("0") @db.VarChar(200)
+  jabatan                String  @default("-") @db.VarChar(200)
+  nuptk                  String  @default("0") @db.VarChar(200)
+  guru_penggerak         String  @default("-") @db.VarChar(200)
+  sertifikasi            String  @default("-") @db.VarChar(200)
+  gaji                   String  @default("0") @db.VarChar(200)
+  pendidikan_terakhir    String  @default("") @db.VarChar(200)
+  mapel_diampu           String  @default("-") @db.VarChar(200)
+  jumlah_tanggungan      String  @default("0") @db.VarChar(200)
+  penerima_program_bakti String  @default("") @db.VarChar(200)
+  jk                     String  @default("") @db.VarChar(200)
+  sekolah                sekolah @relation(fields: [id_sekolah], references: [id_sekolah], onDelete: NoAction, onUpdate: NoAction, map: "master_guru_tendik_ibfk_1")
+
+  @@index([id_sekolah], map: "id_sekolah")
+  @@index([nik], map: "idx_mgt_nik")
+}
+
+model master_kuesioner {
+  id                  Int                          @id @default(autoincrement())
+  judul               String                       @db.VarChar(255)
+  isi                 String                       @db.MediumText
+  jenis               master_kuesioner_jenis       @default(MEA)
+  status              master_kuesioner_status      @default(NONAKTIF)
+  mode_tampil         master_kuesioner_mode_tampil @default(SEKALI)
+  created_at          DateTime                     @db.DateTime(0)
+  updated_at          DateTime                     @db.DateTime(0)
+  kuesioner_responden kuesioner_responden[]
+
+  @@index([jenis], map: "idx_kuesioner_jenis")
+  @@index([status], map: "idx_kuesioner_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model master_siswa {
+  id_siswa         Int      @id @default(autoincrement())
+  id_periode       String   @default("0") @db.VarChar(200)
+  semester         String   @default("") @db.VarChar(200)
+  npsn             String   @default("0") @db.VarChar(100)
+  nis              String   @default("0") @db.VarChar(100)
+  nik              String   @default("") @db.VarChar(50)
+  nisn             String   @default("") @db.VarChar(50)
+  kelas            String   @default("") @db.VarChar(200)
+  sub_kelas        String   @default("-") @db.VarChar(50)
+  nama_lengkap     String   @default("") @db.VarChar(255)
+  tmp_lahir        String   @default("") @db.VarChar(100)
+  tgl_lahir        String   @default("0000-00-00") @db.VarChar(100)
+  jenis_kelamin    String   @default("") @db.VarChar(50)
+  agama            String   @default("") @db.VarChar(100)
+  alamat           String   @default("") @db.VarChar(255)
+  no_telp          String   @default("") @db.VarChar(200)
+  tinggal          String   @default("") @db.VarChar(100)
+  jarak_sekolah    Int      @default(0)
+  asal_sekolah     String   @default("") @db.VarChar(50)
+  kebutuhan_khusus String   @default("") @db.VarChar(100)
+  anak_ke          String   @default("") @db.VarChar(100)
+  jumlah_saudara   String   @default("") @db.VarChar(200)
+  nama_ayah        String   @default("") @db.VarChar(200)
+  tahun_lahir_ayah String   @default("") @db.VarChar(50)
+  pendidikan_ayah  String   @default("") @db.VarChar(200)
+  pekerjaan_ayah   String   @db.VarChar(200)
+  penghasilan_ayah String   @default("") @db.VarChar(200)
+  nama_ibu         String   @default("") @db.VarChar(200)
+  tahun_lahir_ibu  String   @default("") @db.VarChar(200)
+  pendidikan_ibu   String   @default("") @db.VarChar(200)
+  pekerjaan_ibu    String   @default("") @db.VarChar(200)
+  penghasilan_ibu  String   @default("") @db.VarChar(200)
+  lintang          String   @default("") @db.VarChar(255)
+  bujur            String   @default("") @db.VarChar(255)
+  tgl_upload       DateTime @db.DateTime(0)
+
+  @@index([nis], map: "idx_ms_nis")
+  @@index([npsn, id_periode], map: "idx_ms_npsn_periode")
+}
+
+model master_wali {
+  id_ortu      Int      @id @default(autoincrement())
+  id_siswa     String   @default("") @db.VarChar(20)
+  nik          String   @default("") @db.VarChar(100)
+  nama_wali    String   @default("") @db.VarChar(200)
+  tmp_lahir    String   @default("") @db.VarChar(100)
+  tgl_lahir    DateTime @default(dbgenerated("'0000-00-00'")) @db.Date
+  pen_terakhir String?  @default("0") @db.VarChar(200)
+  pekerjaan    String   @default("") @db.VarChar(100)
+  penghasilan  String   @default("0") @db.VarChar(100)
+  alamat       String   @db.Text
+  kec          String   @db.Text
+  kab          String   @db.Text
+  prov         String   @db.Text
+  no_tlp       String   @default("") @db.VarChar(100)
+  jenis        String   @default("") @db.VarChar(100)
+  status_ortu  String   @default("") @db.VarChar(100)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model mea_lomba {
+  id               Int     @id @default(autoincrement())
+  periode          String  @default("") @db.VarChar(200)
+  kategori         String  @default("") @db.VarChar(255)
+  nm_lomba         String  @default("") @db.VarChar(255)
+  jenis_group      String  @default("") @db.VarChar(255)
+  kuota            Int     @default(0)
+  status           String  @default("") @db.VarChar(255)
+  tampil_juara     Boolean @default(false)
+  ket              String  @db.Text
+  tempat           String  @db.Text
+  pembayaran       String  @db.VarChar(255)
+  indikator        String  @db.Text
+  bobot            String  @db.Text
+  jenis_perysratan String  @db.Text
+  juri1            String  @default("") @db.VarChar(200)
+  juri2            String  @default("") @db.VarChar(200)
+  kategori_peserta String  @default("") @db.VarChar(200)
+  bobot_juara      String  @default("") @db.VarChar(200)
+  group_wa         String  @db.Text
+  tgl_lomba        String  @db.VarChar(200)
+  kelas            String  @db.Text
+}
+
+model mea_nilai {
+  id          Int    @id @default(autoincrement())
+  id_peserta  Int    @default(0)
+  nilai1      String @default("") @db.VarChar(200)
+  nilai2      String @default("") @db.VarChar(200)
+  nilai_rata  String @default("") @db.VarChar(255)
+  nilai_akhir String @default("") @db.VarChar(250)
+  total_nilai String @default("") @db.VarChar(250)
+  peringkat   String @default("") @db.VarChar(250)
+  babak       String @default("1") @db.VarChar(250)
+}
+
+model mea_panitia {
+  id       Int    @id @default(autoincrement())
+  nama     String @db.Text
+  sebagai  String @default("") @db.VarChar(255)
+  periode  String @default("") @db.VarChar(255)
+  delegasi String @db.Text
+  no_wa    String @default("") @db.VarChar(50)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model mea_peserta {
+  id             Int    @id @default(autoincrement())
+  npsn           String @default("") @db.VarChar(255)
+  nis            String @db.Text
+  photo          String @db.Text
+  id_lomba       Int    @default(0)
+  nomer_peserta  String @default("") @db.VarChar(255)
+  persyaratan    String @default("") @db.VarChar(255)
+  tgl_daftar     String @default("") @db.VarChar(250)
+  tgl_bayar      String @default("") @db.VarChar(250)
+  bukti_bayar    String @default("") @db.VarChar(250)
+  pj_bayar       String @default("") @db.VarChar(250)
+  nominal        String @default("") @db.VarChar(255)
+  total_bayar    String @default("") @db.VarChar(255)
+  periode        String @default("") @db.VarChar(255)
+  file_lomba     String @default("") @db.VarChar(255)
+  nomer_tagihan  String @default("") @db.VarChar(255)
+  nilai1         String @default("") @db.VarChar(255)
+  nilai2         String @default("") @db.VarChar(255)
+  rata_rata      String @default("0") @db.VarChar(255)
+  total_rata     String @default("0") @db.VarChar(255)
+  total_nilai    String @default("0") @db.VarChar(255)
+  peringkat      String @db.VarChar(255)
+  presensi       String @default("") @db.VarChar(255)
+  perlengkapan   String @db.Text
+  file_nilai     String @db.Text
+  up_peserta     String @db.Text
+  pre_group_npsn String @db.Text
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model mea_tagihan {
+  id             Int    @id @default(autoincrement())
+  npsn           String @default("") @db.VarChar(250)
+  periode        String @default("") @db.VarChar(250)
+  nomer_tagihan  String @default("") @db.VarChar(255)
+  jumlah_peserta String @default("") @db.VarChar(255)
+  tagihan        String @default("") @db.VarChar(255)
+  kode_unik      String @default("") @db.VarChar(255)
+  total_tagihan  String @default("") @db.VarChar(255)
+  an_bayar       String @default("") @db.VarChar(255)
+  nomer_pj       String @default("") @db.VarChar(255)
+  tgl_buat       String @default("") @db.VarChar(255)
+  bukti_bayar    String @default("") @db.VarChar(255)
+  tgl_upload     String @default("") @db.VarChar(255)
+  jenis_bayar    String @default("MANUAL") @db.VarChar(255)
+  tgl_validasi   String @default("") @db.VarChar(255)
+  status         String @default("BELUM BAYAR") @db.VarChar(255)
+  keterangan     String @db.Text
+  link_xendit    String @db.Text
+  bank_xendit    String @db.Text
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model meconfest_lomba {
+  id               Int    @id @default(autoincrement())
+  periode          String @default("") @db.VarChar(200)
+  kategori         String @default("") @db.VarChar(255)
+  nm_lomba         String @default("") @db.VarChar(255)
+  jenis_group      String @default("") @db.VarChar(255)
+  kuota            Int    @default(0)
+  status           String @default("") @db.VarChar(255)
+  ket              String @db.Text
+  tempat           String @db.Text
+  pembayaran       String @db.VarChar(255)
+  indikator        String @db.Text
+  bobot            String @db.Text
+  jenis_perysratan String @db.Text
+  juri1            String @default("") @db.VarChar(200)
+  juri2            String @default("") @db.VarChar(200)
+  kategori_peserta String @default("") @db.VarChar(200)
+  bobot_juara      String @default("") @db.VarChar(200)
+  tgl_lomba        String @default("") @db.VarChar(200)
+}
+
+model meconfest_nilai {
+  id          Int    @id @default(autoincrement())
+  id_peserta  Int    @default(0)
+  nilai1      String @default("") @db.VarChar(200)
+  nilai2      String @default("") @db.VarChar(200)
+  nilai_rata  String @default("") @db.VarChar(255)
+  nilai_akhir String @default("") @db.VarChar(250)
+  total_nilai String @default("") @db.VarChar(250)
+  peringkat   String @default("") @db.VarChar(250)
+  babak       String @default("1") @db.VarChar(250)
+}
+
+model meconfest_panitia {
+  id       Int    @id @default(autoincrement())
+  nama     String @db.VarChar(255)
+  sebagai  String @db.VarChar(255)
+  periode  String @db.VarChar(20)
+  delegasi String @db.VarChar(20)
+  no_wa    String @db.VarChar(20)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model meconfest_peserta {
+  id             Int    @id @default(autoincrement())
+  npsn           String @default("") @db.VarChar(255)
+  nis            String @db.Text
+  photo          String @db.Text
+  id_lomba       Int    @default(0)
+  nomer_peserta  String @default("") @db.VarChar(255)
+  persyaratan    String @default("") @db.VarChar(255)
+  tgl_daftar     String @default("") @db.VarChar(250)
+  tgl_bayar      String @default("") @db.VarChar(250)
+  bukti_bayar    String @default("") @db.VarChar(250)
+  pj_bayar       String @default("") @db.VarChar(250)
+  nominal        String @default("") @db.VarChar(255)
+  total_bayar    String @default("") @db.VarChar(255)
+  periode        String @default("") @db.VarChar(255)
+  file_lomba     String @default("") @db.VarChar(255)
+  nomer_tagihan  String @default("") @db.VarChar(255)
+  nilai1         String @default("") @db.VarChar(255)
+  nilai2         String @default("") @db.VarChar(255)
+  rata_rata      String @default("0") @db.VarChar(255)
+  total_rata     String @default("0") @db.VarChar(255)
+  total_nilai    String @default("0") @db.VarChar(255)
+  peringkat      String @db.VarChar(255)
+  presensi       String @default("") @db.VarChar(255)
+  perlengkapan   String @db.Text
+  file_nilai     String @db.Text
+  up_peserta     String @db.Text
+  pre_group_npsn String @db.Text
+}
+
+model meconfest_tagihan {
+  id             Int    @id @default(autoincrement())
+  npsn           String @default("") @db.VarChar(250)
+  periode        String @default("") @db.VarChar(250)
+  nomer_tagihan  String @default("") @db.VarChar(255)
+  jumlah_peserta String @default("") @db.VarChar(255)
+  tagihan        String @default("") @db.VarChar(255)
+  kode_unik      String @default("") @db.VarChar(255)
+  total_tagihan  String @default("") @db.VarChar(255)
+  an_bayar       String @default("") @db.VarChar(255)
+  nomer_pj       String @default("") @db.VarChar(255)
+  tgl_buat       String @default("") @db.VarChar(255)
+  bukti_bayar    String @default("") @db.VarChar(255)
+  tgl_upload     String @default("") @db.VarChar(255)
+  tgl_validasi   String @default("") @db.VarChar(255)
+  status         String @default("") @db.VarChar(255)
+  keterangan     String @db.Text
+}
+
+model mfs {
+  id_mfs        Int    @id @default(autoincrement())
+  npsn          String @default("") @db.VarChar(200)
+  Ket           String @default("") @db.VarChar(250)
+  tgl_daftar    String @default("") @db.VarChar(200)
+  tgl_val_pdm   String @default("") @db.VarChar(200)
+  file          String @default("") @db.VarChar(250)
+  nik_asesor    String @default("") @db.VarChar(100)
+  jadwal_asesor String @default("") @db.VarChar(200)
+  skor          String @default("") @db.VarChar(250)
+  total_skor    String @default("") @db.VarChar(100)
+  tutup_nilai   String @default("") @db.VarChar(100)
+  berita_acara  String @default("") @db.VarChar(100)
+  dokumentasi   String @default("") @db.VarChar(100)
+  keputusan     String @default("") @db.VarChar(100)
+  siap_aksesmen String @default("") @db.VarChar(100)
+  tanggal_akhir String @db.VarChar(100)
+  reakreditasi  String @db.VarChar(100)
+}
+
+model mfs_keputusan {
+  id         Int     @id @default(autoincrement())
+  keterangan String? @default("") @db.VarChar(200)
+  point      String? @default("") @db.VarChar(255)
+}
+
+model periode {
+  id       Int    @id @default(autoincrement())
+  tahun    String @db.VarChar(50)
+  periode  String @db.VarChar(50)
+  semester String @db.VarChar(50)
+  status   String @db.VarChar(50)
+}
+
+model query {
+  id         Int    @id @default(autoincrement())
+  keterangan String @default("") @db.VarChar(255)
+  query      String @db.Text
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model quran {
+  surah String @db.VarChar(10)
+  isi   String @db.LongText
+  audio String @db.Text
+
+  @@ignore
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sekolah {
+  id_sekolah         Int                  @id @default(autoincrement())
+  npsn               String               @db.VarChar(30)
+  tingkat_pendidikan String               @db.VarChar(30)
+  nama_sekolah       String               @db.VarChar(200)
+  alamat             String               @default("") @db.VarChar(200)
+  kabupaten          String               @default("") @db.VarChar(200)
+  kurikulum          String               @default("") @db.VarChar(200)
+  guru_tetap         String               @default("") @db.VarChar(200)
+  guru_tidak_tetap   String               @default("") @db.VarChar(200)
+  guru_dpk           String               @default("") @db.VarChar(200)
+  gaji_guru          String               @default("") @db.VarChar(200)
+  jumlah_karyawan    String               @default("") @db.VarChar(200)
+  gaji_karyawan      String               @default("") @db.VarChar(200)
+  siswa_kelas_1      String               @default("") @db.VarChar(200)
+  spp_kelas_1        String               @default("") @db.VarChar(200)
+  siswa_kelas_2      String               @default("") @db.VarChar(200)
+  spp_kelas_2        String               @default("") @db.VarChar(200)
+  siswa_kelas_3      String               @default("") @db.VarChar(200)
+  spp_kelas_3        String               @default("") @db.VarChar(200)
+  ujian_uts          String               @default("") @db.VarChar(200)
+  ujian_akhir        String               @default("") @db.VarChar(200)
+  kepala_sekolah     String               @default("") @db.VarChar(200)
+  wa_kepala_Sekolah  String               @default("") @db.VarChar(200)
+  operator           String               @default("") @db.VarChar(200)
+  wa_operator        String               @default("") @db.VarChar(200)
+  password           String               @db.VarChar(200)
+  muh                String               @default("1") @db.VarChar(200)
+  master_guru_tendik master_guru_tendik[]
+}
+
+model setting {
+  id_setting Int     @id @default(autoincrement())
+  ket        String? @db.VarChar(200)
+  isi        String? @db.Text
+}
+
+model setting_master {
+  id              Int    @id @default(autoincrement())
+  jenis           String @db.VarChar(255)
+  tahun           String @default("") @db.VarChar(255)
+  sertifikat      String @default("") @db.VarChar(255)
+  kop             String @default("") @db.VarChar(255)
+  id_card         String @default("") @db.VarChar(255)
+  tgl_penggumuman String @default("") @db.VarChar(255)
+  panduan         String @default("") @db.VarChar(255)
+  giudebook       String @default("") @db.VarChar(255)
+  flayer          String @default("") @db.VarChar(255)
+  juara           String @default("") @db.VarChar(255)
+  perlengkapan    String @db.Text
+  card_panitia    String @db.Text
+  ser_panitia     String @db.Text
+  logo            String @db.Text
+}
+
+model slider {
+  id     Int    @id @default(autoincrement())
+  nomer  Int
+  status String @db.VarChar(200)
+  images String @db.VarChar(200)
+  link   String @db.VarChar(200)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model soal_mfs {
+  id            Int    @id @default(autoincrement())
+  urut          String @default("") @db.VarChar(200)
+  indikator     String @default("") @db.VarChar(255)
+  sub_indikator String @db.Text
+  pemenuhan     String @db.Text
+  skor          String @default("") @db.VarChar(255)
+  akses         String @default("") @db.VarChar(255)
+}
+
+model soal_mfs_kat {
+  id       Int    @id @default(autoincrement())
+  urut     String @default("0") @db.VarChar(200)
+  kategori String @db.Text
+}
+
+model surah {
+  id_surah    Int    @id @default(autoincrement())
+  no_surah    String @db.VarChar(15)
+  nama_latin  String @db.VarChar(250)
+  nama_arab   String @db.Text
+  jumlah_ayat String @db.VarChar(15)
+}
+
+model w_desa {
+  id           String  @id @db.VarChar(10)
+  kecamatan_id String? @db.VarChar(7)
+  nama         String? @db.VarChar(40)
+}
+
+model w_kabupaten {
+  id          String @id @db.VarChar(4)
+  provinsi_id String @default("") @db.VarChar(2)
+  nama        String @db.VarChar(30)
+}
+
+model w_kecamatan {
+  id           String @id @db.VarChar(7)
+  kabupaten_id String @default("") @db.VarChar(4)
+  nama         String @db.VarChar(30)
+}
+
+model w_provinsi {
+  id   String @id @db.VarChar(2)
+  nama String @db.VarChar(30)
+}
+
+enum bot_wa_log_arah {
+  in
+  out
+}
+
+enum bot_wa_keyword_match_type {
+  exact
+  contains
+  starts
+}
+
+enum master_kuesioner_jenis {
+  MEA
+  MECONFEST
+  KEGIATAN
+  MFS_SISTEM @map("MFS.SISTEM")
+}
+
+enum master_kuesioner_status {
+  AKTIF
+  NONAKTIF
+}
+
+enum kepsek_sekolah_master_status_keputusan {
+  MENUNGGU
+  PROSES
+  TERPILIH
+  TIDAK_TERPILIH
+  DITUNDA
+}
+
+enum master_kuesioner_mode_tampil {
+  SEKALI
+  TANPA_CEK
+}
+
+enum kepsek_form_status {
+  AKTIF
+  NONAKTIF
+}
+
+enum bot_wa_session_status {
+  active
+  completed
+  expired
+}
+
+enum kepsek_form_jawaban_status_verifikasi {
+  MENUNGGU
+  SESUAI
+  REVISI
+}
+
+

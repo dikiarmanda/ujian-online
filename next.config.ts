@@ -16,7 +16,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   agentRules: false,
-  serverExternalPackages: ["@prisma/client", "@prisma/adapter-mariadb", "mariadb", "bullmq", "ioredis", "pdfkit"],
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
+  serverExternalPackages: ["@prisma/client", "@prisma/adapter-mariadb", "mariadb", "bullmq", "ioredis", "pdfkit", "bcrypt"],
   async headers() {
     const headers = [...securityHeaders];
     if (process.env.NODE_ENV === "production") {

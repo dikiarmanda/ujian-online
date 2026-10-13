@@ -7,6 +7,7 @@ const links = [
   { href: "/admin/soal", label: "Bank soal" },
   { href: "/admin/ujian", label: "Ujian" },
   { href: "/admin/laporan", label: "Laporan" },
+  { href: "/admin/klien", label: "Klien API" },
 ];
 
 export function AdminShell({ name, current, children }: { name: string; current: string; children: React.ReactNode }) {

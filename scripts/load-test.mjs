@@ -35,10 +35,16 @@ function percentile(values, ratio) {
   return sorted[Math.max(0, index)];
 }
 
+const identity = process.env.LOAD_IDENTITY;
+const password = process.env.LOAD_PASSWORD;
+if (!identity || !password) {
+  console.error("Isi LOAD_IDENTITY dan LOAD_PASSWORD peserta OMBN sebelum mengukur beban login.");
+  process.exit(1);
+}
 const login = await fetch(`${base}/api/auth/login`, {
   method: "POST",
   headers: { "content-type": "application/json", "x-ujian-request": "1", origin: base },
-  body: JSON.stringify({ identity: "beban", password: "rahasia" }),
+  body: JSON.stringify({ identity, password }),
 });
 if (!login.ok) {
   console.error(await login.text());
