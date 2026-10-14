@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { AppBar, StatusChip } from "@/components/chrome";
+import { headers } from "next/headers";
+import { AppBar, AppFooter, StatusChip } from "@/components/chrome";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 import { formatJakarta } from "@/lib/format";
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
 
 export default async function PesertaHome() {
   const user = await requirePageUser(["PARTICIPANT"]);
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "localhost";
+  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "127.0.0.1";
   const rows = await prisma.sessionParticipant.findMany({
     where: { userId: user.userId },
     include: {
@@ -22,9 +26,9 @@ export default async function PesertaHome() {
     orderBy: { examDate: "desc" },
   });
   return (
-    <div className="min-h-screen bg-page">
+    <div className="flex min-h-screen flex-col bg-page">
       <AppBar title="Ujian Anda" name={user.name} />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <p className="mb-6 text-ink-muted">Pilih ujian yang ditugaskan. Status di kanan menunjukkan langkah Anda berikutnya.</p>
         <ul className="flex flex-col gap-3">
           {rows.length === 0 ? <li className="rounded-md border border-line bg-paper p-6 text-sm text-ink-muted shadow-paper">Belum ada ujian yang ditugaskan.</li> : null}
@@ -61,6 +65,7 @@ export default async function PesertaHome() {
           })}
         </ul>
       </main>
+      <AppFooter host={host} user={`${user.name} (${user.identity})`} ip={ip} />
     </div>
   );
 }

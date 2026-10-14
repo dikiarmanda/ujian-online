@@ -71,3 +71,32 @@ export function SubmittedNotice() {
     </main>
   );
 }
+
+export function AppFooter({
+  host,
+  user,
+  ip,
+}: {
+  host: string;
+  user: string;
+  ip: string;
+}) {
+  return (
+    <footer className="mt-auto border-t border-line bg-paper py-3 text-xs text-ink-muted">
+      <div className="mx-auto flex max-w-3xl flex-col items-center justify-between gap-2 px-4 sm:flex-row">
+        <span>© Majelis Dikdasmen dan PNF PP Muhammadiyah</span>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <span>
+            Host: <span className="font-medium text-ink">{host}</span>
+          </span>
+          <span>
+            User: <span className="font-medium text-ink">{user}</span>
+          </span>
+          <span>
+            IP: <span className="font-medium text-ink">{ip}</span>
+          </span>
+        </div>
+      </div>
+    </footer>
+  );
+}
