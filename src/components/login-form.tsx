@@ -26,7 +26,7 @@ export function LoginForm() {
   return (
     <form method="post" action="#" onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm font-semibold">
-        Identitas
+        Username
         <input name="identity" autoComplete="username" required className="font-normal" />
       </label>
       <label className="flex flex-col gap-1 text-sm font-semibold">

@@ -21,7 +21,7 @@ export default async function LoginPage() {
       <section className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md rounded-md border border-line bg-paper p-8 shadow-paper">
           <h2 className="text-lg font-semibold">Masuk</h2>
-          <p className="mt-1 text-sm text-ink-muted">Nomor peserta, atau email untuk admin dan juri.</p>
+          <p className="mt-1 text-sm text-ink-muted">Nomor peserta atau email.</p>
           <LoginForm />
         </div>
       </section>
