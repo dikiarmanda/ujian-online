@@ -3,12 +3,24 @@ import { env } from "./env";
 
 const globalForRedis = globalThis as unknown as { redis?: Redis };
 
-function createRedis(): Redis {
-  return new Redis(env().redisUrl, {
-    maxRetriesPerRequest: 2,
-    lazyConnect: true,
-    enableReadyCheck: true,
+function attachRedisHandlers(client: Redis): Redis {
+  client.on("error", (error) => {
+    console.error("[redis]", error.message);
   });
+  return client;
+}
+
+function createRedis(): Redis {
+  return attachRedisHandlers(
+    new Redis(env().redisUrl, {
+      maxRetriesPerRequest: 2,
+      lazyConnect: true,
+      enableReadyCheck: true,
+      retryStrategy(times) {
+        return Math.min(times * 200, 2000);
+      },
+    }),
+  );
 }
 
 export const redis = globalForRedis.redis ?? createRedis();
@@ -18,5 +30,5 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export function createBullConnection(): Redis {
-  return new Redis(env().redisUrl, { maxRetriesPerRequest: null });
+  return attachRedisHandlers(new Redis(env().redisUrl, { maxRetriesPerRequest: null }));
 }

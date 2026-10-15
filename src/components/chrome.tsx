@@ -6,7 +6,7 @@ export function LogoutButton() {
   return (
     <button
       type="button"
-      className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink hover:border-brand hover:text-brand"
+      className="rounded-xl border border-line bg-paper px-3 py-2 text-sm text-ink transition hover:border-brand hover:text-brand"
       onClick={() => {
         void api("/api/auth/logout", { body: {} }).then(() => {
           window.location.href = "/login";
@@ -19,9 +19,9 @@ export function LogoutButton() {
 
 export function AppBar({ title, name }: { title: string; name?: string }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-paper">
+    <header className="sticky top-0 z-20 border-b border-line/80 bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/80">
       <div className="h-1 bg-brand" />
-      <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <img src="/brand/logo-dikdas.png" alt="Logo Majelis Dikdasmen dan PNF PP Muhammadiyah" className="h-9 w-auto" />
           <div className="min-w-0">
@@ -31,7 +31,7 @@ export function AppBar({ title, name }: { title: string; name?: string }) {
         </div>
         {name ? (
           <div className="flex shrink-0 items-center gap-3">
-            <span className="hidden max-w-40 truncate text-sm sm:inline">{name}</span>
+            <span className="hidden max-w-48 truncate rounded-full bg-page px-3 py-1.5 text-sm text-ink-muted sm:inline">{name}</span>
             <LogoutButton />
           </div>
         ) : null}

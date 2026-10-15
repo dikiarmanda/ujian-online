@@ -60,8 +60,13 @@ export async function sessionReport(sessionId: number) {
     })),
   );
   return {
+    sessionId: session.id,
+    examId: session.examId,
     sessionName: session.name,
     examName: session.exam.name,
+    startsAt: session.startsAt,
+    endsAt: session.endsAt,
+    durationMinutes: session.exam.durationMinutes,
     rows,
     items,
     violations,

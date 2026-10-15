@@ -16,7 +16,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   agentRules: false,
-  allowedDevOrigins: ["127.0.0.1", "localhost"],
+  allowedDevOrigins: ["127.0.0.1", "localhost", "ujian.dikdasmen.id"],
   serverExternalPackages: ["@prisma/client", "@prisma/adapter-mariadb", "mariadb", "bullmq", "ioredis", "pdfkit", "bcrypt"],
   async headers() {
     const headers = [...securityHeaders];

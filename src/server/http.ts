@@ -1,5 +1,5 @@
 import { type ZodType } from "zod";
-import { AppError } from "./errors";
+import { AppError, isRedisUnavailable, RedisDownError } from "./errors";
 import type { AppRole } from "./exam-rules";
 import { clientIp, readCookie, readSession, type SessionRecord } from "./session";
 
@@ -12,6 +12,9 @@ export async function withErrors(fn: () => Promise<Response>): Promise<Response>
     return await fn();
   } catch (error) {
     if (error instanceof AppError) return json({ error: error.message }, error.status);
+    if (isRedisUnavailable(error)) {
+      return json({ error: new RedisDownError().message }, 503);
+    }
     console.error(error);
     return json({ error: "Terjadi kesalahan di server. Coba lagi." }, 500);
   }
