@@ -4,13 +4,14 @@ import { AppBar, AppFooter, StatusChip } from "@/components/chrome";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 import { formatJakarta } from "@/lib/format";
+import os from 'os';
 
 export const dynamic = "force-dynamic";
 
 export default async function PesertaHome() {
   const user = await requirePageUser(["PARTICIPANT"]);
   const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "localhost";
+  const hostname = os.hostname();
   const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "127.0.0.1";
   const rows = await prisma.sessionParticipant.findMany({
     where: { userId: user.userId },
@@ -65,7 +66,7 @@ export default async function PesertaHome() {
           })}
         </ul>
       </main>
-      <AppFooter host={host} user={`${user.name} (${user.identity})`} ip={ip} />
+      <AppFooter host={hostname} user={`${user.name} (${user.identity})`} ip={ip} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { AppBar, AppFooter } from "@/components/chrome";
+import os from 'os';
 
 const links = [
   {
@@ -68,7 +69,7 @@ export async function AdminShell({
   identity?: string;
 }) {
   const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "localhost";
+  const hostname = os.hostname();
   const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "127.0.0.1";
   const footerUser = identity ? `${name} (${identity})` : name;
 
@@ -112,7 +113,7 @@ export async function AdminShell({
           <div className="relative">{children}</div>
         </main>
       </div>
-      <AppFooter host={host} user={footerUser} ip={ip} />
+      <AppFooter host={hostname} user={footerUser} ip={ip} />
     </div>
   );
 }
