@@ -256,9 +256,20 @@ export default async function SoalPage({
           </section>
 
           <section id="impor" className="scroll-mt-24 rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold tracking-tight text-ink">Impor CSV</h2>
-              <p className="mt-0.5 text-sm text-ink-muted">Unggah banyak soal sekaligus dari berkas CSV.</p>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight text-ink">Impor CSV</h2>
+                <p className="mt-0.5 text-sm text-ink-muted">Unggah banyak soal sekaligus dari berkas CSV.</p>
+              </div>
+              <a
+                href="/templates/template-impor-soal.csv"
+                download="template-impor-soal.csv"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 4v10M8 10l4 4 4-4M5 18h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Unduh template
+              </a>
             </div>
             <ImportForm />
           </section>
