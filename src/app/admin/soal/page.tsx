@@ -173,7 +173,12 @@ export default async function SoalPage({
                           {question.code}
                         </Link>
                         <p className="mt-1 text-sm text-ink-muted">{question.category.name}</p>
-                        <p className="mt-1 text-xs text-ink-muted">Bobot {question.defaultWeight.toString()}</p>
+                        <p className="mt-1 text-xs text-ink-muted">
+                          Benar {question.defaultWeight.toString()}
+                          {Number(question.defaultWrongWeight) > 0
+                            ? ` · salah −${question.defaultWrongWeight.toString()}`
+                            : ""}
+                        </p>
                       </div>
                       <Link
                         href={`/admin/soal/${question.id}`}
@@ -192,7 +197,8 @@ export default async function SoalPage({
                       <th className="px-5 py-3.5">Kode</th>
                       <th className="px-4 py-3.5">Kategori</th>
                       <th className="px-4 py-3.5">Jenis</th>
-                      <th className="px-4 py-3.5">Bobot</th>
+                      <th className="px-4 py-3.5">Bobot benar</th>
+                      <th className="px-4 py-3.5">Bobot salah</th>
                       <th className="px-4 py-3.5">Status</th>
                       <th className="px-5 py-3.5 text-right">Aksi</th>
                     </tr>
@@ -210,6 +216,9 @@ export default async function SoalPage({
                           <TypeBadge type={question.type} />
                         </td>
                         <td className="px-4 py-3.5 font-digits tabular-nums text-ink">{question.defaultWeight.toString()}</td>
+                        <td className="px-4 py-3.5 font-digits tabular-nums text-ink">
+                          {Number(question.defaultWrongWeight) > 0 ? `−${question.defaultWrongWeight.toString()}` : "0"}
+                        </td>
                         <td className="px-4 py-3.5">
                           {question.isActive ? (
                             <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Aktif</span>

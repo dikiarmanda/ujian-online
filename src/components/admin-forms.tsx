@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { api } from "@/lib/api";
+import { DateTimePicker } from "./date-time-picker";
 
 const SummernoteEditor = dynamic(() => import("./summernote-editor"), {
   ssr: false,
@@ -164,6 +165,7 @@ export function QuestionForm({
     type: "MULTIPLE_CHOICE" | "ESSAY";
     body: string;
     defaultWeight: number;
+    defaultWrongWeight: number;
     isActive: boolean;
     options: OptionDraft[];
     answerKey: string;
@@ -177,6 +179,9 @@ export function QuestionForm({
       : [
           { label: "A", body: "", isCorrect: true },
           { label: "B", body: "", isCorrect: false },
+          { label: "C", body: "", isCorrect: false },
+          { label: "D", body: "", isCorrect: false },
+          { label: "E", body: "", isCorrect: false },
         ],
   );
   const [bodyHtml, setBodyHtml] = useState(initial?.body ?? "");
@@ -195,27 +200,30 @@ export function QuestionForm({
           setError("Teks soal tidak boleh kosong.");
           return;
         }
+        let filledOptions = options;
         if (type === "MULTIPLE_CHOICE") {
-          const emptyOption = options.find((option) => !stripHtml(option.body));
-          if (emptyOption) {
-            setError(`Jawaban ${emptyOption.label} masih kosong.`);
+          filledOptions = options.filter((option) => stripHtml(option.body));
+          if (filledOptions.length < 4) {
+            setError("Pilihan ganda wajib mengisi minimal 4 opsi.");
             return;
           }
-          if (!options.some((option) => option.isCorrect)) {
-            setError("Pilih satu opsi sebagai kunci jawaban.");
+          if (!filledOptions.some((option) => option.isCorrect)) {
+            setError("Pilih satu opsi terisi sebagai kunci jawaban.");
             return;
           }
         }
         const form = new FormData(event.currentTarget);
+        const rawWrong = form.get("defaultWrongWeight");
+        const parsedWrong = rawWrong === "" || rawWrong == null ? -1 : Number(rawWrong);
         const payload = {
           id: initial?.id,
-          code: String(form.get("code") ?? ""),
           categoryId: Number(form.get("categoryId")),
           type,
           body: bodyHtml,
           defaultWeight: Number(form.get("defaultWeight") || 1),
+          defaultWrongWeight: Math.abs(Number.isFinite(parsedWrong) ? parsedWrong : 1),
           isActive: form.get("isActive") === "on",
-          options,
+          options: filledOptions,
           answerKey: answerKeyHtml,
           rubric: rubricHtml,
         };
@@ -233,20 +241,19 @@ export function QuestionForm({
       <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold tracking-tight text-ink">Identitas soal</h2>
-          <p className="mt-0.5 text-sm text-ink-muted">Kode, kategori, jenis, dan status pemakaian.</p>
+          <p className="mt-0.5 text-sm text-ink-muted">Kategori, jenis, dan status pemakaian. Kode dibuat otomatis oleh sistem.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
+          {editing && initial?.code ? (
+            <div className="sm:col-span-2">
+              <p className="text-sm font-semibold text-ink">Kode</p>
+              <p className="mt-1 rounded-xl border border-line bg-page/60 px-3 py-2.5 font-digits text-sm text-ink">
+                {initial.code}
+              </p>
+              <p className="mt-1 text-xs font-normal text-ink-muted">Dibuat otomatis dan tidak dapat diubah.</p>
+            </div>
+          ) : null}
           <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
-            Kode
-            <input
-              name="code"
-              required
-              defaultValue={initial?.code}
-              placeholder="Mis. MTK-001"
-              className="rounded-xl border border-line px-3 py-2.5 font-normal"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
             Kategori
             <select
               name="categoryId"
@@ -263,7 +270,7 @@ export function QuestionForm({
             </select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-            Bobot
+            Bobot benar
             <input
               name="defaultWeight"
               type="number"
@@ -273,6 +280,19 @@ export function QuestionForm({
               className="rounded-xl border border-line px-3 py-2.5 font-normal"
             />
           </label>
+          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+            Bobot salah
+            <input
+              name="defaultWrongWeight"
+              type="number"
+              step="0.01"
+              defaultValue={initial ? -Number(initial.defaultWrongWeight) : -1}
+              className="rounded-xl border border-line px-3 py-2.5 font-normal"
+            />
+          </label>
+          <p className="text-xs font-normal text-ink-muted sm:col-span-2">
+            Bobot salah memakai nilai negatif (default −1). Soal kosong tidak dikurangi.
+          </p>
         </div>
 
         <div className="mt-4">
@@ -320,14 +340,16 @@ export function QuestionForm({
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-base font-semibold tracking-tight text-ink">Opsi jawaban</h2>
-              <p className="mt-0.5 text-sm text-ink-muted">Tandai satu opsi sebagai kunci. Minimal dua opsi.</p>
+              <p className="mt-0.5 text-sm text-ink-muted">Tandai satu opsi sebagai kunci. Wajib isi minimal 4 dari 5 opsi (A–E).</p>
             </div>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-line px-3 py-2 text-sm font-semibold text-brand transition hover:border-brand hover:bg-brand-soft"
-              onClick={() => setOptions([...options, { label: String.fromCharCode(65 + options.length), body: "", isCorrect: false }])}>
-              + Tambah opsi
-            </button>
+            {options.length < 5 ? (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-xl border border-line px-3 py-2 text-sm font-semibold text-brand transition hover:border-brand hover:bg-brand-soft"
+                onClick={() => setOptions([...options, { label: String.fromCharCode(65 + options.length), body: "", isCorrect: false }])}>
+                + Tambah opsi
+              </button>
+            ) : null}
           </div>
           <div className="flex flex-col gap-3">
             {options.map((option, index) => (
@@ -357,10 +379,15 @@ export function QuestionForm({
                     />
                     Kunci
                   </label>
-                  {options.length > 2 ? (
+                  {index >= 4 ? (
+                    <span className="ml-auto text-xs font-normal text-ink-muted">Opsional</span>
+                  ) : (
+                    <span className="ml-auto text-xs font-normal text-ink-muted">Wajib</span>
+                  )}
+                  {options.length > 4 ? (
                     <button
                       type="button"
-                      className="ml-auto text-sm font-semibold text-alert hover:underline"
+                      className="text-sm font-semibold text-alert hover:underline"
                       onClick={() => setOptions(options.filter((_, itemIndex) => itemIndex !== index))}>
                       Hapus
                     </button>
@@ -368,7 +395,9 @@ export function QuestionForm({
                 </div>
                 <SummernoteEditor
                   value={option.body}
-                  placeholder={`Tulis jawaban ${option.label}…`}
+                  placeholder={
+                    index >= 4 ? `Jawaban ${option.label} (opsional)…` : `Tulis jawaban ${option.label}…`
+                  }
                   height={110}
                   onChange={(html) => {
                     const next = [...options];
@@ -443,8 +472,13 @@ export function ImportForm() {
           .finally(() => setPending(false));
       }}>
       <p className="rounded-xl bg-page/80 px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
-        Kolom CSV: <span className="font-digits text-ink">kode, kategori, jenis, teks, bobot, opsi_a–d, kunci, pedoman, rubrik</span>.
-        Jenis diisi <span className="font-semibold text-ink">pg</span> atau <span className="font-semibold text-ink">uraian</span>.
+        Kolom CSV:{" "}
+        <span className="font-digits text-ink">
+          kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, pedoman, rubrik
+        </span>
+        . Kode digenerate otomatis. Jenis diisi <span className="font-semibold text-ink">pg</span> atau{" "}
+        <span className="font-semibold text-ink">uraian</span>. PG wajib isi minimal 4 opsi;{" "}
+        <span className="font-digits text-ink">bobot_salah</span> default <span className="font-digits text-ink">-1</span>.
       </p>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
         Berkas CSV
@@ -468,7 +502,9 @@ export function ImportForm() {
   );
 }
 
-export function ExamForm() {
+type PackageOption = { id: number; name: string; itemCount: number };
+
+export function ExamForm({ packages }: { packages: PackageOption[] }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   return (
@@ -477,6 +513,11 @@ export function ExamForm() {
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
+        const packageId = Number(form.get("packageId"));
+        if (!packageId) {
+          setError("Pilih paket soal.");
+          return;
+        }
         setPending(true);
         setError(null);
         void api<{ id: number }>("/api/admin/ujian", {
@@ -487,6 +528,7 @@ export function ExamForm() {
             shuffleQuestions: form.get("shuffleQuestions") === "on",
             shuffleOptions: form.get("shuffleOptions") === "on",
             status: form.get("status"),
+            packageId,
           },
         })
           .then((result) => {
@@ -505,18 +547,51 @@ export function ExamForm() {
         <input id="exam-name" name="name" required className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal" />
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="exam-package" className="text-sm font-semibold text-ink">
+          Paket soal
+        </label>
+        <p className="text-xs text-ink-muted">Isi soal diambil dari paket yang dipilih.</p>
+        {packages.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-line-strong/60 px-3 py-3 text-sm text-ink-muted">
+            Belum ada paket aktif.{" "}
+            <a href="/admin/paket" className="font-semibold text-brand hover:underline">
+              Buat paket soal
+            </a>{" "}
+            dulu.
+          </p>
+        ) : (
+          <select
+            id="exam-package"
+            name="packageId"
+            required
+            defaultValue=""
+            className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
+            <option value="" disabled>
+              Pilih paket…
+            </option>
+            {packages.map((pack) => (
+              <option key={pack.id} value={pack.id}>
+                {pack.name} ({pack.itemCount} soal)
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="exam-date" className="text-sm font-semibold text-ink">
             Tanggal ujian
           </label>
           <p className="text-xs text-ink-muted">Tanggal pelaksanaan resmi ujian</p>
-          <input
+          <DateTimePicker
             id="exam-date"
             name="examDate"
-            type="date"
+            mode="date"
             required
-            className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
+            placeholder="Pilih tanggal"
+            className="w-full rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -529,7 +604,7 @@ export function ExamForm() {
             name="durationMinutes"
             type="number"
             min={1}
-            defaultValue={60}
+            defaultValue={120}
             required
             className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
           />
@@ -559,17 +634,17 @@ export function ExamForm() {
         <p className="mb-3 text-xs text-ink-muted">Opsional. Berlaku per peserta saat mengerjakan.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input type="checkbox" name="shuffleQuestions" className="mt-0.5 size-4 accent-[var(--color-brand)]" />
+            <input type="checkbox" name="shuffleQuestions" defaultChecked className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <span>
               <span className="font-semibold">Acak urutan soal</span>
               <span className="mt-0.5 block text-xs font-normal text-ink-muted">Tiap peserta mendapat urutan soal berbeda</span>
             </span>
           </label>
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input type="checkbox" name="shuffleOptions" className="mt-0.5 size-4 accent-[var(--color-brand)]" />
+            <input type="checkbox" name="shuffleOptions" defaultChecked className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <span>
               <span className="font-semibold">Acak urutan opsi</span>
-              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Pilihan A–D diacak per peserta</span>
+              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Pilihan A–E diacak per peserta</span>
             </span>
           </label>
         </div>
@@ -578,7 +653,7 @@ export function ExamForm() {
       <ErrorText error={error} />
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || packages.length === 0}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
         {pending ? "Menyimpan…" : "Buat ujian"}
       </button>
@@ -586,16 +661,103 @@ export function ExamForm() {
   );
 }
 
-export function PackageForm({
+type QuestionPick = {
+  id: number;
+  code: string;
+  defaultWeight: string;
+  defaultWrongWeight: string;
+  type?: string;
+  categoryName?: string;
+};
+
+export function ExamPackageAssignForm({
   examId,
-  questions,
-  selected,
+  packages,
+  currentPackageId,
 }: {
   examId: number;
-  questions: { id: number; code: string; defaultWeight: string; type?: string; categoryName?: string }[];
-  selected: number[];
+  packages: PackageOption[];
+  currentPackageId: number | null;
 }) {
-  const [picked, setPicked] = useState<number[]>(selected);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const packageId = Number(form.get("packageId"));
+        if (!packageId) {
+          setError("Pilih paket soal.");
+          return;
+        }
+        setPending(true);
+        setError(null);
+        void api("/api/admin/paket", { body: { examId, packageId } })
+          .then(() => window.location.reload())
+          .catch((cause: unknown) => {
+            setError(cause instanceof Error ? cause.message : "Gagal menerapkan paket.");
+            setPending(false);
+          });
+      }}>
+      {packages.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-line-strong/60 px-4 py-6 text-center text-sm text-ink-muted">
+          Belum ada paket aktif.{" "}
+          <a href="/admin/paket" className="font-semibold text-brand hover:underline">
+            Buat paket soal
+          </a>
+          .
+        </p>
+      ) : (
+        <>
+          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+            Paket soal
+            <select
+              name="packageId"
+              required
+              defaultValue={currentPackageId ?? ""}
+              className="rounded-xl border border-line px-3 py-2.5 font-normal">
+              <option value="" disabled>
+                Pilih paket…
+              </option>
+              {packages.map((pack) => (
+                <option key={pack.id} value={pack.id}>
+                  {pack.name} ({pack.itemCount} soal)
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-xs text-ink-muted">
+            Menerapkan paket akan mengganti seluruh soal ujian ini dengan isi paket terbaru.
+          </p>
+          <button
+            type="submit"
+            disabled={pending}
+            className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+            {pending ? "Menerapkan…" : "Terapkan paket"}
+          </button>
+        </>
+      )}
+      <ErrorText error={error} />
+    </form>
+  );
+}
+
+export function QuestionPackageForm({
+  questions,
+  initial,
+}: {
+  questions: QuestionPick[];
+  initial?: {
+    id: number;
+    name: string;
+    description: string;
+    isActive: boolean;
+    questionIds: number[];
+  };
+}) {
+  const [picked, setPicked] = useState<number[]>(initial?.questionIds ?? []);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -605,111 +767,190 @@ export function PackageForm({
     const haystack = [question.code, question.categoryName ?? "", question.type ?? ""].join(" ").toLowerCase();
     return haystack.includes(deferred);
   });
-  const dirty =
-    picked.length !== selected.length || picked.some((id) => !selected.includes(id)) || selected.some((id) => !picked.includes(id));
+  const editing = Boolean(initial?.id);
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
+        if (picked.length < 1) {
+          setError("Pilih minimal satu soal.");
+          return;
+        }
+        const form = new FormData(event.currentTarget);
         const items = picked.map((questionId) => {
           const question = questions.find((item) => item.id === questionId);
-          return { questionId, weight: Number(question?.defaultWeight ?? 1) };
+          return {
+            questionId,
+            weight: Number(question?.defaultWeight ?? 1),
+            wrongWeight: Number(question?.defaultWrongWeight ?? 0),
+          };
         });
         setPending(true);
         setError(null);
-        void api("/api/admin/paket", { body: { examId, items } })
-          .then(() => window.location.reload())
+        void api<{ id: number }>("/api/admin/paket-soal", {
+          body: {
+            id: initial?.id,
+            name: String(form.get("name") ?? ""),
+            description: String(form.get("description") ?? "") || null,
+            isActive: form.get("isActive") === "on",
+            items,
+          },
+        })
+          .then(() => {
+            window.location.href = "/admin/paket";
+          })
           .catch((cause: unknown) => {
             setError(cause instanceof Error ? cause.message : "Gagal menyimpan paket.");
             setPending(false);
           });
       }}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-ink-muted">
-          <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
-          {dirty ? <span className="text-mark-ink"> · ada perubahan belum disimpan</span> : null}
-        </p>
-        <label className="relative block w-full sm:max-w-xs">
-          <span className="sr-only">Cari soal</span>
-          <svg
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true">
-            <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-            <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-          </svg>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari kode atau kategori"
-            className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
-          />
-        </label>
-      </div>
-
-      {questions.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
-          <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
-          <p className="mt-1 text-xs text-ink-muted">Tambah soal dulu sebelum menyusun paket.</p>
-          <a href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
-            Tambah soal
-          </a>
+      <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold tracking-tight text-ink">Identitas paket</h2>
+          <p className="mt-0.5 text-sm text-ink-muted">Nama paket dipakai saat memilih di form ujian.</p>
         </div>
-      ) : filtered.length === 0 ? (
-        <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
-      ) : (
-        <ul className="max-h-80 divide-y divide-line/70 overflow-auto rounded-xl border border-line/80">
-          {filtered.map((question) => {
-            const checked = picked.includes(question.id);
-            const typeLabel = question.type === "ESSAY" ? "Uraian" : question.type === "MULTIPLE_CHOICE" ? "PG" : null;
-            return (
-              <li key={question.id}>
-                <label
-                  className={`flex cursor-pointer items-center gap-3 px-3 py-3 text-sm transition-colors hover:bg-brand-soft/30 ${
-                    checked ? "bg-brand-soft/40" : "bg-paper"
-                  }`}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    className="size-4 accent-[var(--color-brand)]"
-                    onChange={(event) => {
-                      setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
-                    }}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="font-semibold text-ink">{question.code}</span>
-                    <span className="mt-0.5 block text-xs text-ink-muted">
-                      {[typeLabel, question.categoryName, `bobot ${question.defaultWeight}`].filter(Boolean).join(" · ")}
-                    </span>
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+        <div className="grid gap-4">
+          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+            Nama paket
+            <input
+              name="name"
+              required
+              defaultValue={initial?.name}
+              placeholder="Mis. Paket Matematika Kelas 9"
+              className="rounded-xl border border-line px-3 py-2.5 font-normal"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+            Deskripsi <span className="font-normal text-ink-muted">(opsional)</span>
+            <input
+              name="description"
+              defaultValue={initial?.description}
+              maxLength={500}
+              className="rounded-xl border border-line px-3 py-2.5 font-normal"
+            />
+          </label>
+          <label className="flex items-center gap-2.5 rounded-xl bg-page/80 px-3 py-3 text-sm text-ink">
+            <input name="isActive" type="checkbox" defaultChecked={initial?.isActive ?? true} className="size-4 accent-[var(--color-brand)]" />
+            Paket aktif dan bisa dipilih di ujian
+          </label>
+        </div>
+      </section>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={pending || !dirty}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">
-          {pending ? "Menyimpan…" : "Simpan paket"}
-        </button>
-        {dirty ? (
-          <button
-            type="button"
-            className="text-sm font-semibold text-ink-muted hover:text-ink"
-            onClick={() => setPicked(selected)}>
-            Batalkan perubahan
-          </button>
-        ) : null}
-      </div>
+      <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-ink">Isi soal</h2>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
+            </p>
+          </div>
+          <label className="relative block w-full sm:max-w-xs">
+            <span className="sr-only">Cari soal</span>
+            <svg
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
+              <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Cari kode atau kategori"
+              className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
+            />
+          </label>
+        </div>
+
+        {questions.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
+            <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
+            <a href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
+              Tambah soal
+            </a>
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
+        ) : (
+          <ul className="max-h-96 divide-y divide-line/70 overflow-auto rounded-xl border border-line/80">
+            {filtered.map((question) => {
+              const checked = picked.includes(question.id);
+              const typeLabel = question.type === "ESSAY" ? "Uraian" : question.type === "MULTIPLE_CHOICE" ? "PG" : null;
+              return (
+                <li key={question.id}>
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 px-3 py-3 text-sm transition-colors hover:bg-brand-soft/30 ${
+                      checked ? "bg-brand-soft/40" : "bg-paper"
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      className="size-4 accent-[var(--color-brand)]"
+                      onChange={(event) => {
+                        setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
+                      }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="font-semibold text-ink">{question.code}</span>
+                      <span className="mt-0.5 block text-xs text-ink-muted">
+                        {[
+                          typeLabel,
+                          question.categoryName,
+                          `benar ${question.defaultWeight}`,
+                          Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
       <ErrorText error={error} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+        {pending ? "Menyimpan…" : editing ? "Simpan perubahan" : "Buat paket"}
+      </button>
     </form>
+  );
+}
+
+export function DeletePackageButton({ packageId }: { packageId: number }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={pending}
+        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-alert/40 px-4 text-sm font-semibold text-alert transition hover:bg-alert/5 disabled:opacity-60"
+        onClick={() => {
+          if (!window.confirm("Hapus paket ini?")) return;
+          setPending(true);
+          setError(null);
+          void api("/api/admin/hapus-paket-soal", { body: { id: packageId } })
+            .then(() => {
+              window.location.href = "/admin/paket";
+            })
+            .catch((cause: unknown) => {
+              setError(cause instanceof Error ? cause.message : "Gagal menghapus.");
+              setPending(false);
+            });
+        }}>
+        {pending ? "Menghapus…" : "Hapus paket"}
+      </button>
+      <ErrorText error={error} />
+    </div>
   );
 }
 
@@ -752,16 +993,34 @@ export function SessionForm({ examId }: { examId: number }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
           Absensi dibuka
-          <input name="attendanceOpensAt" type="datetime-local" required className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+          <DateTimePicker
+            name="attendanceOpensAt"
+            mode="datetime"
+            required
+            placeholder="Pilih tanggal dan jam"
+            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
+          />
           <span className="font-normal text-xs text-ink-muted">Peserta bisa absen mulai waktu ini.</span>
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Mulai ujian
-          <input name="startsAt" type="datetime-local" required className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+          <DateTimePicker
+            name="startsAt"
+            mode="datetime"
+            required
+            placeholder="Pilih tanggal dan jam"
+            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
+          />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Selesai ujian
-          <input name="endsAt" type="datetime-local" required className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+          <DateTimePicker
+            name="endsAt"
+            mode="datetime"
+            required
+            placeholder="Pilih tanggal dan jam"
+            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
+          />
         </label>
       </div>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">

@@ -1,3 +1,3 @@
-kode,kategori,jenis,teks,bobot,opsi_a,opsi_b,opsi_c,opsi_d,kunci,pedoman,rubrik
-PG-001,Contoh,pg,"Berapakah hasil dari 2 + 2?",1,3,4,5,6,B,,
-UR-001,Contoh,uraian,"Jelaskan pengertian fotosintesis secara singkat.",2,,,,,,"Fotosintesis adalah proses tumbuhan mengubah cahaya, air, dan CO2 menjadi glukosa.","Skor penuh jika menyebut cahaya, air, CO2, dan hasil glukosa."
+kategori,jenis,teks,bobot,bobot_salah,opsi_a,opsi_b,opsi_c,opsi_d,opsi_e,kunci,pedoman,rubrik
+Contoh,pg,"Berapakah hasil dari 2 + 2?",1,-1,3,4,5,6,,B,,
+Contoh,uraian,"Jelaskan pengertian fotosintesis secara singkat.",2,-1,,,,,,,"Fotosintesis adalah proses tumbuhan mengubah cahaya, air, dan CO2 menjadi glukosa.","Skor penuh jika menyebut cahaya, air, CO2, dan hasil glukosa."

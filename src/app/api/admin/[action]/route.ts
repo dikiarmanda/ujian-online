@@ -3,9 +3,14 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resetParticipantSession } from "@/server/auth/service";
-import { assignParticipant, createExam, createSession, removeParticipant, setExamPackage, updateExam } from "@/server/exams";
+import { assignExamPackage, assignParticipant, createExam, createSession, removeParticipant, updateExam } from "@/server/exams";
 import { releaseLock } from "@/server/grading";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
+import {
+  createQuestionPackage,
+  deleteQuestionPackage,
+  updateQuestionPackage,
+} from "@/server/packages";
 import { createCategory, createQuestion, deleteQuestion, importQuestions, updateQuestion } from "@/server/questions";
 import { syncParticipants } from "@/server/sync";
 import { addExtraTime } from "@/server/attempts";
@@ -77,15 +82,29 @@ export async function POST(req: Request, ctx: Ctx) {
       const exam = await createExam(body, user.userId, ip);
       return json({ id: exam.id });
     }
+    if (action === "paket-soal") {
+      const body: { id?: number } = await req.json();
+      if (body.id) {
+        await updateQuestionPackage(body.id, body, user.userId, ip);
+        return json({ id: body.id });
+      }
+      const pack = await createQuestionPackage(body, user.userId, ip);
+      return json({ id: pack.id });
+    }
+    if (action === "hapus-paket-soal") {
+      const body = await readBody(req, z.object({ id: z.number().int().positive() }));
+      await deleteQuestionPackage(body.id, user.userId, ip);
+      return json({ ok: true });
+    }
     if (action === "paket") {
       const body = await readBody(
         req,
         z.object({
           examId: z.number().int().positive(),
-          items: z.array(z.object({ questionId: z.number().int().positive(), weight: z.number().positive() })),
+          packageId: z.number().int().positive(),
         }),
       );
-      await setExamPackage(body.examId, { items: body.items }, user.userId, ip);
+      await assignExamPackage(body.examId, body.packageId, user.userId, ip);
       return json({ ok: true });
     }
     if (action === "sesi") {

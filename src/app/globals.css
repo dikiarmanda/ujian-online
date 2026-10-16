@@ -93,3 +93,40 @@
     }
   }
 }
+
+/* Flatpickr — selaras dengan token warna app */
+.flatpickr-calendar {
+  font-family: var(--font-ui);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-overlay);
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange:hover,
+.flatpickr-day.endRange:hover {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+}
+
+.flatpickr-day.today {
+  border-color: var(--color-brand);
+}
+
+.flatpickr-months .flatpickr-month,
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-weekdays,
+span.flatpickr-weekday {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.flatpickr-time input:hover,
+.flatpickr-time .flatpickr-am-pm:hover,
+.flatpickr-time input:focus,
+.flatpickr-time .flatpickr-am-pm:focus {
+  background: var(--color-brand-soft);
+}

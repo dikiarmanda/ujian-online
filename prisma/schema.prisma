@@ -92,6 +92,7 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   createdQuestions    Question[]
+  createdPackages     QuestionPackage[]
   createdExams        Exam[]
   sessionParticipants SessionParticipant[]
   attendances         Attendance[]
@@ -159,8 +160,9 @@ model Question {
   type          QuestionType
   body          String       @db.Text
   imagePath     String?      @db.VarChar(255)
-  defaultWeight Decimal      @default(1) @db.Decimal(6, 2)
-  isActive      Boolean      @default(true)
+  defaultWeight      Decimal @default(1) @db.Decimal(6, 2)
+  defaultWrongWeight Decimal @default(1) @db.Decimal(6, 2)
+  isActive           Boolean @default(true)
   createdById   Int
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -170,6 +172,7 @@ model Question {
   options       AnswerOption[]
   essayKey      EssayKey?
   examQuestions ExamQuestion[]
+  packageItems  QuestionPackageItem[]
   answers       AttemptAnswer[]
 
   @@index([categoryId, type])
@@ -208,7 +211,45 @@ model EssayKey {
 }
 
 // -----------------------------------------------------------------------------
-// Jadwal (ujian), paket soal, dan sesi
+// Template paket soal (bank). Dipilih saat membuat ujian; isi disalin ke ExamQuestion.
+// -----------------------------------------------------------------------------
+
+model QuestionPackage {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(200)
+  description String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items     QuestionPackageItem[]
+  exams     Exam[]
+
+  @@index([isActive])
+  @@map("question_packages")
+}
+
+model QuestionPackageItem {
+  id          Int     @id @default(autoincrement())
+  packageId   Int
+  questionId  Int
+  sortOrder   Int
+  weight      Decimal @db.Decimal(6, 2)
+  wrongWeight Decimal @default(0) @db.Decimal(6, 2)
+
+  package  QuestionPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([packageId, questionId])
+  @@unique([packageId, sortOrder])
+  @@index([questionId])
+  @@map("question_package_items")
+}
+
+// -----------------------------------------------------------------------------
+// Jadwal (ujian), salinan paket soal, dan sesi
 // -----------------------------------------------------------------------------
 
 model Exam {
@@ -219,28 +260,32 @@ model Exam {
   shuffleQuestions Boolean    @default(false)
   shuffleOptions   Boolean    @default(false)
   status           ExamStatus @default(DRAFT)
+  packageId        Int?
   createdById      Int
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  createdBy User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  package   QuestionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
   questions ExamQuestion[]
   sessions  ExamSession[]
   apiClients ApiClientExam[]
 
   @@index([examDate])
   @@index([status])
+  @@index([packageId])
   @@map("exams")
 }
 
-// Paket soal sebuah ujian. Bobot disalin dari bank soal agar nilai lama tidak
-// berubah bila bobot soal diedit kemudian.
+// Salinan soal di sebuah ujian. Bobot disalin dari paket agar nilai lama tidak
+// berubah bila paket/bank soal diedit kemudian.
 model ExamQuestion {
-  id         Int     @id @default(autoincrement())
-  examId     Int
-  questionId Int
-  sortOrder  Int
-  weight     Decimal @db.Decimal(6, 2)
+  id          Int     @id @default(autoincrement())
+  examId      Int
+  questionId  Int
+  sortOrder   Int
+  weight      Decimal @db.Decimal(6, 2)
+  wrongWeight Decimal @default(0) @db.Decimal(6, 2)
 
   exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)

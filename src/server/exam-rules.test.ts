@@ -38,7 +38,9 @@ test("batas waktu memakai durasi dan jam selesai sesi", () => {
 
 test("pilihan ganda menolak kunci ganda", () => {
   assert.throws(() => assertSingleCorrectOption(2, 4));
+  assert.throws(() => assertSingleCorrectOption(1, 3));
   assert.doesNotThrow(() => assertSingleCorrectOption(1, 4));
+  assert.doesNotThrow(() => assertSingleCorrectOption(1, 5));
 });
 
 test("ringkasan jawaban memisahkan ragu-ragu", () => {

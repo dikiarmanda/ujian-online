@@ -43,7 +43,25 @@ export function parseExamDate(value: string): Date {
 }
 
 export function formatExamDate(value: Date): string {
-  return value.toISOString().slice(0, 10);
+  const months = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+  const date = new Date(value);
+  const day = date.getUTCDate();
+  const month = months[date.getUTCMonth()];
+  const year = date.getUTCFullYear();
+  return `${day} ${month} ${year}`;
 }
 
 export function parseJakartaDateTime(value: string): Date {
@@ -79,8 +97,8 @@ export function countAnswerStats(
 }
 
 export function assertSingleCorrectOption(correctCount: number, optionCount: number): void {
-  if (optionCount < 2) {
-    throw new Error("Pilihan ganda membutuhkan minimal 2 opsi.");
+  if (optionCount < 4) {
+    throw new Error("Pilihan ganda membutuhkan minimal 4 opsi.");
   }
   if (correctCount !== 1) {
     throw new Error("Pilihan ganda harus memiliki tepat satu kunci jawaban.");

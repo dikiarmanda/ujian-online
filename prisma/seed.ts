@@ -86,8 +86,8 @@ async function main() {
         createdById: admin.id,
         questions: {
           create: [
-            { questionId: pg.id, sortOrder: 1, weight: "2.00" },
-            { questionId: essay.id, sortOrder: 2, weight: "5.00" },
+            { questionId: pg.id, sortOrder: 1, weight: "2.00", wrongWeight: "0.00" },
+            { questionId: essay.id, sortOrder: 2, weight: "5.00", wrongWeight: "0.00" },
           ],
         },
       },

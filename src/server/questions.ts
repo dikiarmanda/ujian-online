@@ -13,17 +13,25 @@ const optionSchema = z.object({
 });
 
 const questionSchema = z.object({
-  code: z.string().trim().min(1).max(50),
   categoryId: z.number().int().positive(),
   type: z.enum(["MULTIPLE_CHOICE", "ESSAY"]),
   body: z.string().trim().min(1),
   imagePath: z.string().nullable().optional(),
   defaultWeight: z.number().positive().max(1000),
+  defaultWrongWeight: z.preprocess(
+    (value) => Math.abs(Number(value ?? 1)),
+    z.number().min(0).max(1000),
+  ),
   isActive: z.boolean().default(true),
   options: z.array(optionSchema).default([]),
   answerKey: z.string().optional(),
   rubric: z.string().optional(),
 });
+
+function questionCodeFor(type: "MULTIPLE_CHOICE" | "ESSAY", id: number): string {
+  const prefix = type === "ESSAY" ? "UR" : "PG";
+  return `${prefix}-${String(id).padStart(4, "0")}`;
+}
 
 function validateQuestion(input: z.infer<typeof questionSchema>) {
   if (input.type === "MULTIPLE_CHOICE") {
@@ -46,33 +54,40 @@ export async function createQuestion(input: unknown, actorId: number, ipAddress?
   }
   const data = parsed.data;
   try {
-    const question = await prisma.question.create({
-      data: {
-        code: data.code,
-        categoryId: data.categoryId,
-        type: data.type,
-        body: sanitizeRichText(data.body),
-        imagePath: assertUploadPath(data.imagePath),
-        defaultWeight: data.defaultWeight.toFixed(2),
-        isActive: data.isActive,
-        createdById: actorId,
-        options:
-          data.type === "MULTIPLE_CHOICE"
-            ? {
-                create: data.options.map((option, index) => ({
-                  label: option.label.toUpperCase(),
-                  body: sanitizeRichText(option.body),
-                  imagePath: assertUploadPath(option.imagePath),
-                  isCorrect: option.isCorrect,
-                  sortOrder: index,
-                })),
-              }
-            : undefined,
-        essayKey:
-          data.type === "ESSAY"
-            ? { create: { answerKey: data.answerKey!.trim(), rubric: data.rubric?.trim() || null } }
-            : undefined,
-      },
+    const question = await prisma.$transaction(async (tx) => {
+      const created = await tx.question.create({
+        data: {
+          code: `TMP-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`,
+          categoryId: data.categoryId,
+          type: data.type,
+          body: sanitizeRichText(data.body),
+          imagePath: assertUploadPath(data.imagePath),
+          defaultWeight: data.defaultWeight.toFixed(2),
+          defaultWrongWeight: data.defaultWrongWeight.toFixed(2),
+          isActive: data.isActive,
+          createdById: actorId,
+          options:
+            data.type === "MULTIPLE_CHOICE"
+              ? {
+                  create: data.options.map((option, index) => ({
+                    label: option.label.toUpperCase(),
+                    body: sanitizeRichText(option.body),
+                    imagePath: assertUploadPath(option.imagePath),
+                    isCorrect: option.isCorrect,
+                    sortOrder: index,
+                  })),
+                }
+              : undefined,
+          essayKey:
+            data.type === "ESSAY"
+              ? { create: { answerKey: data.answerKey!.trim(), rubric: data.rubric?.trim() || null } }
+              : undefined,
+        },
+      });
+      return tx.question.update({
+        where: { id: created.id },
+        data: { code: questionCodeFor(data.type, created.id) },
+      });
     });
     await writeAudit({
       userId: actorId,
@@ -84,7 +99,7 @@ export async function createQuestion(input: unknown, actorId: number, ipAddress?
     return question;
   } catch (error) {
     if (error instanceof Error && error.message.includes("Berkas")) throw new AppError(error.message, 400);
-    throw new AppError("Kode soal sudah dipakai atau kategori tidak ditemukan.", 409);
+    throw new AppError("Kategori tidak ditemukan atau soal gagal disimpan.", 409);
   }
 }
 
@@ -106,12 +121,12 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
     await tx.question.update({
       where: { id },
       data: {
-        code: data.code,
         categoryId: data.categoryId,
         type: data.type,
         body: sanitizeRichText(data.body),
         imagePath: assertUploadPath(data.imagePath),
         defaultWeight: data.defaultWeight.toFixed(2),
+        defaultWrongWeight: data.defaultWrongWeight.toFixed(2),
         isActive: data.isActive,
         options:
           data.type === "MULTIPLE_CHOICE"
@@ -191,7 +206,7 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
   if (lines.length < 2) throw new AppError("Berkas tidak berisi data soal.", 400);
   const header = splitCsv(lines[0]).map((cell) => cell.toLowerCase());
   const index = (name: string) => header.indexOf(name);
-  const required = ["kode", "kategori", "jenis", "teks", "bobot"];
+  const required = ["kategori", "jenis", "teks", "bobot"];
   for (const name of required) {
     if (index(name) < 0) throw new AppError(`Kolom ${name} wajib ada.`, 400);
   }
@@ -214,11 +229,11 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
         .filter((option) => option.body);
       await createQuestion(
         {
-          code: read("kode"),
           categoryId: category.id,
           type,
           body: read("teks"),
           defaultWeight: Number(read("bobot") || 1),
+          defaultWrongWeight: Math.abs(read("bobot_salah") === "" ? 1 : Number(read("bobot_salah"))),
           isActive: true,
           options,
           answerKey: read("pedoman"),

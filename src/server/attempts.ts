@@ -328,7 +328,12 @@ export async function finalizeAttempt(attemptId: number, reason: "SUBMITTED" | "
       update: {},
     });
   }
-  const weights = new Map(attempt.session.exam.questions.map((item) => [item.questionId, Number(item.weight)]));
+  const weights = new Map(
+    attempt.session.exam.questions.map((item) => [
+      item.questionId,
+      { weight: Number(item.weight), wrongWeight: Number(item.wrongWeight) },
+    ]),
+  );
   const answers = await prisma.attemptAnswer.findMany({
     where: { attemptId },
     include: { selectedOption: true, question: true },
@@ -340,12 +345,14 @@ export async function finalizeAttempt(attemptId: number, reason: "SUBMITTED" | "
       hasEssay = true;
       continue;
     }
+    const scoring = weights.get(answer.questionId) ?? { weight: 0, wrongWeight: 0 };
+    const answered = answer.selectedOptionId != null;
     const correct = Boolean(answer.selectedOption?.isCorrect);
-    const score = correct ? (weights.get(answer.questionId) ?? 0) : 0;
+    const score = !answered ? 0 : correct ? scoring.weight : -scoring.wrongWeight;
     mcScore += score;
     await prisma.attemptAnswer.update({
       where: { id: answer.id },
-      data: { isCorrect: correct, score: score.toFixed(2), gradingState: "NOT_REQUIRED" },
+      data: { isCorrect: answered ? correct : null, score: score.toFixed(2), gradingState: "NOT_REQUIRED" },
     });
   }
   if (essayQuestions.length) hasEssay = true;

@@ -3,9 +3,10 @@ import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
 import { formatExamDate, parseExamDate, parseJakartaDateTime } from "./exam-rules";
+import { applyPackageToExam } from "./packages";
 import { isUniqueConflict } from "./sync";
 
-const examSchema = z.object({
+const examBaseSchema = z.object({
   name: z.string().trim().min(1).max(200),
   examDate: z.string(),
   durationMinutes: z.number().int().positive().max(600),
@@ -14,8 +15,12 @@ const examSchema = z.object({
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("DRAFT"),
 });
 
+const createExamSchema = examBaseSchema.extend({
+  packageId: z.number().int().positive(),
+});
+
 export async function createExam(input: unknown, actorId: number, ipAddress?: string) {
-  const parsed = examSchema.safeParse(input);
+  const parsed = createExamSchema.safeParse(input);
   if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Ujian tidak valid.", 400);
   let examDate: Date;
   try {
@@ -23,15 +28,36 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
   } catch (error) {
     throw new AppError(error instanceof Error ? error.message : "Tanggal tidak valid.", 400);
   }
+  const { packageId, ...examFields } = parsed.data;
   const exam = await prisma.exam.create({
-    data: { ...parsed.data, examDate, createdById: actorId },
+    data: { ...examFields, examDate, createdById: actorId },
   });
+  try {
+    await applyPackageToExam(exam.id, packageId);
+  } catch (error) {
+    await prisma.exam.delete({ where: { id: exam.id } }).catch(() => undefined);
+    throw error;
+  }
   await writeAudit({ userId: actorId, action: "CREATE_EXAM", entityType: "exam", entityId: exam.id, ipAddress });
   return exam;
 }
 
+export async function assignExamPackage(examId: number, packageId: number, actorId: number, ipAddress?: string) {
+  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
+  await applyPackageToExam(examId, packageId);
+  await writeAudit({
+    userId: actorId,
+    action: "SET_PACKAGE",
+    entityType: "exam",
+    entityId: examId,
+    meta: { packageId },
+    ipAddress,
+  });
+}
+
 export async function updateExam(id: number, input: unknown, actorId: number, ipAddress?: string) {
-  const parsed = examSchema.safeParse(input);
+  const parsed = examBaseSchema.safeParse(input);
   if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Ujian tidak valid.", 400);
   const examDate = parseExamDate(parsed.data.examDate);
   const existing = await prisma.exam.findUnique({ where: { id } });
@@ -49,33 +75,6 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
     }
   });
   await writeAudit({ userId: actorId, action: "UPDATE_EXAM", entityType: "exam", entityId: id, ipAddress });
-}
-
-const packageSchema = z.object({
-  items: z.array(z.object({ questionId: z.number().int().positive(), weight: z.number().positive() })).min(1),
-});
-
-export async function setExamPackage(examId: number, input: unknown, actorId: number, ipAddress?: string) {
-  const parsed = packageSchema.safeParse(input);
-  if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Paket soal tidak valid.", 400);
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
-  if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
-  const ids = parsed.data.items.map((item) => item.questionId);
-  if (new Set(ids).size !== ids.length) throw new AppError("Soal tidak boleh kembar dalam satu paket.", 400);
-  const questions = await prisma.question.findMany({ where: { id: { in: ids }, isActive: true } });
-  if (questions.length !== ids.length) throw new AppError("Ada soal yang tidak aktif atau tidak ditemukan.", 400);
-  await prisma.$transaction(async (tx) => {
-    await tx.examQuestion.deleteMany({ where: { examId } });
-    await tx.examQuestion.createMany({
-      data: parsed.data.items.map((item, index) => ({
-        examId,
-        questionId: item.questionId,
-        sortOrder: index + 1,
-        weight: item.weight.toFixed(2),
-      })),
-    });
-  });
-  await writeAudit({ userId: actorId, action: "SET_PACKAGE", entityType: "exam", entityId: examId, ipAddress });
 }
 
 const sessionSchema = z.object({

@@ -19,10 +19,17 @@ function StatCard({ label, value, hint }: { label: string; value: number; hint: 
 
 export default async function UjianPage() {
   const user = await requirePageUser(["ADMIN"]);
-  const exams = await prisma.exam.findMany({
-    orderBy: { examDate: "desc" },
-    include: { _count: { select: { sessions: true, questions: true } } },
-  });
+  const [exams, packages] = await Promise.all([
+    prisma.exam.findMany({
+      orderBy: { examDate: "desc" },
+      include: { _count: { select: { sessions: true, questions: true } } },
+    }),
+    prisma.questionPackage.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      include: { _count: { select: { items: true } } },
+    }),
+  ]);
 
   const published = exams.filter((exam) => exam.status === "PUBLISHED").length;
   const draft = exams.filter((exam) => exam.status === "DRAFT").length;
@@ -37,7 +44,7 @@ export default async function UjianPage() {
             <p className="text-sm text-ink-muted">Jadwal & paket soal</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Jadwal Ujian</h1>
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-              Kelola ujian, atur paket soal, lalu buat sesi untuk peserta.
+              Pilih paket soal saat membuat ujian, lalu buat sesi untuk peserta.
             </p>
           </div>
           <a
@@ -70,11 +77,17 @@ export default async function UjianPage() {
           <div className="mb-4">
             <h2 className="text-lg font-semibold tracking-tight text-ink">Ujian baru</h2>
             <p className="mt-0.5 text-sm text-ink-muted">
-              Setelah dibuat, Anda bisa menyusun paket soal dan menambahkan sesi.
+              Pilih paket soal, lalu tambahkan sesi setelah ujian dibuat.
             </p>
           </div>
           <div className="max-w-2xl">
-            <ExamForm />
+            <ExamForm
+              packages={packages.map((pack) => ({
+                id: pack.id,
+                name: pack.name,
+                itemCount: pack._count.items,
+              }))}
+            />
           </div>
         </section>
       </div>

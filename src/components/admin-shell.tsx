@@ -47,6 +47,16 @@ const links = [
     ),
   },
   {
+    href: "/admin/paket",
+    label: "Paket soal",
+    icon: (
+      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 7.5h16v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-11Z" stroke="currentColor" strokeWidth="1.7" />
+        <path d="M8 7.5V5.8A1.8 1.8 0 0 1 9.8 4h4.4A1.8 1.8 0 0 1 16 5.8V7.5M8 12h8M8 15.5h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/laporan",
     label: "Laporan",
     icon: (

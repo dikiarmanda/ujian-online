@@ -64,7 +64,9 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
               </div>
               <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-ink">{question.code}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">
-                {question.category.name} · bobot {question.defaultWeight.toString()} · diperbarui {formatJakarta(question.updatedAt)}
+                {question.category.name} · benar {question.defaultWeight.toString()}
+                {Number(question.defaultWrongWeight) > 0 ? ` · salah −${question.defaultWrongWeight.toString()}` : ""} · diperbarui{" "}
+                {formatJakarta(question.updatedAt)}
               </p>
             </div>
             {usedInExams === 0 ? <DeleteQuestionButton questionId={question.id} /> : null}
@@ -96,6 +98,7 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
             type: question.type,
             body: question.body,
             defaultWeight: Number(question.defaultWeight),
+            defaultWrongWeight: Number(question.defaultWrongWeight),
             isActive: question.isActive,
             options: question.options.map((option) => ({
               label: option.label,

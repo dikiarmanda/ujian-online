@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
-import { PackageForm, SessionForm } from "@/components/admin-forms";
+import { ExamPackageAssignForm, SessionForm } from "@/components/admin-forms";
 import { formatJakarta } from "@/lib/format";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
@@ -40,6 +40,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
     include: {
+      package: { select: { id: true, name: true } },
       questions: { include: { question: { select: { code: true, type: true } } }, orderBy: { sortOrder: "asc" } },
       sessions: {
         orderBy: { startsAt: "asc" },
@@ -49,16 +50,10 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
   });
   if (!exam) notFound();
 
-  const questions = await prisma.question.findMany({
+  const packages = await prisma.questionPackage.findMany({
     where: { isActive: true },
-    orderBy: { code: "asc" },
-    select: {
-      id: true,
-      code: true,
-      defaultWeight: true,
-      type: true,
-      category: { select: { name: true } },
-    },
+    orderBy: { name: "asc" },
+    include: { _count: { select: { items: true } } },
   });
 
   const now = new Date();
@@ -123,18 +118,23 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
           <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
             <div className="mb-4">
               <h2 className="text-lg font-semibold tracking-tight text-ink">Paket soal</h2>
-              <p className="mt-0.5 text-sm text-ink-muted">Pilih soal dari bank yang akan masuk ke ujian ini.</p>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                {exam.package
+                  ? `Saat ini memakai “${exam.package.name}”.`
+                  : "Belum terhubung ke template paket."}{" "}
+                <Link href="/admin/paket" className="font-semibold text-brand hover:underline">
+                  Kelola paket
+                </Link>
+              </p>
             </div>
-            <PackageForm
+            <ExamPackageAssignForm
               examId={exam.id}
-              questions={questions.map((question) => ({
-                id: question.id,
-                code: question.code,
-                defaultWeight: question.defaultWeight.toString(),
-                type: question.type,
-                categoryName: question.category.name,
+              currentPackageId={exam.packageId}
+              packages={packages.map((pack) => ({
+                id: pack.id,
+                name: pack.name,
+                itemCount: pack._count.items,
               }))}
-              selected={exam.questions.map((item) => item.questionId)}
             />
           </section>
 
@@ -222,7 +222,8 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                   <span className="min-w-0">
                     <span className="font-semibold text-ink">{item.question.code}</span>
                     <span className="mt-0.5 block text-xs text-ink-muted">
-                      {item.question.type === "ESSAY" ? "Uraian" : "PG"} · bobot {Number(item.weight)}
+                      {item.question.type === "ESSAY" ? "Uraian" : "PG"} · benar {Number(item.weight)}
+                      {Number(item.wrongWeight) > 0 ? ` · salah −${Number(item.wrongWeight)}` : ""}
                     </span>
                   </span>
                 </li>
