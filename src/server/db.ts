@@ -3,7 +3,7 @@ import { env } from "./env";
 import { createMariaDbAdapter } from "./mariadb-adapter";
 
 /** Naikkan bila field schema berubah agar instance Prisma di hot-reload diganti. */
-const PRISMA_CLIENT_KEY = "question-packages-v1";
+const PRISMA_CLIENT_KEY = "question-packages-v2";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;

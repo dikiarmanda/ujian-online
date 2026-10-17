@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { CategoryForm, ImportForm } from "@/components/admin-forms";
+import { SoalFilterForm } from "@/components/soal-filter-form";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 
@@ -23,35 +24,53 @@ function TypeBadge({ type }: { type: "MULTIPLE_CHOICE" | "ESSAY" }) {
   return <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>;
 }
 
+function previewText(html: string, max = 20): string {
+  const plain = html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (plain.length <= max) return plain || "—";
+  return `${plain.slice(0, max)}…`;
+}
+
+function weightLabel(benar: { toString(): string }, salah: { toString(): string }): string {
+  const wrong = Number(salah);
+  return wrong > 0 ? `${benar.toString()} / −${salah.toString()}` : `${benar.toString()} / 0`;
+}
+
 export default async function SoalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kategori?: string; jenis?: string; kode?: string }>;
+  searchParams: Promise<{ kategori?: string; jenis?: string; kode?: string; paket?: string }>;
 }) {
   const user = await requirePageUser(["ADMIN"]);
   const query = await searchParams;
   const categoryId = query.kategori ? Number(query.kategori) : undefined;
+  const packageId = query.paket ? Number(query.paket) : undefined;
   const typeFilter = query.jenis === "pg" ? "MULTIPLE_CHOICE" : query.jenis === "uraian" ? "ESSAY" : undefined;
 
-  const [questions, categories, totalCount, activeCount, mcCount, essayCount] = await Promise.all([
+  const [questions, categories, packages, totalCount, activeCount, mcCount, essayCount] = await Promise.all([
     prisma.question.findMany({
       where: {
         categoryId: Number.isFinite(categoryId) ? categoryId : undefined,
         type: typeFilter,
         code: query.kode ? { contains: query.kode } : undefined,
+        packageItems: Number.isFinite(packageId) ? { some: { packageId } } : undefined,
       },
       include: { category: true },
       orderBy: { code: "asc" },
       take: 300,
     }),
     prisma.questionCategory.findMany({ orderBy: { name: "asc" } }),
+    prisma.questionPackage.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.question.count(),
     prisma.question.count({ where: { isActive: true } }),
     prisma.question.count({ where: { type: "MULTIPLE_CHOICE" } }),
     prisma.question.count({ where: { type: "ESSAY" } }),
   ]);
 
-  const hasFilter = Boolean(query.kode || query.kategori || query.jenis);
+  const hasFilter = Boolean(query.kode || query.kategori || query.jenis || query.paket);
 
   return (
     <AdminShell name={user.name} current="/admin/soal">
@@ -95,49 +114,14 @@ export default async function SoalPage({
               ) : null}
             </div>
 
-            <form method="get" className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]">
-              <label className="relative block">
-                <span className="sr-only">Kode soal</span>
-                <svg
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true">
-                  <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-                  <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                </svg>
-                <input
-                  name="kode"
-                  defaultValue={query.kode}
-                  placeholder="Cari kode soal"
-                  className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
-                />
-              </label>
-              <select
-                name="kategori"
-                defaultValue={query.kategori ?? ""}
-                className="rounded-xl border border-line bg-page/60 px-3 py-2.5 text-sm focus:border-brand focus:bg-paper">
-                <option value="">Semua kategori</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="jenis"
-                defaultValue={query.jenis ?? ""}
-                className="rounded-xl border border-line bg-page/60 px-3 py-2.5 text-sm focus:border-brand focus:bg-paper">
-                <option value="">Semua jenis</option>
-                <option value="pg">Pilihan ganda</option>
-                <option value="uraian">Uraian</option>
-              </select>
-              <button
-                type="submit"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
-                Cari
-              </button>
-            </form>
+            <SoalFilterForm
+              kode={query.kode}
+              paket={query.paket}
+              kategori={query.kategori}
+              jenis={query.jenis}
+              packages={packages.map((pack) => ({ value: String(pack.id), label: pack.name }))}
+              categories={categories.map((category) => ({ value: String(category.id), label: category.name }))}
+            />
           </div>
 
           {questions.length === 0 ? (
@@ -169,15 +153,12 @@ export default async function SoalPage({
                             <span className="rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">Nonaktif</span>
                           ) : null}
                         </div>
-                        <Link href={`/admin/soal/${question.id}`} className="mt-2 block truncate font-semibold text-ink hover:text-brand">
-                          {question.code}
+                        <Link href={`/admin/soal/${question.id}`} className="mt-2 block font-semibold text-ink hover:text-brand">
+                          {previewText(question.body)}
                         </Link>
                         <p className="mt-1 text-sm text-ink-muted">{question.category.name}</p>
-                        <p className="mt-1 text-xs text-ink-muted">
-                          Benar {question.defaultWeight.toString()}
-                          {Number(question.defaultWrongWeight) > 0
-                            ? ` · salah −${question.defaultWrongWeight.toString()}`
-                            : ""}
+                        <p className="mt-1 font-digits text-xs text-ink-muted">
+                          Bobot {weightLabel(question.defaultWeight, question.defaultWrongWeight)}
                         </p>
                       </div>
                       <Link
@@ -194,11 +175,10 @@ export default async function SoalPage({
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-line bg-page/80 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-                      <th className="px-5 py-3.5">Kode</th>
-                      <th className="px-4 py-3.5">Kategori</th>
+                      <th className="px-5 py-3.5">Kategori</th>
                       <th className="px-4 py-3.5">Jenis</th>
-                      <th className="px-4 py-3.5">Bobot benar</th>
-                      <th className="px-4 py-3.5">Bobot salah</th>
+                      <th className="px-4 py-3.5">Teks soal</th>
+                      <th className="px-4 py-3.5">Bobot</th>
                       <th className="px-4 py-3.5">Status</th>
                       <th className="px-5 py-3.5 text-right">Aksi</th>
                     </tr>
@@ -206,18 +186,17 @@ export default async function SoalPage({
                   <tbody className="divide-y divide-line/70">
                     {questions.map((question) => (
                       <tr key={question.id} className="transition-colors hover:bg-brand-soft/25">
-                        <td className="px-5 py-3.5">
-                          <Link href={`/admin/soal/${question.id}`} className="font-semibold text-ink hover:text-brand">
-                            {question.code}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3.5 text-ink-muted">{question.category.name}</td>
+                        <td className="px-5 py-3.5 text-ink-muted">{question.category.name}</td>
                         <td className="px-4 py-3.5">
                           <TypeBadge type={question.type} />
                         </td>
-                        <td className="px-4 py-3.5 font-digits tabular-nums text-ink">{question.defaultWeight.toString()}</td>
+                        <td className="px-4 py-3.5">
+                          <Link href={`/admin/soal/${question.id}`} className="font-semibold text-ink hover:text-brand" title={question.code}>
+                            {previewText(question.body, 50)}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3.5 font-digits tabular-nums text-ink">
-                          {Number(question.defaultWrongWeight) > 0 ? `−${question.defaultWrongWeight.toString()}` : "0"}
+                          {weightLabel(question.defaultWeight, question.defaultWrongWeight)}
                         </td>
                         <td className="px-4 py-3.5">
                           {question.isActive ? (

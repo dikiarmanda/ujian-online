@@ -80,7 +80,12 @@ export async function createQuestion(input: unknown, actorId: number, ipAddress?
               : undefined,
           essayKey:
             data.type === "ESSAY"
-              ? { create: { answerKey: data.answerKey!.trim(), rubric: data.rubric?.trim() || null } }
+              ? {
+                  create: {
+                    answerKey: sanitizeRichText(data.answerKey!.trim()),
+                    rubric: data.rubric?.trim() ? sanitizeRichText(data.rubric.trim()) : null,
+                  },
+                }
               : undefined,
         },
       });
@@ -142,7 +147,12 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
             : undefined,
         essayKey:
           data.type === "ESSAY"
-            ? { create: { answerKey: data.answerKey!.trim(), rubric: data.rubric?.trim() || null } }
+            ? {
+                create: {
+                  answerKey: sanitizeRichText(data.answerKey!.trim()),
+                  rubric: data.rubric?.trim() ? sanitizeRichText(data.rubric.trim()) : null,
+                },
+              }
             : undefined,
       },
     });
@@ -210,11 +220,12 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
   for (const name of required) {
     if (index(name) < 0) throw new AppError(`Kolom ${name} wajib ada.`, 400);
   }
+  const packageCache = new Map<string, { id: number; nextOrder: number }>();
   let success = 0;
   const errors: string[] = [];
   for (let row = 1; row < lines.length; row += 1) {
     const cells = splitCsv(lines[row]);
-    const read = (name: string) => cells[index(name)] ?? "";
+    const read = (name: string) => (index(name) < 0 ? "" : (cells[index(name)] ?? ""));
     try {
       const categoryName = read("kategori");
       const category = await prisma.questionCategory.upsert({
@@ -227,13 +238,15 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
       const options = labels
         .map((label) => ({ label: label.toUpperCase(), body: read(`opsi_${label}`), isCorrect: read("kunci").toUpperCase() === label.toUpperCase() }))
         .filter((option) => option.body);
-      await createQuestion(
+      const weight = Number(read("bobot") || 1);
+      const wrongWeight = Math.abs(read("bobot_salah") === "" ? 1 : Number(read("bobot_salah")));
+      const question = await createQuestion(
         {
           categoryId: category.id,
           type,
           body: read("teks"),
-          defaultWeight: Number(read("bobot") || 1),
-          defaultWrongWeight: Math.abs(read("bobot_salah") === "" ? 1 : Number(read("bobot_salah"))),
+          defaultWeight: weight,
+          defaultWrongWeight: wrongWeight,
           isActive: true,
           options,
           answerKey: read("pedoman"),
@@ -242,6 +255,30 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
         actorId,
         ipAddress,
       );
+      const packageName = read("paket").trim();
+      if (packageName) {
+        let pack = packageCache.get(packageName);
+        if (!pack) {
+          const existing = await prisma.questionPackage.upsert({
+            where: { name: packageName },
+            create: { name: packageName, createdById: actorId, isActive: true },
+            update: {},
+            include: { _count: { select: { items: true } } },
+          });
+          pack = { id: existing.id, nextOrder: existing._count.items + 1 };
+          packageCache.set(packageName, pack);
+        }
+        await prisma.questionPackageItem.create({
+          data: {
+            packageId: pack.id,
+            questionId: question.id,
+            sortOrder: pack.nextOrder,
+            weight: weight.toFixed(2),
+            wrongWeight: wrongWeight.toFixed(2),
+          },
+        });
+        pack.nextOrder += 1;
+      }
       success += 1;
     } catch (error) {
       errors.push(`Baris ${row + 1}: ${error instanceof Error ? error.message : "gagal"}`);

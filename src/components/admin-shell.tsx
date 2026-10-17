@@ -37,22 +37,22 @@ const links = [
     ),
   },
   {
-    href: "/admin/soal",
-    label: "Bank soal",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M7 4.5h8.5L19 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-14a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-        <path d="M15.5 4.5V8H19M9 12h6M9 15.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
     href: "/admin/paket",
     label: "Paket soal",
     icon: (
       <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4 7.5h16v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-11Z" stroke="currentColor" strokeWidth="1.7" />
         <path d="M8 7.5V5.8A1.8 1.8 0 0 1 9.8 4h4.4A1.8 1.8 0 0 1 16 5.8V7.5M8 12h8M8 15.5h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/soal",
+    label: "Bank soal",
+    icon: (
+      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M7 4.5h8.5L19 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-14a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+        <path d="M15.5 4.5V8H19M9 12h6M9 15.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },

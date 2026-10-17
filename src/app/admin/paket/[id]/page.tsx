@@ -24,6 +24,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
       select: {
         id: true,
         code: true,
+        body: true,
         defaultWeight: true,
         defaultWrongWeight: true,
         type: true,
@@ -43,6 +44,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
     select: {
       id: true,
       code: true,
+      body: true,
       defaultWeight: true,
       defaultWrongWeight: true,
       type: true,
@@ -55,6 +57,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
       {
         id: question.id,
         code: question.code,
+        body: question.body,
         defaultWeight: question.defaultWeight.toString(),
         defaultWrongWeight: question.defaultWrongWeight.toString(),
         type: question.type,

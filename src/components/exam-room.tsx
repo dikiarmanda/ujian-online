@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { SubmittedNotice } from "@/components/chrome";
+import RichHtml from "@/components/rich-html";
 import { api } from "@/lib/api";
 import { countAnswerStats, type AnswerSnapshot } from "@/server/exam-rules";
 
@@ -270,7 +271,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
           <h1 className="text-xs font-semibold tracking-wide text-brand uppercase">
             Soal {index + 1} dari {initial.questions.length}
           </h1>
-          <div className="mt-3 text-question" dangerouslySetInnerHTML={{ __html: question.body }} />
+          <RichHtml html={question.body} className="mt-3 text-question" />
           {question.imagePath ? <img src={question.imagePath} alt="" className="mt-4 max-h-80 rounded-sm" /> : null}
           {question.type === "MULTIPLE_CHOICE" ? (
             <div className="mt-6 flex flex-col gap-2" role="radiogroup" aria-label="Pilihan jawaban">
@@ -289,7 +290,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
                         void persist(question.id);
                       }}
                     />
-                    <span dangerouslySetInnerHTML={{ __html: option.body }} />
+                    <RichHtml as="span" html={option.body} />
                   </label>
                 );
               })}

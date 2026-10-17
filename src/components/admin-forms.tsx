@@ -14,7 +14,14 @@ function stripHtml(input: string): string {
   return input
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+function previewQuestionText(html: string, max = 50): string {
+  const plain = stripHtml(html);
+  if (plain.length <= max) return plain || "—";
+  return `${plain.slice(0, max)}…`;
 }
 
 function ErrorText({ error }: { error: string | null }) {
@@ -474,11 +481,11 @@ export function ImportForm() {
       <p className="rounded-xl bg-page/80 px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
         Kolom CSV:{" "}
         <span className="font-digits text-ink">
-          kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, pedoman, rubrik
+          paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, pedoman, rubrik
         </span>
-        . Kode digenerate otomatis. Jenis diisi <span className="font-semibold text-ink">pg</span> atau{" "}
-        <span className="font-semibold text-ink">uraian</span>. PG wajib isi minimal 4 opsi;{" "}
-        <span className="font-digits text-ink">bobot_salah</span> default <span className="font-digits text-ink">-1</span>.
+        . Kolom <span className="font-digits text-ink">paket</span> menambahkan soal ke
+        paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span> atau{" "}
+        <span className="font-semibold text-ink">uraian</span>. PG wajib isi minimal 4 opsi.
       </p>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
         Berkas CSV
@@ -664,6 +671,7 @@ export function ExamForm({ packages }: { packages: PackageOption[] }) {
 type QuestionPick = {
   id: number;
   code: string;
+  body: string;
   defaultWeight: string;
   defaultWrongWeight: string;
   type?: string;
@@ -764,7 +772,9 @@ export function QuestionPackageForm({
   const deferred = query.trim().toLowerCase();
   const filtered = questions.filter((question) => {
     if (!deferred) return true;
-    const haystack = [question.code, question.categoryName ?? "", question.type ?? ""].join(" ").toLowerCase();
+    const haystack = [question.code, stripHtml(question.body), question.categoryName ?? "", question.type ?? ""]
+      .join(" ")
+      .toLowerCase();
     return haystack.includes(deferred);
   });
   const editing = Boolean(initial?.id);
@@ -859,7 +869,7 @@ export function QuestionPackageForm({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari kode atau kategori"
+              placeholder="Cari teks, kode, atau kategori"
               className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
             />
           </label>
@@ -878,7 +888,7 @@ export function QuestionPackageForm({
           <ul className="max-h-96 divide-y divide-line/70 overflow-auto rounded-xl border border-line/80">
             {filtered.map((question) => {
               const checked = picked.includes(question.id);
-              const typeLabel = question.type === "ESSAY" ? "Uraian" : question.type === "MULTIPLE_CHOICE" ? "PG" : null;
+              const typeLabel = question.type === "ESSAY" ? "Uraian" : question.type === "MULTIPLE_CHOICE" ? "Pilihan Ganda" : null;
               return (
                 <li key={question.id}>
                   <label
@@ -894,7 +904,7 @@ export function QuestionPackageForm({
                       }}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="font-semibold text-ink">{question.code}</span>
+                      <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
                       <span className="mt-0.5 block text-xs text-ink-muted">
                         {[
                           typeLabel,

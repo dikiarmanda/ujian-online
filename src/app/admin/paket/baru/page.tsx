@@ -14,6 +14,7 @@ export default async function PaketBaruPage() {
     select: {
       id: true,
       code: true,
+      body: true,
       defaultWeight: true,
       defaultWrongWeight: true,
       type: true,
@@ -44,6 +45,7 @@ export default async function PaketBaruPage() {
           questions={questions.map((question) => ({
             id: question.id,
             code: question.code,
+            body: question.body,
             defaultWeight: question.defaultWeight.toString(),
             defaultWrongWeight: question.defaultWrongWeight.toString(),
             type: question.type,

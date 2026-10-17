@@ -130,3 +130,63 @@ span.flatpickr-weekday {
 .flatpickr-time .flatpickr-am-pm:focus {
   background: var(--color-brand-soft);
 }
+
+/* Select2 — selaras dengan form filter admin */
+.soal-filter-form .select2-container {
+  width: 100% !important;
+}
+
+.soal-filter-form .select2-container--default .select2-selection--single {
+  min-height: 2.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-page) 60%, transparent);
+  padding: 0.35rem 0.5rem;
+}
+
+.soal-filter-form .select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: var(--color-ink);
+  line-height: 2rem;
+  padding-left: 0.35rem;
+}
+
+.soal-filter-form .select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: var(--color-ink-muted);
+}
+
+.soal-filter-form .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 2.5rem;
+  right: 0.4rem;
+}
+
+.soal-filter-form .select2-container--default.select2-container--focus .select2-selection--single,
+.soal-filter-form .select2-container--default.select2-container--open .select2-selection--single {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--color-brand-soft);
+}
+
+.select2-dropdown {
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  font-family: var(--font-ui);
+  overflow: hidden;
+}
+
+.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+  background: var(--color-brand);
+}
+
+/* Formula LaTeX di Summernote & tampilan soal */
+.note-editable .math-latex,
+.math-latex {
+  cursor: default;
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  vertical-align: middle;
+  padding: 0 0.15em;
+}
+
+.math-latex .katex-display {
+  margin: 0.5em 0;
+}

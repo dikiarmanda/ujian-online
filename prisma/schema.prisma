@@ -265,11 +265,11 @@ model Exam {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  createdBy User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  package   QuestionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  questions ExamQuestion[]
-  sessions  ExamSession[]
-  apiClients ApiClientExam[]
+  createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  questionPackage QuestionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  questions       ExamQuestion[]
+  sessions        ExamSession[]
+  apiClients      ApiClientExam[]
 
   @@index([examDate])
   @@index([status])

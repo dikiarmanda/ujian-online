@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "summernote/dist/summernote-lite.min.css";
+import "katex/dist/katex.min.css";
 
 export const metadata: Metadata = {
   title: "Ujian Online",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import RichHtml from "@/components/rich-html";
 import { api } from "@/lib/api";
 
 type GradeView = {
@@ -36,18 +37,18 @@ export function GradeDesk({ answerId }: { answerId: number }) {
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-md border border-line bg-paper p-5 shadow-paper">
         <p className="text-sm text-ink-muted">{view.participantName}</p>
-        <div className="mt-3 text-question" dangerouslySetInnerHTML={{ __html: view.questionBody }} />
+        <RichHtml html={view.questionBody} className="mt-3 text-question" />
         <h2 className="mt-6 text-sm font-semibold">Jawaban peserta</h2>
         <p className="mt-2 border-l-4 border-brand bg-page p-4 whitespace-pre-wrap">{view.essayText || "Peserta tidak menulis jawaban."}</p>
       </section>
       <section className="rounded-md border border-line bg-paper p-5 shadow-paper">
         <p className="rounded-sm bg-mark px-3 py-2 text-sm text-mark-ink">Kunci Anda berlaku sampai {new Date(view.lockExpiresAt).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
         <h2 className="mt-4 text-sm font-semibold">Pedoman</h2>
-        <p className="mt-2 text-sm whitespace-pre-wrap">{view.answerKey}</p>
+        <RichHtml html={view.answerKey} className="mt-2 text-sm" />
         {view.rubric ? (
           <>
             <h2 className="mt-4 text-sm font-semibold">Rubrik</h2>
-            <p className="mt-2 text-sm whitespace-pre-wrap">{view.rubric}</p>
+            <RichHtml html={view.rubric} className="mt-2 text-sm" />
           </>
         ) : null}
         <form

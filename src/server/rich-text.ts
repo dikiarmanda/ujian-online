@@ -47,11 +47,15 @@ export function sanitizeRichText(input: string): string {
       td: ["style", "colspan", "rowspan"],
       p: ["style"],
       div: ["style"],
-      span: ["style"],
+      // Formula LaTeX disimpan sebagai span.math-latex[data-latex].
+      span: ["style", "class", "contenteditable", "data-latex", "data-display"],
       h1: ["style"],
       h2: ["style"],
       h3: ["style"],
       h4: ["style"],
+    },
+    allowedClasses: {
+      span: ["math-latex"],
     },
     allowedSchemes: ["http", "https", "mailto"],
     allowedStyles: {
@@ -75,6 +79,23 @@ export function sanitizeRichText(input: string): string {
         }
         const result: { tagName: string; attribs: Record<string, string> } = { tagName: "img", attribs: keep };
         return result;
+      },
+      span: (_tagName, attribs) => {
+        const classes = (attribs.class ?? "").split(/\s+/).filter(Boolean);
+        if (classes.includes("math-latex") && attribs["data-latex"]) {
+          return {
+            tagName: "span",
+            attribs: {
+              class: "math-latex",
+              contenteditable: "false",
+              "data-latex": attribs["data-latex"],
+              "data-display": attribs["data-display"] === "1" ? "1" : "0",
+            },
+          };
+        }
+        const keep: Record<string, string> = {};
+        if (attribs.style) keep.style = attribs.style;
+        return { tagName: "span", attribs: keep };
       },
     },
   });

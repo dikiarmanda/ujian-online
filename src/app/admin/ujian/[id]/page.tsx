@@ -40,7 +40,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
     include: {
-      package: { select: { id: true, name: true } },
+      questionPackage: { select: { id: true, name: true } },
       questions: { include: { question: { select: { code: true, type: true } } }, orderBy: { sortOrder: "asc" } },
       sessions: {
         orderBy: { startsAt: "asc" },
@@ -119,8 +119,8 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
             <div className="mb-4">
               <h2 className="text-lg font-semibold tracking-tight text-ink">Paket soal</h2>
               <p className="mt-0.5 text-sm text-ink-muted">
-                {exam.package
-                  ? `Saat ini memakai “${exam.package.name}”.`
+                {exam.questionPackage
+                  ? `Saat ini memakai “${exam.questionPackage.name}”.`
                   : "Belum terhubung ke template paket."}{" "}
                 <Link href="/admin/paket" className="font-semibold text-brand hover:underline">
                   Kelola paket
