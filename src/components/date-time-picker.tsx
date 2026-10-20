@@ -43,20 +43,9 @@ export function DateTimePicker({
       time_24hr: true,
       allowInput: false,
       disableMobile: true,
-      dateFormat: isDatetime ? "Y-m-d\\TH:i" : "Y-m-d",
-      altInput: true,
-      altFormat: isDatetime ? "j F Y, H:i" : "j F Y",
-      altInputClass: className,
+      dateFormat: isDatetime ? "j F Y, H:i" : "j F Y",
       defaultDate: defaultValue || undefined,
-      onReady: (_dates, _str, instance) => {
-        if (required && instance.altInput) {
-          instance.altInput.required = true;
-          instance.altInput.setAttribute("aria-required", "true");
-        }
-        if (placeholder && instance.altInput) {
-          instance.altInput.placeholder = placeholder;
-        }
-      },
+      appendTo: el.parentElement || undefined,
     });
 
     return () => {
@@ -65,7 +54,7 @@ export function DateTimePicker({
     };
     // Sengaja hanya mode: props lain dipakai saat inisialisasi pertama.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [mode, defaultValue]);
 
   return (
     <input

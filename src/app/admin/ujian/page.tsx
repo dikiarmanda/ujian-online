@@ -32,7 +32,7 @@ export default async function UjianPage() {
     }),
   ]);
 
-  let competitions: { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA")[] }[] = [];
+  let competitions: { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA" | "SMK")[] }[] = [];
   let competitionsError: string | null = null;
   try {
     competitions = await listAvailableCompetitions();

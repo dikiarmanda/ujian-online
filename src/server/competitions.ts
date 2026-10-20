@@ -17,6 +17,7 @@ export type CompetitionOption = {
 async function loadCompetitionsFromOmbn(): Promise<CompetitionOption[]> {
   const rows = await ombn.competitions.findMany({
     select: { id: true, nama_lomba: true, jenjang: true },
+    where: { status: "OPEN" },
     orderBy: { id: "desc" },
   });
   const used = await prisma.exam.findMany({ select: { competitionId: true } });

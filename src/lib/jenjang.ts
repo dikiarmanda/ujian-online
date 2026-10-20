@@ -1,5 +1,5 @@
 /** Kelompok paket soal per jenjang. */
-export type JenjangGroup = "SD" | "SMP" | "SMA";
+export type JenjangGroup = "SD" | "SMP" | "SMA" | "SMK";
 
 const RAW_TO_GROUP: Record<string, JenjangGroup> = {
   SD: "SD",
@@ -8,11 +8,11 @@ const RAW_TO_GROUP: Record<string, JenjangGroup> = {
   MTs: "SMP",
   SMA: "SMA",
   MA: "SMA",
-  SMK: "SMA",
+  SMK: "SMK",
 };
 
 /**
- * Petakan jenjang pendaftaran/sekolah ke kelompok paket (SD/SMP/SMA).
+ * Petakan jenjang pendaftaran/sekolah ke kelompok paket (SD/SMP/SMA/SMK).
  * Nilai di luar daftar menghasilkan error — tidak ada fallback diam-diam.
  */
 export function mapJenjang(raw: string): JenjangGroup {
@@ -51,7 +51,7 @@ export function parseCompetitionJenjang(value: unknown): JenjangGroup[] {
     }
     groups.add(mapJenjang(item));
   }
-  const order: JenjangGroup[] = ["SD", "SMP", "SMA"];
+  const order: JenjangGroup[] = ["SD", "SMP", "SMA", "SMK"];
   return order.filter((g) => groups.has(g));
 }
 

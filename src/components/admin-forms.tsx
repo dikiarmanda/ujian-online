@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { DateTimePicker } from "./date-time-picker";
+import { patchJqueryCompat } from "@/lib/jquery-compat";
+import "select2/dist/css/select2.min.css";
 
 const SummernoteEditor = dynamic(() => import("./summernote-editor"), {
   ssr: false,
@@ -511,7 +513,18 @@ export function ImportForm() {
 }
 
 type PackageOption = { id: number; name: string; itemCount: number };
-type CompetitionOption = { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA")[] };
+type CompetitionOption = { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA" | "SMK")[] };
+
+type JQuerySelect2 = JQuery & {
+  select2: (opts?: object | string) => JQuery;
+};
+
+function bindSelect2(jq: JQueryStatic, factory: unknown): void {
+  if (typeof (jq.fn as { select2?: unknown }).select2 === "function") return;
+  if (typeof factory === "function") {
+    (factory as (root: Window, jQuery: JQueryStatic) => void)(window, jq);
+  }
+}
 
 export function ExamForm({
   packages,
@@ -525,11 +538,104 @@ export function ExamForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [competitionId, setCompetitionId] = useState<number | "">("");
+  const formRef = useRef<HTMLFormElement>(null);
   const selected = competitions.find((row) => row.id === competitionId);
-  const groups = selected?.jenjangGroups?.length ? selected.jenjangGroups : (["SD", "SMP", "SMA"] as const);
+  const groups = selected?.jenjangGroups?.length ? selected.jenjangGroups : [];
+
+  useEffect(() => {
+    let cancelled = false;
+    const cleanups: Array<() => void> = [];
+
+    void (async () => {
+      const jqueryMod = await import("jquery");
+      const $ = patchJqueryCompat((jqueryMod.default ?? jqueryMod) as unknown as JQueryStatic);
+      const win = window as Window & { jQuery?: JQueryStatic; $?: JQueryStatic };
+      win.jQuery = $;
+      win.$ = $;
+
+      // @ts-expect-error select2 full build belum punya deklarasi modul
+      const select2Mod = await import("select2/dist/js/select2.full.min.js");
+      bindSelect2($, (select2Mod as { default?: unknown }).default ?? select2Mod);
+
+      if (typeof ($.fn as { select2?: unknown }).select2 !== "function") {
+        const fallback = await import("select2");
+        bindSelect2($, (fallback as { default?: unknown }).default ?? fallback);
+      }
+
+      if (cancelled || !formRef.current) return;
+      if (typeof ($.fn as { select2?: unknown }).select2 !== "function") {
+        console.error("Select2 gagal terpasang ke jQuery.");
+        return;
+      }
+
+      const selects = formRef.current.querySelectorAll<HTMLSelectElement>("select.js-select2");
+      selects.forEach((el) => {
+        const $el = $(el) as unknown as JQuerySelect2;
+        $el.select2({
+          width: "100%",
+          allowClear: true,
+          placeholder: el.dataset.placeholder || "Pilih…",
+          language: {
+            noResults: () => "Tidak ada hasil",
+            searching: () => "Mencari…",
+          },
+        });
+
+        // Handle select2 change event
+        $el.on("change", function () {
+          if (el.name === "competitionId") {
+            const value = (this as HTMLSelectElement).value;
+            setCompetitionId(value ? Number(value) : "");
+          }
+        });
+
+        cleanups.push(() => {
+          try {
+            if ($el.data("select2")) {
+              $el.off("change");
+              $el.select2("destroy");
+            }
+          } catch {
+            /* sudah di-unmount */
+          }
+        });
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const cleanup of cleanups) cleanup();
+    };
+  }, []);
+
+  // Update select2 value when competitionId changes
+  useEffect(() => {
+    if (!formRef.current) return;
+    const select = formRef.current.querySelector<HTMLSelectElement>('select[name="competitionId"]');
+    if (!select) return;
+
+    // Need to wait for select2 to be initialized
+    const interval = setInterval(() => {
+      const $ = (window as any).$;
+      if (!$ || !$(select).data("select2")) return;
+
+      const $select = $(select) as JQuerySelect2;
+      const currentValue = $select.val();
+      const newValue = competitionId === "" ? "" : String(competitionId);
+
+      if (currentValue !== newValue) {
+        $select.val(newValue).trigger("change");
+      }
+
+      clearInterval(interval);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [competitionId]);
 
   return (
     <form
+      ref={formRef}
       className="grid gap-5 rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6"
       onSubmit={(event) => {
         event.preventDefault();
@@ -537,6 +643,10 @@ export function ExamForm({
         const compId = Number(form.get("competitionId"));
         if (!compId) {
           setError("Pilih lomba dari daftar.");
+          return;
+        }
+        if (groups.length === 0) {
+          setError("Lomba yang dipilih tidak memiliki jenjang.");
           return;
         }
         const packageMap: Record<string, number> = {};
@@ -584,9 +694,9 @@ export function ExamForm({
           id="exam-competition"
           name="competitionId"
           required
-          value={competitionId === "" ? "" : String(competitionId)}
-          onChange={(event) => setCompetitionId(event.target.value ? Number(event.target.value) : "")}
-          className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
+          defaultValue={competitionId === "" ? "" : String(competitionId)}
+          className="js-select2 rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
+          data-placeholder="Pilih lomba…">
           <option value="" disabled>
             Pilih lomba…
           </option>
@@ -597,31 +707,6 @@ export function ExamForm({
           ))}
         </select>
       </div>
-
-      {competitionId ? (
-        <div className="grid gap-4 rounded-xl border border-line/80 bg-page/60 p-4">
-          <p className="text-sm font-semibold text-ink">Paket soal per jenjang</p>
-          {groups.map((group) => (
-            <label key={group} className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-              {group}
-              <select
-                name={`package_${group}`}
-                required
-                defaultValue=""
-                className="rounded-xl border border-line px-3 py-2.5 font-normal">
-                <option value="" disabled>
-                  Pilih paket…
-                </option>
-                {packages.map((pack) => (
-                  <option key={pack.id} value={pack.id}>
-                    {pack.name} ({pack.itemCount} soal)
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
@@ -675,6 +760,36 @@ export function ExamForm({
         </label>
       </div>
 
+      {groups.length > 0 ? (
+        <div className="grid gap-4 rounded-xl border border-line/80 bg-page/60 p-4">
+          <p className="text-sm font-semibold text-ink">Paket soal per jenjang</p>
+          {groups.map((group) => (
+            <label key={group} className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+              {group}
+              <select
+                name={`package_${group}`}
+                required
+                defaultValue=""
+                className="rounded-xl border border-line px-3 py-2.5 font-normal">
+                <option value="" disabled>
+                  Pilih paket…
+                </option>
+                {packages.map((pack) => (
+                  <option key={pack.id} value={pack.id}>
+                    {pack.name} ({pack.itemCount} soal)
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-line-strong/60 bg-page/40 px-4 py-6 text-center">
+          <p className="text-sm font-semibold text-ink">Pilih lomba dulu</p>
+          <p className="mt-1 text-xs text-ink-muted">Daftar jenjang dan paket soal akan muncul setelah lomba dipilih.</p>
+        </div>
+      )}
+
       <fieldset className="rounded-xl border border-line/80 bg-page/60 p-4">
         <legend className="px-1 text-sm font-semibold text-ink">Pengacakan</legend>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -692,7 +807,7 @@ export function ExamForm({
       <ErrorText error={error} />
       <button
         type="submit"
-        disabled={pending || packages.length === 0 || !competitionId || Boolean(competitionsError)}
+        disabled={pending || packages.length === 0 || !competitionId || groups.length === 0 || Boolean(competitionsError)}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
         {pending ? "Menyimpan…" : "Buat ujian"}
       </button>
