@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_MAX_AGE = 60 * 60 * 12;
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const sid = request.cookies.get("sid")?.value;
   if (!sid) return NextResponse.next();
   const response = NextResponse.next();

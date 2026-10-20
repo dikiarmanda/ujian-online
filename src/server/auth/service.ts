@@ -10,6 +10,7 @@ import { passwordsMatch } from "../login-rules";
 import { ombn } from "../ombn-db";
 import { redis } from "../redis";
 import { createSession, resetUserSession } from "../session";
+import { log } from "console";
 
 const loginSchema = z.object({
   identity: z.string().trim().min(1, "Isi identitas.").max(100),
@@ -115,6 +116,16 @@ async function findAdmin(identity: string, password: string): Promise<Account> {
   } catch {
     matched = false;
   }
+  console.log({
+    found: !!row,
+    status: row?.status,          // cek nilai persisnya
+    rawRole: row?.role,
+    mappedRole: role,
+    hashPrefix: row?.password_hash?.slice(0, 7),
+    hashLen: row?.password_hash?.length,
+    hashHasWhitespace: row?.password_hash ? /\s/.test(row.password_hash) : null,
+    matched,
+  });
   if (!row || row.status !== "ACTIVE" || !role || !matched) throw genericLoginError();
   return {
     externalId: `ombn-admin:${row.id.toString()}`,
@@ -208,17 +219,18 @@ export async function loginUser(input: unknown, ipAddress: string) {
   await assertLoginAllowed(identity.toLowerCase(), ipAddress);
   let account: Account;
   try {
-    if (env().authDriver === "mock") {
-      const mock = await findMockAccount(identity);
-      if (!mock) throw genericLoginError();
-      account = mock;
-    } else {
+    // if (env().authDriver === "mock") {
+    //   const mock = await findMockAccount(identity);
+    //   if (!mock) throw genericLoginError();
+    //   account = mock;
+    // } else {
       account = identity.includes("@")
         ? await findAdmin(identity, password)
         : await findPeserta(identity, password);
-    }
+    // }
   } catch (error) {
     if (error instanceof AppError && error.status === 401) {
+      console.log("[LOGIN] Failed - Identity:", identity, "IP:", ipAddress, "Error:", error.message);
       await recordLoginFailure(identity.toLowerCase(), ipAddress);
       await writeAudit({
         action: "LOGIN_FAILED",
@@ -228,7 +240,11 @@ export async function loginUser(input: unknown, ipAddress: string) {
       });
       throw error;
     }
-    if (error instanceof AppError) throw error;
+    if (error instanceof AppError) {
+      console.log("[LOGIN] Error - Identity:", identity, "IP:", ipAddress, "Error:", error.message);
+      throw error;
+    }
+    console.log("[LOGIN] Origin Down - Identity:", identity, "IP:", ipAddress);
     throw new OriginDownError();
   }
   await clearLoginFailures(identity.toLowerCase(), ipAddress);

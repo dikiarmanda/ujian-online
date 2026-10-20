@@ -10,8 +10,9 @@ export async function POST(req: Request) {
   return withErrors(async () => {
     assertMutationOrigin(req);
     const payload: unknown = await req.json().catch(() => null);
+    console.log("[LOGIN] Attempt from IP:", requestIp(req), "Payload:", payload);
     const result = await loginUser(payload, requestIp(req));
-    console.log("result", result);
+    console.log("[LOGIN] Success - User:", result.name, "Role:", result.role, "IP:", requestIp(req));
     return json(
       { ok: true, redirect: homeForRole(result.role), name: result.name },
       200,
