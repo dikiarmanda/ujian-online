@@ -12,7 +12,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/server/exam-rules.test.ts src/server/login-rules.test.ts src/server/integration-rules.test.ts",
+    "test": "tsx --test src/server/exam-rules.test.ts src/server/login-rules.test.ts src/server/integration-rules.test.ts src/lib/jenjang.test.ts src/server/exam-flow.test.ts",
     "worker": "tsx src/worker/index.ts",
     "db:generate": "prisma generate && prisma generate --schema prisma/ombn/schema.prisma && prisma generate --schema prisma/sekolah/schema.prisma",
     "db:migrate": "prisma migrate dev",

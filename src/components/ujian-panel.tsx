@@ -11,6 +11,7 @@ export type UjianRow = {
   questionCount: number;
   sessionCount: number;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  phase?: "NOT_STARTED" | "RUNNING" | "ENDED";
 };
 
 type StatusFilter = "ALL" | UjianRow["status"];
@@ -129,7 +130,7 @@ export function UjianPanel({ exams }: { exams: UjianRow[] }) {
                     </Link>
                     <p className="mt-1 text-sm text-ink-muted">{exam.examDateLabel}</p>
                     <p className="mt-1 text-xs text-ink-muted">
-                      {exam.durationMinutes} mnt · {exam.questionCount} soal · {exam.sessionCount} sesi
+                      {exam.durationMinutes} mnt · {exam.questionCount} paket · {exam.sessionCount} attempt
                     </p>
                   </div>
                   <Link

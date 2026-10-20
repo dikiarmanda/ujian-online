@@ -4,7 +4,6 @@ import { prisma } from "./db";
 import { prismaReadonly } from "./db-readonly";
 import { env } from "./env";
 import { AppError, IntegrationError } from "./errors";
-import { parseExamDate } from "./exam-rules";
 import {
   decodeCursor,
   encodeCursor,
@@ -148,18 +147,18 @@ async function assertNoActiveExam(): Promise<void> {
     }
     if (!until) return;
   }
-  const session = await prismaReadonly.examSession.findFirst({
-    where: { attendanceOpensAt: { lte: now }, endsAt: { gte: now } },
+  const exam = await prismaReadonly.exam.findFirst({
+    where: { phase: "RUNNING", endsAt: { gte: now } },
     orderBy: { endsAt: "desc" },
     select: { endsAt: true },
   });
-  await redis.set(EXAM_BLOCK_KEY, session ? String(session.endsAt.getTime()) : "0", "EX", 30);
-  if (session) {
+  await redis.set(EXAM_BLOCK_KEY, exam ? String(exam.endsAt.getTime()) : "0", "EX", 30);
+  if (exam) {
     throw new IntegrationError(
       "EXAM_IN_PROGRESS",
-      "Layanan tidak tersedia selama sesi ujian berlangsung.",
+      "Layanan tidak tersedia selama ujian berlangsung.",
       503,
-      retryAfterUntil(now, session.endsAt) ?? 30,
+      retryAfterUntil(now, exam.endsAt) ?? 30,
     );
   }
 }
@@ -231,28 +230,20 @@ export function readExamId(value: string): number {
 }
 
 function parseResultsQuery(url: URL): {
-  sessionId?: number;
   updatedSince?: Date;
   cursor?: ResultCursor;
   limit: number;
   includeNonFinal: boolean;
 } {
   try {
-    const sessionRaw = url.searchParams.get("sessionId");
     const updatedRaw = url.searchParams.get("updatedSince");
     const cursorRaw = url.searchParams.get("cursor");
-    let sessionId: number | undefined;
-    if (sessionRaw) {
-      if (!/^\d+$/.test(sessionRaw)) throw new Error("Sesi tidak valid.");
-      sessionId = Number(sessionRaw);
-    }
     let updatedSince: Date | undefined;
     if (updatedRaw) {
       updatedSince = new Date(updatedRaw);
       if (Number.isNaN(updatedSince.getTime())) throw new Error("updatedSince tidak valid.");
     }
     return {
-      sessionId,
       updatedSince,
       cursor: cursorRaw ? decodeCursor(cursorRaw) : undefined,
       limit: parseLimit(url.searchParams.get("limit")),
@@ -263,15 +254,6 @@ function parseResultsQuery(url: URL): {
   }
 }
 
-async function attendedSet(rows: { sessionId: number; userId: number }[]): Promise<Set<string>> {
-  if (!rows.length) return new Set();
-  const found = await prismaReadonly.attendance.findMany({
-    where: { OR: rows.map((row) => ({ sessionId: row.sessionId, userId: row.userId })) },
-    select: { sessionId: true, userId: true },
-  });
-  return new Set(found.map((row) => `${row.sessionId}:${row.userId}`));
-}
-
 const attemptInclude = {
   user: { select: { nisn: true, name: true, groupName: true } },
   _count: { select: { violations: true } },
@@ -279,9 +261,10 @@ const attemptInclude = {
 
 type AttemptRow = Prisma.ExamAttemptGetPayload<{ include: typeof attemptInclude }>;
 
-function rowFromAttempt(attempt: AttemptRow, attended: boolean) {
+function rowFromAttempt(attempt: AttemptRow) {
   return toResultRow({
-    sessionId: attempt.sessionId,
+    examId: attempt.examId,
+    jenjang: attempt.jenjang,
     status: attempt.status,
     mcScore: attempt.mcScore,
     essayScore: attempt.essayScore,
@@ -289,7 +272,7 @@ function rowFromAttempt(attempt: AttemptRow, attended: boolean) {
     gradingStatus: attempt.gradingStatus,
     submittedAt: attempt.submittedAt,
     violationCount: attempt._count.violations,
-    attended,
+    attended: Boolean(attempt.attendedAt),
     nisn: attempt.user.nisn ?? "",
     name: attempt.user.name,
     groupName: attempt.user.groupName,
@@ -298,70 +281,74 @@ function rowFromAttempt(attempt: AttemptRow, attended: boolean) {
 
 export async function listIntegrationExams(actor: ApiActor, url: URL) {
   const statusRaw = url.searchParams.get("status");
-  const dateRaw = url.searchParams.get("tanggal");
   const statuses: ExamStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
   if (statusRaw && !statuses.includes(statusRaw as ExamStatus)) throw invalid("Status ujian tidak valid.");
-  let examDate: Date | undefined;
-  if (dateRaw) {
-    try {
-      examDate = parseExamDate(dateRaw);
-    } catch {
-      throw invalid("Tanggal ujian tidak valid.");
-    }
-  }
   const exams = await prismaReadonly.exam.findMany({
     where: {
       ...(actor.allExams ? {} : { id: { in: actor.examIds } }),
       ...(statusRaw ? { status: statusRaw as ExamStatus } : {}),
-      ...(examDate ? { examDate } : {}),
     },
-    orderBy: [{ examDate: "desc" }, { id: "desc" }],
-    select: { id: true, name: true, examDate: true, status: true, durationMinutes: true },
+    orderBy: [{ startsAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      name: true,
+      startsAt: true,
+      endsAt: true,
+      status: true,
+      phase: true,
+      durationMinutes: true,
+      competitionId: true,
+    },
   });
   return {
     data: exams.map((exam) => ({
       id: exam.id,
       name: exam.name,
-      examDate: exam.examDate.toISOString().slice(0, 10),
+      competitionId: exam.competitionId,
+      startsAt: exam.startsAt.toISOString(),
+      endsAt: exam.endsAt.toISOString(),
       status: exam.status,
+      phase: exam.phase,
       durationMinutes: exam.durationMinutes,
     })),
   };
 }
 
+/** Endpoint legacy: mengembalikan jadwal exam (bukan sesi). */
 export async function listIntegrationSessions(actor: ApiActor, examId: number) {
   await assertExamAccess(actor, examId);
-  const sessions = await prismaReadonly.examSession.findMany({
-    where: { examId },
-    orderBy: { startsAt: "asc" },
-    select: { id: true, name: true, startsAt: true, endsAt: true, attendanceOpensAt: true },
+  const exam = await prismaReadonly.exam.findUnique({
+    where: { id: examId },
+    select: { id: true, name: true, startsAt: true, endsAt: true, attendanceOpensAt: true, phase: true },
   });
+  if (!exam) throw new IntegrationError("NOT_FOUND", "Ujian tidak ditemukan.", 404);
   return {
-    data: sessions.map((session) => ({
-      id: session.id,
-      name: session.name,
-      startsAt: session.startsAt.toISOString(),
-      endsAt: session.endsAt.toISOString(),
-      attendanceOpensAt: session.attendanceOpensAt.toISOString(),
-    })),
+    data: [
+      {
+        id: exam.id,
+        name: exam.name,
+        startsAt: exam.startsAt.toISOString(),
+        endsAt: exam.endsAt.toISOString(),
+        attendanceOpensAt: exam.attendanceOpensAt.toISOString(),
+        phase: exam.phase,
+      },
+    ],
   };
 }
 
 export async function examSummary(actor: ApiActor, examId: number) {
   await assertExamAccess(actor, examId);
-  const sessions = await prismaReadonly.examSession.findMany({ where: { examId }, select: { id: true } });
-  const sessionIds = sessions.map((session) => session.id);
-  const sessionFilter = { sessionId: { in: sessionIds } };
+  const examFilter = { examId };
   const finished = { status: { in: ["SUBMITTED" as const, "TIME_EXPIRED" as const] } };
   const [participantCount, attendedCount, finishedCount, ungradedCount, scores] = await Promise.all([
-    prismaReadonly.sessionParticipant.count({ where: sessionFilter }),
-    prismaReadonly.attendance.count({ where: sessionFilter }),
-    prismaReadonly.examAttempt.count({ where: { ...sessionFilter, ...finished } }),
+    prismaReadonly.examAttempt.count({ where: examFilter }),
+    prismaReadonly.examAttempt.count({ where: { ...examFilter, attendedAt: { not: null } } }),
+    prismaReadonly.examAttempt.count({ where: { ...examFilter, ...finished } }),
     prismaReadonly.examAttempt.count({
-      where: { ...sessionFilter, ...finished, gradingStatus: { not: "COMPLETED" } },
+      where: { ...examFilter, ...finished, gradingStatus: { not: "COMPLETED" } },
     }),
     prismaReadonly.examAttempt.aggregate({
-      where: { ...sessionFilter, gradingStatus: "COMPLETED" },
+      where: { ...examFilter, gradingStatus: "COMPLETED" },
       _avg: { totalScore: true },
       _min: { totalScore: true },
       _max: { totalScore: true },
@@ -379,12 +366,8 @@ export async function examSummary(actor: ApiActor, examId: number) {
 }
 
 function attemptFilters(examId: number, query: ReturnType<typeof parseResultsQuery>): Prisma.ExamAttemptWhereInput[] {
-  const filters: Prisma.ExamAttemptWhereInput[] = [
-    { session: { examId } },
-    { user: { nisn: { not: null } } },
-  ];
+  const filters: Prisma.ExamAttemptWhereInput[] = [{ examId }, { user: { nisn: { not: null } } }];
   if (!query.includeNonFinal) filters.push({ gradingStatus: "COMPLETED" });
-  if (query.sessionId) filters.push({ sessionId: query.sessionId });
   if (query.updatedSince) filters.push({ updatedAt: { gte: query.updatedSince } });
   if (query.cursor) {
     filters.push({
@@ -407,10 +390,9 @@ export async function listResults(actor: ApiActor, examId: number, url: URL) {
     include: attemptInclude,
   });
   const page = rows.slice(0, query.limit).filter((row) => row.user.nisn);
-  const attended = await attendedSet(page);
   const last = page.at(-1);
   return {
-    data: page.map((row) => rowFromAttempt(row, attended.has(`${row.sessionId}:${row.userId}`))),
+    data: page.map((row) => rowFromAttempt(row)),
     page: {
       nextCursor: rows.length > query.limit && last ? encodeCursor(last.updatedAt, last.id) : null,
       limit: query.limit,
@@ -428,7 +410,7 @@ export async function resultForIdentity(actor: ApiActor, examId: number, identit
   }
   const attempt = await prismaReadonly.examAttempt.findFirst({
     where: {
-      session: { examId },
+      examId,
       user: { nisn: identity },
       ...(includeNonFinal ? {} : { gradingStatus: "COMPLETED" }),
     },
@@ -438,6 +420,5 @@ export async function resultForIdentity(actor: ApiActor, examId: number, identit
   if (!attempt?.user.nisn || (!includeNonFinal && !isFinalGrading(attempt.gradingStatus))) {
     throw new IntegrationError("NOT_FOUND", "Peserta tidak ditemukan.", 404);
   }
-  const attended = await attendedSet([attempt]);
-  return { data: rowFromAttempt(attempt, attended.has(`${attempt.sessionId}:${attempt.userId}`)) };
+  return { data: rowFromAttempt(attempt) };
 }

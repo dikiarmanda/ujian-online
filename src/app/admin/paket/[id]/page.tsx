@@ -31,7 +31,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
         category: { select: { name: true } },
       },
     }),
-    prisma.exam.count({ where: { packageId } }),
+    prisma.examPackage.count({ where: { packageId } }),
   ]);
   if (!pack) notFound();
 

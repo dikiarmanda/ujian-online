@@ -71,14 +71,14 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{report.examName}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">
-                {report.sessionName} · {formatJakarta(report.startsAt)} → {formatJakarta(report.endsAt)}
+                Fase {report.phase} · {formatJakarta(report.startsAt)} → {formatJakarta(report.endsAt)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Link
-                href={`/admin/sesi/${report.sessionId}`}
+                href={`/admin/ujian/${report.examId}`}
                 className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
-                Kelola sesi
+                Kelola ujian
               </Link>
               <a
                 href={`/api/admin/laporan/${sessionId}/excel`}
@@ -94,7 +94,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
           </div>
         </header>
 
-        <section aria-label="Ringkasan sesi" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label="Ringkasan ujian" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
             label="Kehadiran"
             value={`${report.attendance.attended}/${report.attendance.assigned}`}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { DateTimePicker } from "./date-time-picker";
 
@@ -438,9 +439,9 @@ export function QuestionForm({
       <div className="sticky bottom-3 z-10 rounded-xl border border-line/80 bg-paper/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-paper/85">
         <ErrorText error={error} />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <a href="/admin/soal" className="text-sm font-semibold text-ink-muted transition hover:text-brand">
+          <Link href="/admin/soal" className="text-sm font-semibold text-ink-muted transition hover:text-brand">
             Batal ke daftar soal
-          </a>
+          </Link>
           <button
             type="submit"
             disabled={pending || categories.length === 0}
@@ -510,32 +511,56 @@ export function ImportForm() {
 }
 
 type PackageOption = { id: number; name: string; itemCount: number };
+type CompetitionOption = { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA")[] };
 
-export function ExamForm({ packages }: { packages: PackageOption[] }) {
+export function ExamForm({
+  packages,
+  competitions,
+  competitionsError,
+}: {
+  packages: PackageOption[];
+  competitions: CompetitionOption[];
+  competitionsError?: string | null;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [competitionId, setCompetitionId] = useState<number | "">("");
+  const selected = competitions.find((row) => row.id === competitionId);
+  const groups = selected?.jenjangGroups?.length ? selected.jenjangGroups : (["SD", "SMP", "SMA"] as const);
+
   return (
     <form
       className="grid gap-5 rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6"
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
-        const packageId = Number(form.get("packageId"));
-        if (!packageId) {
-          setError("Pilih paket soal.");
+        const compId = Number(form.get("competitionId"));
+        if (!compId) {
+          setError("Pilih lomba dari daftar.");
           return;
+        }
+        const packageMap: Record<string, number> = {};
+        for (const group of groups) {
+          const packageId = Number(form.get(`package_${group}`));
+          if (!packageId) {
+            setError(`Pilih paket soal untuk jenjang ${group}.`);
+            return;
+          }
+          packageMap[group] = packageId;
         }
         setPending(true);
         setError(null);
         void api<{ id: number }>("/api/admin/ujian", {
           body: {
-            name: form.get("name"),
-            examDate: form.get("examDate"),
+            competitionId: compId,
+            attendanceOpensAt: form.get("attendanceOpensAt"),
+            startsAt: form.get("startsAt"),
+            endsAt: form.get("endsAt"),
             durationMinutes: Number(form.get("durationMinutes")),
             shuffleQuestions: form.get("shuffleQuestions") === "on",
             shuffleOptions: form.get("shuffleOptions") === "on",
             status: form.get("status"),
-            packageId,
+            packages: packageMap,
           },
         })
           .then((result) => {
@@ -546,113 +571,120 @@ export function ExamForm({ packages }: { packages: PackageOption[] }) {
             setPending(false);
           });
       }}>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="exam-name" className="text-sm font-semibold text-ink">
-          Nama ujian
-        </label>
-        <p className="text-xs text-ink-muted">Contoh: Ujian Tengah Semester Matematika</p>
-        <input id="exam-name" name="name" required className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal" />
-      </div>
+      {competitionsError ? (
+        <p className="rounded-xl border border-dashed border-alert/40 bg-mark px-4 py-3 text-sm text-alert">{competitionsError}</p>
+      ) : null}
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="exam-package" className="text-sm font-semibold text-ink">
-          Paket soal
+        <label htmlFor="exam-competition" className="text-sm font-semibold text-ink">
+          Lomba (OMBN)
         </label>
-        <p className="text-xs text-ink-muted">Isi soal diambil dari paket yang dipilih.</p>
-        {packages.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line-strong/60 px-3 py-3 text-sm text-ink-muted">
-            Belum ada paket aktif.{" "}
-            <a href="/admin/paket" className="font-semibold text-brand hover:underline">
-              Buat paket soal
-            </a>{" "}
-            dulu.
-          </p>
-        ) : (
-          <select
-            id="exam-package"
-            name="packageId"
-            required
-            defaultValue=""
-            className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
-            <option value="" disabled>
-              Pilih paket…
+        <p className="text-xs text-ink-muted">Nama ujian diambil dari nama lomba. Hanya lomba yang belum punya ujian.</p>
+        <select
+          id="exam-competition"
+          name="competitionId"
+          required
+          value={competitionId === "" ? "" : String(competitionId)}
+          onChange={(event) => setCompetitionId(event.target.value ? Number(event.target.value) : "")}
+          className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
+          <option value="" disabled>
+            Pilih lomba…
+          </option>
+          {competitions.map((row) => (
+            <option key={row.id} value={row.id}>
+              {row.name} (#{row.id})
             </option>
-            {packages.map((pack) => (
-              <option key={pack.id} value={pack.id}>
-                {pack.name} ({pack.itemCount} soal)
-              </option>
-            ))}
-          </select>
-        )}
+          ))}
+        </select>
       </div>
+
+      {competitionId ? (
+        <div className="grid gap-4 rounded-xl border border-line/80 bg-page/60 p-4">
+          <p className="text-sm font-semibold text-ink">Paket soal per jenjang</p>
+          {groups.map((group) => (
+            <label key={group} className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+              {group}
+              <select
+                name={`package_${group}`}
+                required
+                defaultValue=""
+                className="rounded-xl border border-line px-3 py-2.5 font-normal">
+                <option value="" disabled>
+                  Pilih paket…
+                </option>
+                {packages.map((pack) => (
+                  <option key={pack.id} value={pack.id}>
+                    {pack.name} ({pack.itemCount} soal)
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="exam-date" className="text-sm font-semibold text-ink">
-            Tanggal ujian
-          </label>
-          <p className="text-xs text-ink-muted">Tanggal pelaksanaan resmi ujian</p>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
+          Absensi dibuka
           <DateTimePicker
-            id="exam-date"
-            name="examDate"
-            mode="date"
+            name="attendanceOpensAt"
+            mode="datetime"
             required
-            placeholder="Pilih tanggal"
-            className="w-full rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
+            placeholder="Pilih tanggal dan jam"
+            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="exam-duration" className="text-sm font-semibold text-ink">
-            Durasi pengerjaan
-          </label>
-          <p className="text-xs text-ink-muted">Dalam menit, dihitung sejak peserta mulai</p>
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+          Jadwal mulai (rencana)
+          <DateTimePicker
+            name="startsAt"
+            mode="datetime"
+            required
+            placeholder="Pilih tanggal dan jam"
+            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+          Batas akhir keras
+          <DateTimePicker
+            name="endsAt"
+            mode="datetime"
+            required
+            placeholder="Pilih tanggal dan jam"
+            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+          Durasi per peserta (menit)
           <input
-            id="exam-duration"
             name="durationMinutes"
             type="number"
             min={1}
             defaultValue={120}
             required
-            className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
+            className="rounded-xl border border-line px-3 py-2.5 font-normal"
           />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="exam-status" className="text-sm font-semibold text-ink">
-          Status awal
         </label>
-        <p className="text-xs text-ink-muted">
-          Draf: masih disiapkan. Terbit: siap dijadwalkan. Arsip: tidak dipakai lagi.
-        </p>
-        <select
-          id="exam-status"
-          name="status"
-          defaultValue="DRAFT"
-          className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
-          <option value="DRAFT">Draf</option>
-          <option value="PUBLISHED">Terbit</option>
-          <option value="ARCHIVED">Arsip</option>
-        </select>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+          Status awal
+          <select name="status" defaultValue="DRAFT" className="rounded-xl border border-line px-3 py-2.5 font-normal">
+            <option value="DRAFT">Draf</option>
+            <option value="PUBLISHED">Terbit</option>
+            <option value="ARCHIVED">Arsip</option>
+          </select>
+        </label>
       </div>
 
       <fieldset className="rounded-xl border border-line/80 bg-page/60 p-4">
         <legend className="px-1 text-sm font-semibold text-ink">Pengacakan</legend>
-        <p className="mb-3 text-xs text-ink-muted">Opsional. Berlaku per peserta saat mengerjakan.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex items-start gap-2.5 text-sm text-ink">
             <input type="checkbox" name="shuffleQuestions" defaultChecked className="mt-0.5 size-4 accent-[var(--color-brand)]" />
-            <span>
-              <span className="font-semibold">Acak urutan soal</span>
-              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Tiap peserta mendapat urutan soal berbeda</span>
-            </span>
+            <span className="font-semibold">Acak urutan soal</span>
           </label>
           <label className="flex items-start gap-2.5 text-sm text-ink">
             <input type="checkbox" name="shuffleOptions" defaultChecked className="mt-0.5 size-4 accent-[var(--color-brand)]" />
-            <span>
-              <span className="font-semibold">Acak urutan opsi</span>
-              <span className="mt-0.5 block text-xs font-normal text-ink-muted">Pilihan A–E diacak per peserta</span>
-            </span>
+            <span className="font-semibold">Acak urutan opsi</span>
           </label>
         </div>
       </fieldset>
@@ -660,7 +692,7 @@ export function ExamForm({ packages }: { packages: PackageOption[] }) {
       <ErrorText error={error} />
       <button
         type="submit"
-        disabled={pending || packages.length === 0}
+        disabled={pending || packages.length === 0 || !competitionId || Boolean(competitionsError)}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
         {pending ? "Menyimpan…" : "Buat ujian"}
       </button>
@@ -678,77 +710,75 @@ type QuestionPick = {
   categoryName?: string;
 };
 
-export function ExamPackageAssignForm({
+export function ExamControlButtons({
   examId,
-  packages,
-  currentPackageId,
+  phase,
+  status,
 }: {
   examId: number;
-  packages: PackageOption[];
-  currentPackageId: number | null;
+  phase: "NOT_STARTED" | "RUNNING" | "ENDED";
+  status: string;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"start" | "end" | "sync" | null>(null);
+  const canControl = status === "PUBLISHED";
+
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const packageId = Number(form.get("packageId"));
-        if (!packageId) {
-          setError("Pilih paket soal.");
-          return;
-        }
-        setPending(true);
-        setError(null);
-        void api("/api/admin/paket", { body: { examId, packageId } })
-          .then(() => window.location.reload())
-          .catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : "Gagal menerapkan paket.");
-            setPending(false);
-          });
-      }}>
-      {packages.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line-strong/60 px-4 py-6 text-center text-sm text-ink-muted">
-          Belum ada paket aktif.{" "}
-          <a href="/admin/paket" className="font-semibold text-brand hover:underline">
-            Buat paket soal
-          </a>
-          .
-        </p>
-      ) : (
-        <>
-          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-            Paket soal
-            <select
-              name="packageId"
-              required
-              defaultValue={currentPackageId ?? ""}
-              className="rounded-xl border border-line px-3 py-2.5 font-normal">
-              <option value="" disabled>
-                Pilih paket…
-              </option>
-              {packages.map((pack) => (
-                <option key={pack.id} value={pack.id}>
-                  {pack.name} ({pack.itemCount} soal)
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="text-xs text-ink-muted">
-            Menerapkan paket akan mengganti seluruh soal ujian ini dengan isi paket terbaru.
-          </p>
-          <button
-            type="submit"
-            disabled={pending}
-            className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
-            {pending ? "Menerapkan…" : "Terapkan paket"}
-          </button>
-        </>
-      )}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={!canControl || phase !== "NOT_STARTED" || pending !== null}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50"
+          onClick={() => {
+            if (!window.confirm("Mulai ujian sekarang? Peserta di ruang tunggu akan diarahkan mengerjakan.")) return;
+            setPending("start");
+            setError(null);
+            void api(`/api/admin/exams/${examId}/start`, { body: {} })
+              .then(() => window.location.reload())
+              .catch((cause: unknown) => {
+                setError(cause instanceof Error ? cause.message : "Gagal memulai ujian.");
+                setPending(null);
+              });
+          }}>
+          {pending === "start" ? "Memulai…" : "MULAI"}
+        </button>
+        <button
+          type="button"
+          disabled={!canControl || phase !== "RUNNING" || pending !== null}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand disabled:opacity-50"
+          onClick={() => {
+            if (!window.confirm("Akhiri ujian sekarang? Semua pengerjaan terbuka akan ditutup.")) return;
+            setPending("end");
+            setError(null);
+            void api(`/api/admin/exams/${examId}/end`, { body: {} })
+              .then(() => window.location.reload())
+              .catch((cause: unknown) => {
+                setError(cause instanceof Error ? cause.message : "Gagal mengakhiri ujian.");
+                setPending(null);
+              });
+          }}>
+          {pending === "end" ? "Menutup…" : "SELESAI"}
+        </button>
+        <button
+          type="button"
+          disabled={pending !== null}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand disabled:opacity-50"
+          onClick={() => {
+            setPending("sync");
+            setError(null);
+            void api<{ name: string }>(`/api/admin/exams/${examId}/sync-name`, { body: {} })
+              .then(() => window.location.reload())
+              .catch((cause: unknown) => {
+                setError(cause instanceof Error ? cause.message : "Gagal sinkron nama.");
+                setPending(null);
+              });
+          }}>
+          {pending === "sync" ? "Menyinkron…" : "Sinkron ulang nama"}
+        </button>
+      </div>
       <ErrorText error={error} />
-    </form>
+    </div>
   );
 }
 
@@ -878,9 +908,9 @@ export function QuestionPackageForm({
         {questions.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
             <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
-            <a href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
+            <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
               Tambah soal
-            </a>
+            </Link>
           </div>
         ) : filtered.length === 0 ? (
           <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
@@ -964,135 +994,6 @@ export function DeletePackageButton({ packageId }: { packageId: number }) {
   );
 }
 
-export function SessionForm({ examId }: { examId: number }) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  return (
-    <form
-      className="grid gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        setPending(true);
-        setError(null);
-        void api("/api/admin/sesi", {
-          body: {
-            examId,
-            name: form.get("name"),
-            startsAt: form.get("startsAt"),
-            endsAt: form.get("endsAt"),
-            attendanceOpensAt: form.get("attendanceOpensAt"),
-            capacity: form.get("capacity") ? Number(form.get("capacity")) : null,
-          },
-        })
-          .then(() => window.location.reload())
-          .catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : "Gagal membuat sesi.");
-            setPending(false);
-          });
-      }}>
-      <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        Nama sesi
-        <input
-          name="name"
-          required
-          placeholder="Mis. Sesi pagi / Gelombang 1"
-          className="rounded-xl border border-line px-3 py-2.5 font-normal"
-        />
-      </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
-          Absensi dibuka
-          <DateTimePicker
-            name="attendanceOpensAt"
-            mode="datetime"
-            required
-            placeholder="Pilih tanggal dan jam"
-            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
-          <span className="font-normal text-xs text-ink-muted">Peserta bisa absen mulai waktu ini.</span>
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-          Mulai ujian
-          <DateTimePicker
-            name="startsAt"
-            mode="datetime"
-            required
-            placeholder="Pilih tanggal dan jam"
-            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-          Selesai ujian
-          <DateTimePicker
-            name="endsAt"
-            mode="datetime"
-            required
-            placeholder="Pilih tanggal dan jam"
-            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
-        </label>
-      </div>
-      <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        Kuota peserta
-        <input
-          name="capacity"
-          type="number"
-          min={1}
-          placeholder="Kosongkan jika tanpa batas"
-          className="rounded-xl border border-line px-3 py-2.5 font-normal"
-        />
-      </label>
-      <ErrorText error={error} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
-        {pending ? "Menyimpan…" : "Tambah sesi"}
-      </button>
-    </form>
-  );
-}
-
-export function AssignForm({ sessionId, users }: { sessionId: number; users: { id: number; name: string; identity: string }[] }) {
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <form
-      className="flex flex-wrap items-end gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        void api("/api/admin/peserta", { body: { sessionId, userId: Number(form.get("userId")) } })
-          .then(() => window.location.reload())
-          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Penugasan ditolak."));
-      }}>
-      <select name="userId" className="rounded-sm border border-line-strong px-3 py-2 text-sm">
-        {users.map((user) => (
-          <option key={user.id} value={user.id}>
-            {user.name} ({user.identity})
-          </option>
-        ))}
-      </select>
-      <button type="submit" className="rounded-md bg-brand font-semibold hover:brightness-110 px-3 py-2 text-sm text-white">
-        Tugaskan
-      </button>
-      <ErrorText error={error} />
-    </form>
-  );
-}
-
-export function RemoveParticipantButton({ sessionId, userId }: { sessionId: number; userId: number }) {
-  return (
-    <button
-      type="button"
-      className="text-sm text-alert"
-      onClick={() => {
-        void api("/api/admin/peserta", { body: { sessionId, userId, remove: true } }).then(() => window.location.reload());
-      }}>
-      Hapus
-    </button>
-  );
-}
 
 export function ExtraTimeForm({ attemptId }: { attemptId: number }) {
   const [error, setError] = useState<string | null>(null);

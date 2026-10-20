@@ -24,7 +24,7 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
       },
     }),
     prisma.questionCategory.findMany({ orderBy: { name: "asc" } }),
-    prisma.examQuestion.count({ where: { questionId } }),
+    prisma.examPackageQuestion.count({ where: { questionId } }),
   ]);
   if (!question) notFound();
 

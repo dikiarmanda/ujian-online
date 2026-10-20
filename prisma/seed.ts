@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { prisma } from "../src/server/db";
-import { parseExamDate } from "../src/server/exam-rules";
+import { applyPackageSnapshot } from "../src/server/packages";
+import { writeExamState } from "../src/server/exam-state";
 
 async function main() {
   const admin = await prisma.user.upsert({
@@ -13,7 +14,7 @@ async function main() {
     create: { externalId: "mock:petugas", identity: "petugas", name: "Petugas Contoh", role: "GRADER" },
     update: { role: "GRADER", name: "Petugas Contoh", identity: "petugas" },
   });
-  const peserta = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { externalId: "mock:peserta" },
     create: {
       externalId: "mock:peserta",
@@ -24,6 +25,12 @@ async function main() {
     },
     update: { name: "Peserta Contoh", identity: "peserta", groupName: "Kelas 9A" },
   });
+  await prisma.user.upsert({
+    where: { externalId: "mock:beban" },
+    create: { externalId: "mock:beban", identity: "beban", name: "Peserta Beban", role: "PARTICIPANT" },
+    update: { identity: "beban", name: "Peserta Beban" },
+  });
+
   const category = await prisma.questionCategory.upsert({
     where: { name: "Umum" },
     create: { name: "Umum", description: "Soal contoh" },
@@ -43,6 +50,7 @@ async function main() {
           { label: "A", body: "Bandung", isCorrect: false, sortOrder: 0 },
           { label: "B", body: "Jakarta", isCorrect: true, sortOrder: 1 },
           { label: "C", body: "Surabaya", isCorrect: false, sortOrder: 2 },
+          { label: "D", body: "Medan", isCorrect: false, sortOrder: 3 },
         ],
       },
     },
@@ -66,25 +74,15 @@ async function main() {
     },
     update: {},
   });
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-  const examDate = parseExamDate(today);
-  let exam = await prisma.exam.findFirst({ where: { name: "Ujian Contoh", examDate } });
-  if (!exam) {
-    exam = await prisma.exam.create({
+
+  let pack = await prisma.questionPackage.findFirst({ where: { name: "Paket Contoh" } });
+  if (!pack) {
+    pack = await prisma.questionPackage.create({
       data: {
-        name: "Ujian Contoh",
-        examDate,
-        durationMinutes: 60,
-        shuffleQuestions: false,
-        shuffleOptions: false,
-        status: "PUBLISHED",
+        name: "Paket Contoh",
+        description: "Paket seed",
         createdById: admin.id,
-        questions: {
+        items: {
           create: [
             { questionId: pg.id, sortOrder: 1, weight: "2.00", wrongWeight: "0.00" },
             { questionId: essay.id, sortOrder: 2, weight: "5.00", wrongWeight: "0.00" },
@@ -93,31 +91,45 @@ async function main() {
       },
     });
   }
-  const startsAt = new Date(Date.now() - 5 * 60_000);
-  const endsAt = new Date(Date.now() + 3 * 60 * 60_000);
+
+  const startsAt = new Date(Date.now() + 30 * 60_000);
+  const endsAt = new Date(Date.now() + 4 * 60 * 60_000);
   const attendanceOpensAt = new Date(Date.now() - 30 * 60_000);
-  let session = await prisma.examSession.findFirst({ where: { examId: exam.id, name: "Sesi pagi" } });
-  if (!session) {
-    session = await prisma.examSession.create({
-      data: { examId: exam.id, name: "Sesi pagi", startsAt, endsAt, attendanceOpensAt, capacity: 100 },
+
+  let exam = await prisma.exam.findUnique({ where: { competitionId: 1 } });
+  if (!exam) {
+    exam = await prisma.exam.create({
+      data: {
+        name: "Ujian Contoh",
+        competitionId: 1,
+        attendanceOpensAt,
+        startsAt,
+        endsAt,
+        durationMinutes: 60,
+        shuffleQuestions: false,
+        shuffleOptions: false,
+        status: "PUBLISHED",
+        phase: "NOT_STARTED",
+        createdById: admin.id,
+      },
     });
+    for (const jenjang of ["SD", "SMP", "SMA"] as const) {
+      const examPack = await prisma.examPackage.create({
+        data: { examId: exam.id, jenjang, packageId: pack.id },
+      });
+      await prisma.$transaction(async (tx) => {
+        await applyPackageSnapshot(tx, examPack.id, pack!.id);
+      });
+    }
   }
-  const beban = await prisma.user.upsert({
-    where: { externalId: "mock:beban" },
-    create: { externalId: "mock:beban", identity: "beban", name: "Peserta Beban", role: "PARTICIPANT" },
-    update: { identity: "beban", name: "Peserta Beban" },
+
+  await writeExamState(exam.id, {
+    phase: exam.phase,
+    startedAt: exam.startedAt?.toISOString() ?? null,
+    endsAt: exam.endsAt.toISOString(),
   });
-  await prisma.sessionParticipant.upsert({
-    where: { sessionId_userId: { sessionId: session.id, userId: beban.id } },
-    create: { sessionId: session.id, userId: beban.id, examDate },
-    update: {},
-  });
-  await prisma.sessionParticipant.upsert({
-    where: { sessionId_userId: { sessionId: session.id, userId: peserta.id } },
-    create: { sessionId: session.id, userId: peserta.id, examDate },
-    update: {},
-  });
-  console.log("Data contoh siap. Masuk sebagai admin, petugas, atau peserta. Kata sandi apa saja.");
+
+  console.log("Data contoh siap. Masuk sebagai admin, petugas, atau peserta. Kata sandi apa saja (AUTH_DRIVER=mock).");
 }
 
 main()

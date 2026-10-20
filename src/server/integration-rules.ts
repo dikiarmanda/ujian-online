@@ -53,7 +53,7 @@ export function scoreNumber(value: { toString(): string } | number | null | unde
 }
 
 export type ResultSource = {
-  sessionId: number;
+  examId: number;
   status: string;
   mcScore: { toString(): string } | number | null;
   essayScore: { toString(): string } | number | null;
@@ -65,6 +65,7 @@ export type ResultSource = {
   nisn: string;
   name: string;
   groupName: string | null;
+  jenjang?: string | null;
 };
 
 export function toResultRow(source: ResultSource) {
@@ -72,7 +73,8 @@ export function toResultRow(source: ResultSource) {
     identity: source.nisn,
     name: source.name,
     group: source.groupName,
-    sessionId: source.sessionId,
+    examId: source.examId,
+    jenjang: source.jenjang ?? null,
     attended: source.attended,
     attemptStatus: source.status,
     mcScore: scoreNumber(source.mcScore),

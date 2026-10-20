@@ -3,15 +3,34 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
-export function WaitingRoom({ sessionId, examName, sessionName, startsAt, serverNow, attended, canAttend }: { sessionId: number; examName: string; sessionName: string; startsAt: string; serverNow: string; attended: boolean; canAttend: boolean }) {
+type Phase = "NOT_STARTED" | "RUNNING" | "ENDED";
+
+export function WaitingRoom({
+  examId,
+  examName,
+  startsAt,
+  serverNow,
+  attended,
+  canAttend,
+  initialPhase,
+}: {
+  examId: number;
+  examName: string;
+  startsAt: string;
+  serverNow: string;
+  attended: boolean;
+  canAttend: boolean;
+  initialPhase: Phase;
+}) {
   const [offset] = useState(() => new Date(serverNow).getTime() - Date.now());
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [attending, setAttending] = useState(false);
   const [entering, setEntering] = useState(false);
   const [present, setPresent] = useState(attended);
+  const [phase, setPhase] = useState<Phase>(initialPhase);
+  const open = phase === "RUNNING";
   const startMs = new Date(startsAt).getTime();
-  const open = now + offset >= startMs;
   const remain = Math.max(0, startMs - (now + offset));
 
   useEffect(() => {
@@ -19,7 +38,37 @@ export function WaitingRoom({ sessionId, examName, sessionName, startsAt, server
     return () => window.clearInterval(timer);
   }, []);
 
-  const clock = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(startsAt));
+  useEffect(() => {
+    if (phase !== "NOT_STARTED") return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const poll = () => {
+      const jitter = 3000 + Math.floor(Math.random() * 2000) - 1000;
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        void api<{ phase: Phase; serverTime: string }>(`/api/exam/${examId}/state`, { method: "GET" })
+          .then((data) => {
+            if (cancelled) return;
+            setPhase(data.phase);
+            if (data.phase === "NOT_STARTED") poll();
+          })
+          .catch(() => {
+            if (!cancelled) poll();
+          });
+      }, Math.max(2000, jitter));
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [examId, phase]);
+
+  const clock = new Intl.DateTimeFormat("id-ID", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(startsAt));
   const step = !present ? 1 : !open ? 2 : 3;
 
   return (
@@ -28,15 +77,25 @@ export function WaitingRoom({ sessionId, examName, sessionName, startsAt, server
         <img src="/brand/logo-dikdas.png" alt="Logo Majelis Dikdasmen dan PNF PP Muhammadiyah" className="h-12 w-auto" />
         <p className="mt-6 text-xs font-semibold tracking-wide text-brand uppercase">Ruang tunggu</p>
         <h1 className="mt-1 text-xl font-semibold">{examName}</h1>
-        <p className="text-sm text-ink-muted">{sessionName}</p>
-        <p className="mt-6 text-sm">Ujian dimulai pukul {clock}. Tombol mulai aktif otomatis pada waktunya.</p>
-        <p className="mt-3 font-digits text-3xl text-brand">{open ? "00:00:00" : formatRemain(remain)}</p>
+        <p className="mt-6 text-sm">
+          {open
+            ? "Juri sudah membuka ujian. Silakan mulai mengerjakan."
+            : phase === "ENDED"
+              ? "Ujian sudah ditutup oleh juri."
+              : "Menunggu aba-aba juri. Soal belum dikirim ke perangkat Anda."}
+        </p>
+        <p className="mt-2 text-sm text-ink-muted">Jadwal rencana pukul {clock} WIB.</p>
+        {!open && phase !== "ENDED" ? (
+          <p className="mt-3 font-digits text-3xl text-brand">{formatRemain(remain)}</p>
+        ) : null}
         <ol className="mt-6 grid grid-cols-3 gap-2 text-xs">
-          {["Absen", "Menunggu", "Mulai"].map((label, index) => {
+          {["Absen", "Menunggu juri", "Mulai"].map((label, index) => {
             const active = step === index + 1;
             const done = step > index + 1;
             return (
-              <li key={label} className={`rounded-md px-2 py-2 text-center ${active ? "bg-brand-soft font-semibold text-brand" : done ? "bg-brand text-white" : "bg-page text-ink-muted"}`}>
+              <li
+                key={label}
+                className={`rounded-md px-2 py-2 text-center ${active ? "bg-brand-soft font-semibold text-brand" : done ? "bg-brand text-white" : "bg-page text-ink-muted"}`}>
                 {index + 1}. {label}
               </li>
             );
@@ -51,7 +110,7 @@ export function WaitingRoom({ sessionId, examName, sessionName, startsAt, server
               className="min-h-11 rounded-md border border-line-strong px-4 font-semibold disabled:opacity-50"
               onClick={() => {
                 setAttending(true);
-                void api("/api/peserta/absen", { body: { sessionId } })
+                void api("/api/peserta/absen", { body: { examId } })
                   .then(() => setPresent(true))
                   .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Absensi gagal."))
                   .finally(() => setAttending(false));
@@ -68,7 +127,7 @@ export function WaitingRoom({ sessionId, examName, sessionName, startsAt, server
               const wait = Math.floor(Math.random() * 5000);
               window.setTimeout(() => {
                 void document.documentElement.requestFullscreen?.().catch(() => undefined);
-                void api<{ attemptId: number }>("/api/peserta/mulai", { body: { sessionId } })
+                void api<{ attemptId: number }>("/api/peserta/mulai", { body: { examId } })
                   .then(() => {
                     window.location.reload();
                   })
@@ -78,7 +137,7 @@ export function WaitingRoom({ sessionId, examName, sessionName, startsAt, server
                   });
               }, wait);
             }}>
-            {entering ? "Memasuki ujian" : "Mulai ujian"}
+            {entering ? "Memasuki ujian" : "Mulai mengerjakan"}
           </button>
         </div>
       </section>

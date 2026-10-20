@@ -22,7 +22,7 @@ export default async function ApiClientPage() {
         accessLogs: { orderBy: { createdAt: "desc" }, take: 8 },
       },
     }),
-    prisma.exam.findMany({ orderBy: { examDate: "desc" }, select: { id: true, name: true } }),
+    prisma.exam.findMany({ orderBy: { startsAt: "desc" }, select: { id: true, name: true } }),
   ]);
   return (
     <AdminShell name={user.name} current="/admin/klien">

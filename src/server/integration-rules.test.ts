@@ -35,7 +35,7 @@ test("sesi aktif menghasilkan Retry-After", () => {
 
 test("rekap tidak memakai id pengguna dan menandai nilai belum final", () => {
   const finalRow = toResultRow({
-    sessionId: 31,
+    examId: 31,
     status: "SUBMITTED",
     mcScore: "72.50",
     essayScore: "18.00",
@@ -53,7 +53,7 @@ test("rekap tidak memakai id pengguna dan menandai nilai belum final", () => {
   assert.equal(finalRow.totalScore, 90.5);
   assert.equal("userId" in finalRow, false);
   const draft = toResultRow({ ...{
-    sessionId: 31,
+    examId: 31,
     status: "SUBMITTED",
     mcScore: 10,
     essayScore: null,

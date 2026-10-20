@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import type { JenjangGroup } from "@/lib/jenjang";
 import type { AppRole } from "./exam-rules";
 import { redis } from "./redis";
 
@@ -9,6 +10,9 @@ export type SessionRecord = {
   role: AppRole;
   identity: string;
   name: string;
+  /** Hanya untuk peserta: competition ombn + kelompok jenjang paket. */
+  competitionId?: number | null;
+  jenjangGroup?: JenjangGroup | null;
 };
 
 function sessionKey(sid: string): string {

@@ -15,7 +15,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     return new Response(body, {
       headers: {
         "content-type": "application/vnd.ms-excel; charset=utf-8",
-        "content-disposition": `attachment; filename="laporan-sesi-${sessionId}.xls"`,
+        "content-disposition": `attachment; filename="laporan-ujian-${sessionId}.xls"`,
       },
     });
   }
@@ -24,7 +24,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     return new Response(new Uint8Array(body), {
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="laporan-sesi-${sessionId}.pdf"`,
+        "content-disposition": `attachment; filename="laporan-ujian-${sessionId}.pdf"`,
       },
     });
   }

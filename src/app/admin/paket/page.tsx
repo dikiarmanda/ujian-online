@@ -9,7 +9,7 @@ export default async function PaketPage() {
   const user = await requirePageUser(["ADMIN"]);
   const packages = await prisma.questionPackage.findMany({
     orderBy: { name: "asc" },
-    include: { _count: { select: { items: true, exams: true } } },
+    include: { _count: { select: { items: true, examPackages: true } } },
   });
 
   return (
@@ -52,9 +52,9 @@ export default async function PaketPage() {
                       }`}>
                       {pack.isActive ? "Aktif" : "Nonaktif"}
                     </span>
-                    {pack._count.exams > 0 ? (
+                    {pack._count.examPackages > 0 ? (
                       <span className="rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">
-                        {pack._count.exams} ujian
+                        {pack._count.examPackages} ujian
                       </span>
                     ) : null}
                   </div>

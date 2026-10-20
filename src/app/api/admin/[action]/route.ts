@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resetParticipantSession } from "@/server/auth/service";
-import { assignExamPackage, assignParticipant, createExam, createSession, removeParticipant, updateExam } from "@/server/exams";
+import { createExam, updateExam } from "@/server/exams";
 import { releaseLock } from "@/server/grading";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 import {
@@ -94,34 +94,6 @@ export async function POST(req: Request, ctx: Ctx) {
     if (action === "hapus-paket-soal") {
       const body = await readBody(req, z.object({ id: z.number().int().positive() }));
       await deleteQuestionPackage(body.id, user.userId, ip);
-      return json({ ok: true });
-    }
-    if (action === "paket") {
-      const body = await readBody(
-        req,
-        z.object({
-          examId: z.number().int().positive(),
-          packageId: z.number().int().positive(),
-        }),
-      );
-      await assignExamPackage(body.examId, body.packageId, user.userId, ip);
-      return json({ ok: true });
-    }
-    if (action === "sesi") {
-      const session = await createSession(await req.json(), user.userId, ip);
-      return json({ id: session.id });
-    }
-    if (action === "peserta") {
-      const body = await readBody(
-        req,
-        z.object({
-          sessionId: z.number().int().positive(),
-          userId: z.number().int().positive(),
-          remove: z.boolean().optional(),
-        }),
-      );
-      if (body.remove) await removeParticipant(body.sessionId, body.userId, user.userId, ip);
-      else await assignParticipant(body.sessionId, body.userId, user.userId, ip);
       return json({ ok: true });
     }
     if (action === "waktu") {

@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 
 type SessionTone = "idle" | "live" | "done";
 
-function getSessionState(startsAt: Date, endsAt: Date, now: Date): { label: string; tone: SessionTone } {
-  if (now >= startsAt && now <= endsAt) return { label: "Berlangsung", tone: "live" };
-  if (now < startsAt) return { label: "Mendatang", tone: "idle" };
-  return { label: "Selesai", tone: "done" };
+function getExamPhaseState(phase: string, startsAt: Date, endsAt: Date, now: Date): { label: string; tone: SessionTone } {
+  if (phase === "RUNNING") return { label: "Berlangsung", tone: "live" };
+  if (phase === "ENDED" || now > endsAt) return { label: "Selesai", tone: "done" };
+  return { label: "Mendatang", tone: "idle" };
 }
 
 function IconPulse({ className }: { className?: string }) {
@@ -145,46 +145,45 @@ export default async function AdminHome() {
   ] = await Promise.all([
     prisma.exam.count(),
     prisma.exam.count({ where: { status: "PUBLISHED" } }),
-    prisma.examSession.count(),
-    prisma.examSession.count({ where: { startsAt: { lte: now }, endsAt: { gte: now } } }),
-    prisma.examSession.count({ where: { startsAt: { gt: now } } }),
+    prisma.exam.count(),
+    prisma.exam.count({ where: { phase: "RUNNING" } }),
+    prisma.exam.count({ where: { phase: "NOT_STARTED", startsAt: { gt: now } } }),
     prisma.user.count({ where: { role: "PARTICIPANT" } }),
     prisma.examAttempt.count(),
     prisma.examAttempt.count({ where: { status: { in: ["SUBMITTED", "TIME_EXPIRED"] } } }),
     prisma.attemptAnswer.count({ where: { gradingState: "PENDING" } }),
-    prisma.examSession.findMany({
+    prisma.exam.findMany({
       include: {
-        exam: true,
-        _count: { select: { participants: true, attempts: true, attendances: true } },
+        _count: { select: { attempts: true, packages: true } },
       },
       orderBy: [{ startsAt: "desc" }],
       take: 8,
     }),
   ]);
 
-  const liveSessions = sessions.filter((session) => now >= session.startsAt && now <= session.endsAt);
+  const liveSessions = sessions.filter((session) => session.phase === "RUNNING");
   const nextSessions = sessions
-    .filter((session) => session.startsAt > now)
+    .filter((session) => session.phase === "NOT_STARTED" && session.startsAt > now)
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
     .slice(0, 2);
   const attentionItems = [
     activeSessions > 0
-      ? { href: "/admin/ujian", title: `${activeSessions} sesi sedang berlangsung`, detail: "Pantau kehadiran dan pengerjaan peserta." }
+      ? { href: "/admin/ujian", title: `${activeSessions} ujian sedang berlangsung`, detail: "Pantau kehadiran dan pengerjaan peserta." }
       : null,
     pendingGrading > 0
       ? {
           href: "/admin/laporan",
           title: `${pendingGrading} jawaban uraian menunggu nilai`,
-          detail: "Serahkan ke petugas penilai atau cek laporan sesi.",
+          detail: "Serahkan ke petugas penilai atau cek laporan ujian.",
         }
       : null,
     upcomingSessions > 0 && activeSessions === 0
       ? {
           href: "/admin/ujian",
-          title: `${upcomingSessions} sesi mendatang`,
+          title: `${upcomingSessions} ujian mendatang`,
           detail: nextSessions[0]
-            ? `Berikutnya: ${nextSessions[0].exam.name} · ${formatJakarta(nextSessions[0].startsAt)}`
-            : "Siapkan peserta dan paket soal sebelum dimulai.",
+            ? `Berikutnya: ${nextSessions[0].name} · ${formatJakarta(nextSessions[0].startsAt)}`
+            : "Siapkan paket soal sebelum dimulai.",
         }
       : null,
   ].filter(Boolean) as { href: string; title: string; detail: string }[];
@@ -294,18 +293,18 @@ export default async function AdminHome() {
             <div className="grid gap-3 md:grid-cols-2">
               {liveSessions.map((session) => {
                 const attendancePct =
-                  session._count.participants > 0
-                    ? Math.round((session._count.attendances / session._count.participants) * 100)
+                  session._count.attempts > 0
+                    ? Math.round((session._count.packages / session._count.attempts) * 100)
                     : 0;
                 return (
                   <Link
                     key={session.id}
-                    href={`/admin/sesi/${session.id}`}
+                    href={`/admin/ujian/${session.id}`}
                     className="rounded-xl border border-brand/20 bg-paper p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <StatusChip label="Berlangsung" tone="live" />
-                        <p className="mt-2.5 truncate font-semibold text-ink">{session.exam.name}</p>
+                        <p className="mt-2.5 truncate font-semibold text-ink">{session.name}</p>
                         <p className="text-sm text-ink-muted">{session.name}</p>
                       </div>
                       <p className="shrink-0 text-xs text-ink-muted">sampai {formatJakarta(session.endsAt)}</p>
@@ -315,7 +314,7 @@ export default async function AdminHome() {
                       <div>
                         <p className="font-digits text-sm font-semibold text-ink tabular-nums">
                           {session._count.attempts}
-                          <span className="font-ui text-xs font-normal text-ink-muted"> / {session._count.participants}</span>
+                          <span className="font-ui text-xs font-normal text-ink-muted"> / {session._count.attempts}</span>
                         </p>
                         <p className="text-xs text-ink-muted">sudah mulai mengerjakan</p>
                       </div>
@@ -378,26 +377,26 @@ export default async function AdminHome() {
             <>
               <ul className="flex flex-col gap-3 md:hidden">
                 {sessions.map((session) => {
-                  const state = getSessionState(session.startsAt, session.endsAt, now);
+                  const state = getExamPhaseState(session.phase, session.startsAt, session.endsAt, now);
                   const attendancePct =
-                    session._count.participants > 0
-                      ? Math.round((session._count.attendances / session._count.participants) * 100)
+                    session._count.attempts > 0
+                      ? Math.round((session._count.packages / session._count.attempts) * 100)
                       : 0;
                   return (
                     <li key={session.id} className="rounded-xl border border-line/80 bg-paper p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <StatusChip label={state.label} tone={state.tone} />
-                        <span className="text-xs text-ink-muted">{session.exam.durationMinutes} mnt</span>
+                        <span className="text-xs text-ink-muted">{session.durationMinutes} mnt</span>
                       </div>
-                      <Link href={`/admin/sesi/${session.id}`} className="mt-2 block font-semibold text-ink hover:text-brand">
-                        {session.exam.name}
+                      <Link href={`/admin/ujian/${session.id}`} className="mt-2 block font-semibold text-ink hover:text-brand">
+                        {session.name}
                       </Link>
                       <p className="text-sm text-ink-muted">{session.name}</p>
                       <p className="mt-2 text-xs text-ink-muted">{formatJakarta(session.startsAt)}</p>
                       <div className="mt-3 flex items-end justify-between gap-3">
-                        <ProgressBar value={attendancePct} label={`${session._count.attendances}/${session._count.participants} hadir`} />
+                        <ProgressBar value={attendancePct} label={`${session._count.packages}/${session._count.attempts} hadir`} />
                         <div className="flex gap-3">
-                          <Link href={`/admin/sesi/${session.id}`} className="text-xs font-semibold text-brand">
+                          <Link href={`/admin/ujian/${session.id}`} className="text-xs font-semibold text-brand">
                             Kelola
                           </Link>
                           <Link href={`/admin/laporan/${session.id}`} className="text-xs font-semibold text-ink-muted hover:text-brand">
@@ -424,10 +423,10 @@ export default async function AdminHome() {
                   </thead>
                   <tbody className="divide-y divide-line/70">
                     {sessions.map((session) => {
-                      const state = getSessionState(session.startsAt, session.endsAt, now);
+                      const state = getExamPhaseState(session.phase, session.startsAt, session.endsAt, now);
                       const attendancePct =
-                        session._count.participants > 0
-                          ? Math.round((session._count.attendances / session._count.participants) * 100)
+                        session._count.attempts > 0
+                          ? Math.round((session._count.packages / session._count.attempts) * 100)
                           : 0;
                       return (
                         <tr key={session.id} className="transition-colors hover:bg-brand-soft/25">
@@ -435,19 +434,19 @@ export default async function AdminHome() {
                             <StatusChip label={state.label} tone={state.tone} />
                           </td>
                           <td className="px-4 py-3.5">
-                            <Link href={`/admin/sesi/${session.id}`} className="font-semibold text-ink hover:text-brand">
-                              {session.exam.name}
+                            <Link href={`/admin/ujian/${session.id}`} className="font-semibold text-ink hover:text-brand">
+                              {session.name}
                             </Link>
                             <span className="block text-xs text-ink-muted">{session.name}</span>
                           </td>
                           <td className="px-4 py-3.5">
                             <span className="text-ink">{formatJakarta(session.startsAt)}</span>
-                            <span className="block text-xs text-ink-muted">{session.exam.durationMinutes} menit</span>
+                            <span className="block text-xs text-ink-muted">{session.durationMinutes} menit</span>
                           </td>
                           <td className="px-4 py-3.5">
                             <ProgressBar
                               value={attendancePct}
-                              label={`${session._count.attendances}/${session._count.participants}`}
+                              label={`${session._count.packages}/${session._count.attempts}`}
                             />
                           </td>
                           <td className="px-4 py-3.5">
@@ -457,7 +456,7 @@ export default async function AdminHome() {
                           <td className="px-4 py-3.5 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <Link
-                                href={`/admin/sesi/${session.id}`}
+                                href={`/admin/ujian/${session.id}`}
                                 className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand">
                                 Kelola
                               </Link>

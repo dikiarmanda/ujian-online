@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { z } from "zod";
+import { mapJenjang, type JenjangGroup } from "@/lib/jenjang";
 import { writeAudit } from "../audit";
 import { prisma } from "../db";
 import { env } from "../env";
@@ -25,6 +26,8 @@ type Account = {
   role: AppRole;
   groupName: string | null;
   nisn: string | null;
+  competitionId: number | null;
+  jenjangGroup: JenjangGroup | null;
 };
 
 function failureKey(kind: "id" | "ip", value: string): string {
@@ -72,11 +75,21 @@ async function findPeserta(identity: string, password: string): Promise<Account>
       nama: true,
       nisn: true,
       nama_kelompok: true,
-      schools: { select: { nama_sekolah: true } },
+      competition_id: true,
+      schools: { select: { nama_sekolah: true, tingkat: true } },
     },
   });
   if (!row?.nomor_peserta || !row.password || !passwordsMatch(row.password, password)) {
     throw genericLoginError();
+  }
+  if (!row.schools?.tingkat) {
+    throw new AppError("Jenjang sekolah peserta tidak ditemukan. Hubungi panitia.", 403);
+  }
+  let jenjangGroup: JenjangGroup;
+  try {
+    jenjangGroup = mapJenjang(row.schools.tingkat);
+  } catch (error) {
+    throw new AppError(error instanceof Error ? error.message : "Jenjang tidak valid.", 403);
   }
   return {
     externalId: `ombn-peserta:${row.id.toString()}`,
@@ -85,6 +98,8 @@ async function findPeserta(identity: string, password: string): Promise<Account>
     role: "PARTICIPANT",
     groupName: row.nama_kelompok || row.schools.nama_sekolah || null,
     nisn: row.nisn?.trim() || null,
+    competitionId: Number(row.competition_id),
+    jenjangGroup,
   };
 }
 
@@ -108,6 +123,8 @@ async function findAdmin(identity: string, password: string): Promise<Account> {
     role,
     groupName: null,
     nisn: null,
+    competitionId: null,
+    jenjangGroup: null,
   };
 }
 
@@ -140,6 +157,47 @@ async function saveProfile(account: Account) {
   });
 }
 
+async function findMockAccount(identity: string): Promise<Account | null> {
+  const key = identity.trim().toLowerCase();
+  if (key === "admin") {
+    return {
+      externalId: "mock:admin",
+      identity: "admin",
+      name: "Admin Contoh",
+      role: "ADMIN",
+      groupName: null,
+      nisn: null,
+      competitionId: null,
+      jenjangGroup: null,
+    };
+  }
+  if (key === "petugas") {
+    return {
+      externalId: "mock:petugas",
+      identity: "petugas",
+      name: "Petugas Contoh",
+      role: "GRADER",
+      groupName: null,
+      nisn: null,
+      competitionId: null,
+      jenjangGroup: null,
+    };
+  }
+  if (key === "peserta" || key === "beban") {
+    return {
+      externalId: `mock:${key}`,
+      identity: key,
+      name: key === "beban" ? "Peserta Beban" : "Peserta Contoh",
+      role: "PARTICIPANT",
+      groupName: "Kelas 9A",
+      nisn: null,
+      competitionId: 1,
+      jenjangGroup: "SMP",
+    };
+  }
+  return null;
+}
+
 export async function loginUser(input: unknown, ipAddress: string) {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) {
@@ -150,9 +208,15 @@ export async function loginUser(input: unknown, ipAddress: string) {
   await assertLoginAllowed(identity.toLowerCase(), ipAddress);
   let account: Account;
   try {
-    account = identity.includes("@")
-      ? await findAdmin(identity, password)
-      : await findPeserta(identity, password);
+    if (env().authDriver === "mock") {
+      const mock = await findMockAccount(identity);
+      if (!mock) throw genericLoginError();
+      account = mock;
+    } else {
+      account = identity.includes("@")
+        ? await findAdmin(identity, password)
+        : await findPeserta(identity, password);
+    }
   } catch (error) {
     if (error instanceof AppError && error.status === 401) {
       await recordLoginFailure(identity.toLowerCase(), ipAddress);
@@ -175,6 +239,8 @@ export async function loginUser(input: unknown, ipAddress: string) {
     role: user.role,
     identity: user.identity,
     name: user.name,
+    competitionId: account.competitionId,
+    jenjangGroup: account.jenjangGroup,
   });
   await writeAudit({
     userId: user.id,

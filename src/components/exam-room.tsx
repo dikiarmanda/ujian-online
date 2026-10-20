@@ -19,7 +19,7 @@ export type ExamQuestion = {
 export type ExamInitial = {
   attemptId: number;
   examName: string;
-  sessionName: string;
+  sessionName?: string;
   serverNow: string;
   deadlineAt: string;
   lastQuestionIndex: number;

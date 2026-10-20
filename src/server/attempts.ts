@@ -1,8 +1,11 @@
 import { Prisma } from "@/generated/prisma/client";
+import type { JenjangGroup } from "@/lib/jenjang";
 import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
 import { computeDeadline, type AnswerSnapshot } from "./exam-rules";
+import { readAttemptExpires, readExamState, writeAttemptExpires } from "./exam-state";
+import { packageCacheKey } from "./packages";
 import { redis } from "./redis";
 import { sanitizeRichText } from "./rich-text";
 
@@ -32,9 +35,6 @@ function closedKey(attemptId: number): string {
 }
 function lockKey(attemptId: number): string {
   return `attempt:${attemptId}:lock`;
-}
-function packageKey(examId: number): string {
-  return `exam:${examId}:questions`;
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -70,16 +70,226 @@ export async function readRedisAnswers(attemptId: number): Promise<Record<number
   return result;
 }
 
+async function loadPackageQuestions(examPackageId: number): Promise<PublicQuestion[]> {
+  const cached = await redis.get(packageCacheKey(examPackageId));
+  if (cached) return JSON.parse(cached) as PublicQuestion[];
+  const rows = await prisma.examPackageQuestion.findMany({
+    where: { examPackageId },
+    include: { question: { include: { options: { orderBy: { sortOrder: "asc" } } } } },
+    orderBy: { sortOrder: "asc" },
+  });
+  const pack: PublicQuestion[] = rows.map((row) => ({
+    id: row.questionId,
+    type: row.question.type,
+    body: sanitizeRichText(row.question.body),
+    imagePath: row.question.imagePath,
+    weight: row.weight.toString(),
+    options: row.question.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      body: sanitizeRichText(option.body),
+      imagePath: option.imagePath,
+    })),
+  }));
+  await redis.set(packageCacheKey(examPackageId), JSON.stringify(pack), "EX", 60 * 60 * 6);
+  return pack;
+}
+
+async function resolveExamPackage(examId: number, jenjangGroup: JenjangGroup) {
+  const pack = await prisma.examPackage.findUnique({
+    where: { examId_jenjang: { examId, jenjang: jenjangGroup } },
+    include: { questions: { include: { question: { include: { options: true } } }, orderBy: { sortOrder: "asc" } } },
+  });
+  if (!pack) {
+    console.error(`ExamPackage tidak ditemukan examId=${examId} jenjang=${jenjangGroup}`);
+    throw new AppError(`Paket soal untuk jenjang ${jenjangGroup} belum diatur pada ujian ini.`, 404);
+  }
+  if (pack.questions.length === 0) throw new AppError("Paket soal masih kosong.", 409);
+  return pack;
+}
+
+export async function attend(
+  examId: number,
+  userId: number,
+  jenjangGroup: JenjangGroup,
+  ipAddress: string,
+  userAgent: string | null,
+) {
+  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
+  if (exam.phase === "ENDED") throw new AppError("Ujian sudah ditutup.", 409);
+  const now = new Date();
+  if (now < exam.attendanceOpensAt) throw new AppError("Absensi belum dibuka.", 409);
+  if (now > exam.endsAt) throw new AppError("Batas waktu ujian sudah lewat.", 409);
+
+  const examPack = await resolveExamPackage(examId, jenjangGroup);
+  await prisma.examAttempt.upsert({
+    where: { examId_userId: { examId, userId } },
+    create: {
+      examId,
+      userId,
+      jenjang: jenjangGroup,
+      packageId: examPack.packageId,
+      attendedAt: now,
+      status: "IN_PROGRESS",
+      gradingStatus: "NOT_GRADED",
+    },
+    update: {
+      attendedAt: now,
+      jenjang: jenjangGroup,
+      packageId: examPack.packageId,
+    },
+  });
+  await writeAudit({ userId, action: "ATTEND", entityType: "exam", entityId: examId, ipAddress, meta: { userAgent } });
+}
+
+/** Peserta pertama kali mengambil soal: set startedAt/expiresAt atomik & idempoten. */
+export async function startAttempt(examId: number, userId: number, jenjangGroup: JenjangGroup, ipAddress?: string) {
+  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
+
+  const state = await readExamState(examId);
+  if (!state || state.phase !== "RUNNING") {
+    throw new AppError("Ujian belum dibuka oleh juri.", 403);
+  }
+  const now = new Date();
+  if (now > exam.endsAt) throw new AppError("Batas waktu ujian sudah lewat.", 403);
+
+  const existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
+  if (!existing?.attendedAt) throw new AppError("Absensi diperlukan sebelum mulai ujian.", 409);
+
+  if (existing.startedAt && existing.expiresAt) {
+    if (existing.status !== "IN_PROGRESS") throw new AppError("Ujian ini sudah dikirim.", 409);
+    if (existing.expiresAt <= now) {
+      await finalizeAttempt(existing.id, "TIME_EXPIRED", userId, ipAddress);
+      throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
+    }
+    await writeAttemptExpires(examId, userId, existing.expiresAt);
+    return existing.id;
+  }
+
+  const examPack = await resolveExamPackage(examId, jenjangGroup);
+  const questionIds = examPack.questions.map((item) => item.questionId);
+  const questionOrder = exam.shuffleQuestions ? shuffle(questionIds) : questionIds;
+  const optionOrder: Record<string, number[]> = {};
+  for (const item of examPack.questions) {
+    const ids = item.question.options.map((option) => option.id);
+    optionOrder[String(item.questionId)] = exam.shuffleOptions ? shuffle(ids) : ids;
+  }
+  const expiresAt = computeDeadline(now, exam.durationMinutes, exam.endsAt, existing.extraSeconds);
+
+  // Idempotent: only set startedAt if still null
+  const updated = await prisma.examAttempt.updateMany({
+    where: { id: existing.id, startedAt: null },
+    data: {
+      startedAt: now,
+      expiresAt,
+      jenjang: jenjangGroup,
+      packageId: examPack.packageId,
+      questionOrder,
+      optionOrder,
+    },
+  });
+
+  if (updated.count === 0) {
+    const again = await prisma.examAttempt.findUnique({ where: { id: existing.id } });
+    if (!again?.startedAt) throw new AppError("Gagal memulai pengerjaan.", 500);
+    if (again.expiresAt) await writeAttemptExpires(examId, userId, again.expiresAt);
+    return again.id;
+  }
+
+  await loadPackageQuestions(examPack.id);
+  await writeAttemptExpires(examId, userId, expiresAt);
+  await redis.hset(metaKey(existing.id), "lastQuestionIndex", "0", "expiresAt", expiresAt.toISOString());
+  await writeAudit({ userId, action: "START_ATTEMPT", entityType: "exam_attempt", entityId: existing.id, ipAddress });
+  return existing.id;
+}
+
+export async function getAttemptState(attemptId: number, userId: number) {
+  const attempt = await prisma.examAttempt.findUnique({
+    where: { id: attemptId },
+    include: {
+      exam: true,
+      answers: true,
+    },
+  });
+  if (!attempt || attempt.userId !== userId) throw new AppError("Pengerjaan tidak ditemukan.", 404);
+  if (!attempt.startedAt || !attempt.expiresAt) throw new AppError("Pengerjaan belum dimulai.", 409);
+
+  const state = await readExamState(attempt.examId);
+  if (state?.phase !== "RUNNING" && attempt.status === "IN_PROGRESS") {
+    // Soft check: if ended, force finalize
+    if (state?.phase === "ENDED" || new Date() > attempt.exam.endsAt) {
+      await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
+      attempt.status = "TIME_EXPIRED";
+    }
+  }
+  if (attempt.status === "IN_PROGRESS" && attempt.expiresAt <= new Date()) {
+    await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
+    attempt.status = "TIME_EXPIRED";
+  }
+
+  const examPack = await prisma.examPackage.findUnique({
+    where: { examId_jenjang: { examId: attempt.examId, jenjang: attempt.jenjang } },
+  });
+  if (!examPack) throw new AppError("Paket soal tidak ditemukan.", 404);
+
+  const pack = await loadPackageQuestions(examPack.id);
+  const order = (attempt.questionOrder as number[]) ?? [];
+  const optionOrder = (attempt.optionOrder ?? {}) as Record<string, number[]>;
+  const byId = new Map(pack.map((question) => [question.id, question]));
+  const questions = order.map((id) => {
+    const question = byId.get(id);
+    if (!question) throw new AppError("Paket soal tidak lengkap.", 500);
+    const optionIds = optionOrder[String(id)];
+    const options = optionIds
+      ? optionIds.map((optionId) => question.options.find((option) => option.id === optionId)).filter((option): option is PublicOption => Boolean(option))
+      : question.options;
+    return { ...question, options };
+  });
+  const redisAnswers = await readRedisAnswers(attemptId);
+  const answers: Record<number, StoredAnswer> = {};
+  for (const row of attempt.answers) {
+    answers[row.questionId] = {
+      selectedOptionId: row.selectedOptionId,
+      essayText: row.essayText,
+      isDoubtful: row.isDoubtful,
+      answeredAt: row.answeredAt?.toISOString() ?? null,
+    };
+  }
+  Object.assign(answers, redisAnswers);
+  const meta = await redis.hgetall(metaKey(attemptId));
+  return {
+    attemptId: attempt.id,
+    examName: attempt.exam.name,
+    status: attempt.status,
+    serverNow: new Date().toISOString(),
+    serverTime: new Date().toISOString(),
+    expiresAt: attempt.expiresAt.toISOString(),
+    deadlineAt: attempt.expiresAt.toISOString(),
+    lastQuestionIndex: Number(meta.lastQuestionIndex ?? attempt.lastQuestionIndex ?? 0),
+    questions,
+    answers,
+  };
+}
+
 export async function flushAttempt(attemptId: number, force = false): Promise<void> {
   await withAttemptLock(attemptId, async () => {
     if (!force && (await redis.get(closedKey(attemptId)))) return;
     const attempt = await prisma.examAttempt.findUnique({
       where: { id: attemptId },
-      include: { session: { include: { exam: { include: { questions: { include: { question: true } } } } } } },
+      include: {
+        exam: {
+          include: {
+            packages: { include: { questions: { include: { question: true } } } },
+          },
+        },
+      },
     });
     if (!attempt) return;
     if (!force && attempt.status !== "IN_PROGRESS") return;
-    const types = new Map(attempt.session.exam.questions.map((item) => [item.questionId, item.question.type]));
+    const pack = attempt.exam.packages.find((p) => p.jenjang === attempt.jenjang);
+    const types = new Map((pack?.questions ?? []).map((item) => [item.questionId, item.question.type]));
     for (let pass = 0; pass < 3; pass += 1) {
       const revision = await redis.get(revKey(attemptId));
       const stored = await readRedisAnswers(attemptId);
@@ -118,145 +328,17 @@ export async function enqueueFlush(attemptId: number): Promise<void> {
   }
 }
 
-async function loadPackage(examId: number): Promise<PublicQuestion[]> {
-  const cached = await redis.get(packageKey(examId));
-  if (cached) return JSON.parse(cached) as PublicQuestion[];
-  const rows = await prisma.examQuestion.findMany({
-    where: { examId },
-    include: { question: { include: { options: { orderBy: { sortOrder: "asc" } } } } },
-    orderBy: { sortOrder: "asc" },
-  });
-  const pack: PublicQuestion[] = rows.map((row) => ({
-    id: row.questionId,
-    type: row.question.type,
-    body: sanitizeRichText(row.question.body),
-    imagePath: row.question.imagePath,
-    weight: row.weight.toString(),
-    options: row.question.options.map((option) => ({
-      id: option.id,
-      label: option.label,
-      body: sanitizeRichText(option.body),
-      imagePath: option.imagePath,
-    })),
-  }));
-  await redis.set(packageKey(examId), JSON.stringify(pack), "EX", 60 * 60 * 6);
-  return pack;
-}
-
-export async function attend(sessionId: number, userId: number, ipAddress: string, userAgent: string | null) {
-  const session = await prisma.examSession.findUnique({
-    where: { id: sessionId },
-    include: { participants: { where: { userId } } },
-  });
-  if (!session || session.participants.length === 0) throw new AppError("Anda tidak ditugaskan pada sesi ini.", 403);
+async function assertCanAnswer(examId: number, userId: number, expiresAt: Date | null) {
+  const state = await readExamState(examId);
+  if (!state || state.phase !== "RUNNING") {
+    throw new AppError("Ujian tidak sedang berjalan.", 403);
+  }
   const now = new Date();
-  if (now < session.attendanceOpensAt || now > session.endsAt) {
-    throw new AppError("Absensi hanya dapat dilakukan pada rentang waktu sesi.", 409);
+  if (now > new Date(state.endsAt)) throw new AppError("Batas waktu ujian sudah lewat.", 403);
+  const cachedExpires = (await readAttemptExpires(examId, userId)) ?? expiresAt;
+  if (!cachedExpires || now > cachedExpires) {
+    throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 403);
   }
-  await prisma.attendance.upsert({
-    where: { sessionId_userId: { sessionId, userId } },
-    create: { sessionId, userId, ipAddress, userAgent },
-    update: {},
-  });
-  await writeAudit({ userId, action: "ATTEND", entityType: "exam_session", entityId: sessionId, ipAddress });
-}
-
-export async function startAttempt(sessionId: number, userId: number, ipAddress?: string) {
-  const session = await prisma.examSession.findUnique({
-    where: { id: sessionId },
-    include: {
-      exam: { include: { questions: { include: { question: { include: { options: true } } } } } },
-      participants: { where: { userId } },
-      attendances: { where: { userId } },
-    },
-  });
-  if (!session || session.participants.length === 0) throw new AppError("Anda tidak ditugaskan pada sesi ini.", 403);
-  if (session.exam.status !== "PUBLISHED") throw new AppError("Ujian ini belum dibuka.", 409);
-  if (session.attendances.length === 0) throw new AppError("Absensi diperlukan sebelum mulai ujian.", 409);
-  const now = new Date();
-  if (now < session.startsAt) throw new AppError("Ujian belum dimulai.", 409);
-  const existing = await prisma.examAttempt.findUnique({ where: { sessionId_userId: { sessionId, userId } } });
-  if (existing) {
-    if (existing.status !== "IN_PROGRESS") throw new AppError("Ujian ini sudah dikirim.", 409);
-    if (existing.deadlineAt <= now) {
-      await finalizeAttempt(existing.id, "TIME_EXPIRED", userId, ipAddress);
-      throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
-    }
-    return existing.id;
-  }
-  if (now > session.endsAt) throw new AppError("Sesi ujian sudah selesai.", 409);
-  if (session.exam.questions.length === 0) throw new AppError("Paket soal masih kosong.", 409);
-  const questionOrder = session.exam.shuffleQuestions ? shuffle(session.exam.questions.map((item) => item.questionId)) : session.exam.questions.map((item) => item.questionId);
-  const optionOrder: Record<string, number[]> = {};
-  for (const item of session.exam.questions) {
-    const ids = item.question.options.map((option) => option.id);
-    optionOrder[String(item.questionId)] = session.exam.shuffleOptions ? shuffle(ids) : ids;
-  }
-  const deadlineAt = computeDeadline(now, session.exam.durationMinutes, session.endsAt, 0);
-  const attempt = await prisma.examAttempt.create({
-    data: {
-      sessionId,
-      userId,
-      startedAt: now,
-      deadlineAt,
-      questionOrder,
-      optionOrder,
-      gradingStatus: "NOT_GRADED",
-    },
-  });
-  await loadPackage(session.examId);
-  await redis.hset(metaKey(attempt.id), "lastQuestionIndex", "0", "deadlineAt", deadlineAt.toISOString());
-  await writeAudit({ userId, action: "START_ATTEMPT", entityType: "exam_attempt", entityId: attempt.id, ipAddress });
-  return attempt.id;
-}
-
-export async function getAttemptState(attemptId: number, userId: number) {
-  const attempt = await prisma.examAttempt.findUnique({
-    where: { id: attemptId },
-    include: {
-      session: { include: { exam: true } },
-      answers: true,
-    },
-  });
-  if (!attempt || attempt.userId !== userId) throw new AppError("Pengerjaan tidak ditemukan.", 404);
-  if (attempt.status === "IN_PROGRESS" && attempt.deadlineAt <= new Date()) {
-    await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
-    attempt.status = "TIME_EXPIRED";
-  }
-  const pack = await loadPackage(attempt.session.examId);
-  const order = attempt.questionOrder as number[];
-  const optionOrder = (attempt.optionOrder ?? {}) as Record<string, number[]>;
-  const byId = new Map(pack.map((question) => [question.id, question]));
-  const questions = order.map((id) => {
-    const question = byId.get(id);
-    if (!question) throw new AppError("Paket soal tidak lengkap.", 500);
-    const optionIds = optionOrder[String(id)];
-    const options = optionIds ? optionIds.map((optionId) => question.options.find((option) => option.id === optionId)).filter((option): option is PublicOption => Boolean(option)) : question.options;
-    return { ...question, options };
-  });
-  const redisAnswers = await readRedisAnswers(attemptId);
-  const answers: Record<number, StoredAnswer> = {};
-  for (const row of attempt.answers) {
-    answers[row.questionId] = {
-      selectedOptionId: row.selectedOptionId,
-      essayText: row.essayText,
-      isDoubtful: row.isDoubtful,
-      answeredAt: row.answeredAt?.toISOString() ?? null,
-    };
-  }
-  Object.assign(answers, redisAnswers);
-  const meta = await redis.hgetall(metaKey(attemptId));
-  return {
-    attemptId: attempt.id,
-    examName: attempt.session.exam.name,
-    sessionName: attempt.session.name,
-    status: attempt.status,
-    serverNow: new Date().toISOString(),
-    deadlineAt: attempt.deadlineAt.toISOString(),
-    lastQuestionIndex: Number(meta.lastQuestionIndex ?? attempt.lastQuestionIndex ?? 0),
-    questions,
-    answers,
-  };
 }
 
 export async function saveAnswer(
@@ -272,14 +354,19 @@ export async function saveAnswer(
 ) {
   const attempt = await prisma.examAttempt.findFirst({
     where: { id: attemptId, userId },
-    include: { session: { include: { exam: true } } },
+    include: { exam: true },
   });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
-  if (attempt.status !== "IN_PROGRESS" || attempt.deadlineAt <= new Date() || (await redis.get(closedKey(attemptId)))) {
-    if (attempt.status === "IN_PROGRESS") await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
+  if (attempt.status !== "IN_PROGRESS" || (await redis.get(closedKey(attemptId)))) {
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
   }
-  const order = attempt.questionOrder as number[];
+  try {
+    await assertCanAnswer(attempt.examId, userId, attempt.expiresAt);
+  } catch (error) {
+    if (attempt.status === "IN_PROGRESS") await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
+    throw error;
+  }
+  const order = (attempt.questionOrder as number[]) ?? [];
   if (!order.includes(input.questionId)) throw new AppError("Soal tidak termasuk paket ujian ini.", 400);
   const optionOrder = (attempt.optionOrder ?? {}) as Record<string, number[]>;
   const allowed = optionOrder[String(input.questionId)] ?? [];
@@ -306,18 +393,30 @@ export async function saveAnswer(
   await enqueueFlush(attemptId);
 }
 
-export async function finalizeAttempt(attemptId: number, reason: "SUBMITTED" | "TIME_EXPIRED", userId?: number, ipAddress?: string) {
+export async function finalizeAttempt(
+  attemptId: number,
+  reason: "SUBMITTED" | "TIME_EXPIRED",
+  userId?: number,
+  ipAddress?: string,
+) {
   const attempt = await prisma.examAttempt.findUnique({
     where: { id: attemptId },
-    include: { session: { include: { exam: { include: { questions: true } } } } },
+    include: {
+      exam: {
+        include: {
+          packages: { include: { questions: true } },
+        },
+      },
+    },
   });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   if (userId && attempt.userId !== userId) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   if (attempt.status !== "IN_PROGRESS") return;
-  const actual = reason === "SUBMITTED" && attempt.deadlineAt <= new Date() ? "TIME_EXPIRED" : reason;
+  const expiresAt = attempt.expiresAt ?? new Date(0);
+  const actual = reason === "SUBMITTED" && expiresAt <= new Date() ? "TIME_EXPIRED" : reason;
   await redis.set(closedKey(attemptId), "1", "EX", 60 * 60 * 24);
   await flushAttempt(attemptId, true);
-  const order = attempt.questionOrder as number[];
+  const order = (attempt.questionOrder as number[]) ?? [];
   const essayQuestions = await prisma.question.findMany({
     where: { id: { in: order }, type: "ESSAY" },
   });
@@ -328,8 +427,9 @@ export async function finalizeAttempt(attemptId: number, reason: "SUBMITTED" | "
       update: {},
     });
   }
+  const pack = attempt.exam.packages.find((p) => p.jenjang === attempt.jenjang);
   const weights = new Map(
-    attempt.session.exam.questions.map((item) => [
+    (pack?.questions ?? []).map((item) => [
       item.questionId,
       { weight: Number(item.weight), wrongWeight: Number(item.wrongWeight) },
     ]),
@@ -377,7 +477,14 @@ export async function finalizeAttempt(attemptId: number, reason: "SUBMITTED" | "
   });
 }
 
-export async function logViolation(attemptId: number, userId: number, input: { type: "FULLSCREEN_EXIT" | "TAB_SWITCH" | "WINDOW_BLUR" | "COPY_PASTE" | "RIGHT_CLICK"; questionNumber?: number }) {
+export async function logViolation(
+  attemptId: number,
+  userId: number,
+  input: {
+    type: "FULLSCREEN_EXIT" | "TAB_SWITCH" | "WINDOW_BLUR" | "COPY_PASTE" | "RIGHT_CLICK";
+    questionNumber?: number;
+  },
+) {
   const attempt = await prisma.examAttempt.findFirst({ where: { id: attemptId, userId, status: "IN_PROGRESS" } });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   await prisma.violationLog.create({
@@ -389,16 +496,17 @@ export async function addExtraTime(attemptId: number, seconds: number, actorId: 
   if (seconds < 60 || seconds > 60 * 180) throw new AppError("Tambahan waktu di luar batas yang diizinkan.", 400);
   const attempt = await prisma.examAttempt.findUnique({
     where: { id: attemptId },
-    include: { session: { include: { exam: true } } },
+    include: { exam: true },
   });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
+  if (!attempt.startedAt) throw new AppError("Peserta belum memulai ujian.", 409);
   const extraSeconds = attempt.extraSeconds + seconds;
-  const deadlineAt = computeDeadline(attempt.startedAt, attempt.session.exam.durationMinutes, attempt.session.endsAt, extraSeconds);
+  const expiresAt = computeDeadline(attempt.startedAt, attempt.exam.durationMinutes, attempt.exam.endsAt, extraSeconds);
   await prisma.examAttempt.update({
     where: { id: attemptId },
     data: {
       extraSeconds,
-      deadlineAt,
+      expiresAt,
       status: "IN_PROGRESS",
       submittedAt: null,
       mcScore: null,
@@ -406,7 +514,8 @@ export async function addExtraTime(attemptId: number, seconds: number, actorId: 
     },
   });
   await redis.del(closedKey(attemptId));
-  await redis.hset(metaKey(attemptId), "deadlineAt", deadlineAt.toISOString());
+  await writeAttemptExpires(attempt.examId, attempt.userId, expiresAt);
+  await redis.hset(metaKey(attemptId), "expiresAt", expiresAt.toISOString());
   await writeAudit({
     userId: actorId,
     action: "ADD_TIME",
@@ -415,4 +524,21 @@ export async function addExtraTime(attemptId: number, seconds: number, actorId: 
     meta: { seconds },
     ipAddress,
   });
+}
+
+export async function getExamStateForParticipant(examId: number, userId: number) {
+  const state = await readExamState(examId);
+  if (!state) throw new AppError("Ujian tidak ditemukan.", 404);
+  const attempt = await prisma.examAttempt.findUnique({
+    where: { examId_userId: { examId, userId } },
+    select: { expiresAt: true, startedAt: true, attendedAt: true, status: true },
+  });
+  return {
+    phase: state.phase,
+    serverTime: new Date().toISOString(),
+    expiresAt: attempt?.expiresAt?.toISOString() ?? null,
+    attended: Boolean(attempt?.attendedAt),
+    started: Boolean(attempt?.startedAt),
+    status: attempt?.status ?? null,
+  };
 }

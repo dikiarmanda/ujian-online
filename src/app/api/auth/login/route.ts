@@ -11,6 +11,7 @@ export async function POST(req: Request) {
     assertMutationOrigin(req);
     const payload: unknown = await req.json().catch(() => null);
     const result = await loginUser(payload, requestIp(req));
+    console.log("result", result);
     return json(
       { ok: true, redirect: homeForRole(result.role), name: result.name },
       200,

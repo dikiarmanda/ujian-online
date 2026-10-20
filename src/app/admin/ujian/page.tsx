@@ -1,9 +1,10 @@
 import { AdminShell } from "@/components/admin-shell";
 import { ExamForm } from "@/components/admin-forms";
 import { UjianPanel } from "@/components/ujian-panel";
+import { formatJakarta } from "@/lib/format";
+import { listAvailableCompetitions } from "@/server/competitions";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
-import { formatExamDate } from "@/server/exam-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,8 @@ export default async function UjianPage() {
   const user = await requirePageUser(["ADMIN"]);
   const [exams, packages] = await Promise.all([
     prisma.exam.findMany({
-      orderBy: { examDate: "desc" },
-      include: { _count: { select: { sessions: true, questions: true } } },
+      orderBy: { startsAt: "desc" },
+      include: { _count: { select: { packages: true, attempts: true } } },
     }),
     prisma.questionPackage.findMany({
       where: { isActive: true },
@@ -31,20 +32,27 @@ export default async function UjianPage() {
     }),
   ]);
 
+  let competitions: { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA")[] }[] = [];
+  let competitionsError: string | null = null;
+  try {
+    competitions = await listAvailableCompetitions();
+  } catch (error) {
+    competitionsError = error instanceof Error ? error.message : "Gagal memuat daftar lomba.";
+  }
+
   const published = exams.filter((exam) => exam.status === "PUBLISHED").length;
   const draft = exams.filter((exam) => exam.status === "DRAFT").length;
-  const archived = exams.filter((exam) => exam.status === "ARCHIVED").length;
-  const totalSessions = exams.reduce((sum, exam) => sum + exam._count.sessions, 0);
+  const running = exams.filter((exam) => exam.phase === "RUNNING").length;
 
   return (
     <AdminShell name={user.name} current="/admin/ujian">
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
         <header className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-sm text-ink-muted">Jadwal & paket soal</p>
+            <p className="text-sm text-ink-muted">Jadwal & paket per jenjang</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Jadwal Ujian</h1>
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-              Pilih paket soal saat membuat ujian, lalu buat sesi untuk peserta.
+              Buat ujian dari lomba OMBN, atur paket per jenjang, lalu juri memberi aba-aba mulai.
             </p>
           </div>
           <a
@@ -55,33 +63,34 @@ export default async function UjianPage() {
         </header>
 
         <section aria-label="Ringkasan ujian" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Total" value={exams.length} hint={`${totalSessions} sesi terdaftar`} />
-          <StatCard label="Terbit" value={published} hint="Siap dijadwalkan / berjalan" />
+          <StatCard label="Total" value={exams.length} hint={`${running} sedang berjalan`} />
+          <StatCard label="Terbit" value={published} hint="Siap / berjalan" />
           <StatCard label="Draf" value={draft} hint="Masih disiapkan" />
-          <StatCard label="Arsip" value={archived} hint="Tidak dipakai lagi" />
+          <StatCard label="Paket" value={packages.length} hint="Template soal aktif" />
         </section>
 
         <UjianPanel
           exams={exams.map((exam) => ({
             id: exam.id,
             name: exam.name,
-            examDateLabel: formatExamDate(exam.examDate),
+            examDateLabel: formatJakarta(exam.startsAt),
             durationMinutes: exam.durationMinutes,
-            questionCount: exam._count.questions,
-            sessionCount: exam._count.sessions,
+            questionCount: exam._count.packages,
+            sessionCount: exam._count.attempts,
             status: exam.status,
+            phase: exam.phase,
           }))}
         />
 
         <section id="buat-ujian" className="scroll-mt-24">
           <div className="mb-4">
             <h2 className="text-lg font-semibold tracking-tight text-ink">Ujian baru</h2>
-            <p className="mt-0.5 text-sm text-ink-muted">
-              Pilih paket soal, lalu tambahkan sesi setelah ujian dibuat.
-            </p>
+            <p className="mt-0.5 text-sm text-ink-muted">Pilih lomba, lalu tetapkan paket soal per kelompok jenjang.</p>
           </div>
           <div className="max-w-2xl">
             <ExamForm
+              competitions={competitions}
+              competitionsError={competitionsError}
               packages={packages.map((pack) => ({
                 id: pack.id,
                 name: pack.name,

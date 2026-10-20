@@ -100,7 +100,7 @@ export async function updateQuestionPackage(id: number, input: unknown, actorId:
 }
 
 export async function deleteQuestionPackage(id: number, actorId: number, ipAddress?: string) {
-  const used = await prisma.exam.count({ where: { packageId: id } });
+  const used = await prisma.examPackage.count({ where: { packageId: id } });
   if (used) {
     throw new AppError("Paket sudah dipakai ujian. Nonaktifkan saja bila tidak ingin dipakai lagi.", 409);
   }
@@ -114,9 +114,11 @@ export async function deleteQuestionPackage(id: number, actorId: number, ipAddre
   });
 }
 
-/** Salin isi template paket ke exam_questions (snapshot bobot saat itu). */
-export async function applyPackageToExam(examId: number, packageId: number) {
-  const pack = await prisma.questionPackage.findUnique({
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** Salin isi template paket ke exam_package_questions (snapshot bobot). */
+export async function applyPackageSnapshot(tx: Tx, examPackageId: number, packageId: number) {
+  const pack = await tx.questionPackage.findUnique({
     where: { id: packageId },
     include: {
       items: { orderBy: { sortOrder: "asc" }, include: { question: { select: { isActive: true } } } },
@@ -127,17 +129,49 @@ export async function applyPackageToExam(examId: number, packageId: number) {
   if (pack.items.some((item) => !item.question.isActive)) {
     throw new AppError("Paket berisi soal yang sudah nonaktif. Perbarui paket dulu.", 409);
   }
-  await prisma.$transaction(async (tx) => {
-    await tx.examQuestion.deleteMany({ where: { examId } });
-    await tx.examQuestion.createMany({
-      data: pack.items.map((item) => ({
-        examId,
-        questionId: item.questionId,
-        sortOrder: item.sortOrder,
-        weight: item.weight.toFixed(2),
-        wrongWeight: item.wrongWeight.toFixed(2),
-      })),
-    });
-    await tx.exam.update({ where: { id: examId }, data: { packageId } });
+  await tx.examPackageQuestion.deleteMany({ where: { examPackageId } });
+  await tx.examPackageQuestion.createMany({
+    data: pack.items.map((item) => ({
+      examPackageId,
+      questionId: item.questionId,
+      sortOrder: item.sortOrder,
+      weight: item.weight.toFixed(2),
+      wrongWeight: item.wrongWeight.toFixed(2),
+    })),
   });
+}
+
+export function packageCacheKey(examPackageId: number): string {
+  return `exam:package:${examPackageId}:questions`;
+}
+
+export async function prefetchExamPackages(examId: number): Promise<void> {
+  const { redis } = await import("./redis");
+  const { sanitizeRichText } = await import("./rich-text");
+  const packs = await prisma.examPackage.findMany({
+    where: { examId },
+    include: {
+      questions: {
+        orderBy: { sortOrder: "asc" },
+        include: { question: { include: { options: { orderBy: { sortOrder: "asc" } } } } },
+      },
+    },
+  });
+  for (const pack of packs) {
+    const payload = pack.questions.map((row) => ({
+      id: row.questionId,
+      type: row.question.type,
+      body: sanitizeRichText(row.question.body),
+      imagePath: row.question.imagePath,
+      weight: row.weight.toString(),
+      wrongWeight: row.wrongWeight.toString(),
+      options: row.question.options.map((option) => ({
+        id: option.id,
+        label: option.label,
+        body: sanitizeRichText(option.body),
+        imagePath: option.imagePath,
+      })),
+    }));
+    await redis.set(packageCacheKey(pack.id), JSON.stringify(payload), "EX", 60 * 60 * 6);
+  }
 }

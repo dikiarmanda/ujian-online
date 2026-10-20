@@ -6,8 +6,7 @@
 // - Nama model dan kolom berbahasa Inggris (camelCase); nama tabel snake_case
 //   lewat @@map. Kolom TIDAK di-@map, jadi pada raw SQL pakai nama kolom
 //   persis seperti di bawah, dengan backtick (contoh: `attemptId`).
-// - Semua waktu disimpan dalam UTC. Kolom `examDate` (tanggal saja) dihitung
-//   aplikasi dengan zona Asia/Jakarta.
+// - Semua waktu disimpan dalam UTC. Tampilkan ke pengguna dalam zona Asia/Jakarta.
 // - Koneksi database TIDAK diatur di sini. Pada Prisma 7, URL koneksi dan
 //   pengaturan pool diatur di berkas konfigurasi Prisma dan driver adapter
 //   MySQL (@prisma/adapter-mariadb). Sesuaikan blok generator dengan versi
@@ -43,6 +42,12 @@ enum ExamStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum ExamPhase {
+  NOT_STARTED
+  RUNNING
+  ENDED
 }
 
 enum AttemptStatus {
@@ -93,12 +98,12 @@ model User {
 
   createdQuestions    Question[]
   createdPackages     QuestionPackage[]
-  createdExams        Exam[]
-  sessionParticipants SessionParticipant[]
-  attendances         Attendance[]
+  createdExams        Exam[]              @relation("ExamCreatedBy")
+  startedExams        Exam[]              @relation("ExamStartedBy")
+  endedExams          Exam[]              @relation("ExamEndedBy")
   attempts            ExamAttempt[]
-  lockedAnswers       AttemptAnswer[]      @relation("AnswerLockedBy")
-  gradedAnswers       AttemptAnswer[]      @relation("AnswerGradedBy")
+  lockedAnswers       AttemptAnswer[]     @relation("AnswerLockedBy")
+  gradedAnswers       AttemptAnswer[]     @relation("AnswerGradedBy")
   syncLogs            SyncLog[]
   auditLogs           AuditLog[]
   apiClients          ApiClient[]
@@ -171,9 +176,9 @@ model Question {
   createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
   options       AnswerOption[]
   essayKey      EssayKey?
-  examQuestions ExamQuestion[]
-  packageItems  QuestionPackageItem[]
-  answers       AttemptAnswer[]
+  packageItems         QuestionPackageItem[]
+  examPackageQuestions ExamPackageQuestion[]
+  answers              AttemptAnswer[]
 
   @@index([categoryId, type])
   @@index([isActive])
@@ -223,9 +228,9 @@ model QuestionPackage {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  items     QuestionPackageItem[]
-  exams     Exam[]
+  createdBy    User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items        QuestionPackageItem[]
+  examPackages ExamPackage[]
 
   @@index([isActive])
   @@map("question_packages")
@@ -249,109 +254,75 @@ model QuestionPackageItem {
 }
 
 // -----------------------------------------------------------------------------
-// Jadwal (ujian), salinan paket soal, dan sesi
+// Jadwal ujian, paket per jenjang, dan pengerjaan peserta
 // -----------------------------------------------------------------------------
 
 model Exam {
-  id               Int        @id @default(autoincrement())
-  name             String     @db.VarChar(200)
-  examDate         DateTime   @db.Date
-  durationMinutes  Int
-  shuffleQuestions Boolean    @default(false)
-  shuffleOptions   Boolean    @default(false)
-  status           ExamStatus @default(DRAFT)
-  packageId        Int?
-  createdById      Int
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id                Int        @id @default(autoincrement())
+  name              String     @db.VarChar(200) // snapshot dari competitions.nama_lomba
+  competitionId     Int        @unique // referensi ke ombn.competitions.id (tanpa FK)
+  attendanceOpensAt DateTime
+  startsAt          DateTime // jadwal rencana (informasi)
+  endsAt            DateTime // batas akhir keras
+  durationMinutes   Int
+  shuffleQuestions  Boolean    @default(true)
+  shuffleOptions    Boolean    @default(true)
+  status            ExamStatus @default(DRAFT)
+  phase             ExamPhase  @default(NOT_STARTED)
+  startedAt         DateTime?
+  startedById       Int?
+  endedAt           DateTime?
+  endedById         Int?
+  createdById       Int
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
-  createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  questionPackage QuestionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
-  questions       ExamQuestion[]
-  sessions        ExamSession[]
-  apiClients      ApiClientExam[]
+  createdBy  User          @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  startedBy  User?         @relation("ExamStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+  endedBy    User?         @relation("ExamEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  packages   ExamPackage[]
+  attempts   ExamAttempt[]
+  apiClients ApiClientExam[]
 
-  @@index([examDate])
   @@index([status])
-  @@index([packageId])
+  @@index([phase])
+  @@index([startsAt])
   @@map("exams")
 }
 
-// Salinan soal di sebuah ujian. Bobot disalin dari paket agar nilai lama tidak
-// berubah bila paket/bank soal diedit kemudian.
-model ExamQuestion {
-  id          Int     @id @default(autoincrement())
-  examId      Int
-  questionId  Int
-  sortOrder   Int
-  weight      Decimal @db.Decimal(6, 2)
-  wrongWeight Decimal @default(0) @db.Decimal(6, 2)
+// Plotting paket soal per kelompok jenjang (SD / SMP / SMA).
+model ExamPackage {
+  id        Int    @id @default(autoincrement())
+  examId    Int
+  jenjang   String @db.VarChar(10) // "SD" | "SMP" | "SMA"
+  packageId Int
 
-  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  exam            Exam                  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionPackage QuestionPackage       @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  questions       ExamPackageQuestion[]
 
-  @@unique([examId, questionId])
-  @@unique([examId, sortOrder])
+  @@unique([examId, jenjang])
+  @@index([packageId])
+  @@map("exam_packages")
+}
+
+// Salinan soal per ExamPackage. Bobot disalin agar nilai lama tidak berubah
+// bila paket/bank soal diedit kemudian.
+model ExamPackageQuestion {
+  id            Int     @id @default(autoincrement())
+  examPackageId Int
+  questionId    Int
+  sortOrder     Int
+  weight        Decimal @db.Decimal(6, 2)
+  wrongWeight   Decimal @default(0) @db.Decimal(6, 2)
+
+  examPackage ExamPackage @relation(fields: [examPackageId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([examPackageId, questionId])
+  @@unique([examPackageId, sortOrder])
   @@index([questionId])
-  @@map("exam_questions")
-}
-
-model ExamSession {
-  id                Int      @id @default(autoincrement())
-  examId            Int
-  name              String   @db.VarChar(100)
-  startsAt          DateTime
-  endsAt            DateTime
-  attendanceOpensAt DateTime // awal jendela absensi
-  capacity          Int?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  exam         Exam                 @relation(fields: [examId], references: [id], onDelete: Restrict)
-  participants SessionParticipant[]
-  attendances  Attendance[]
-  attempts     ExamAttempt[]
-
-  @@index([examId])
-  @@index([startsAt])
-  @@map("exam_sessions")
-}
-
-// Penugasan peserta ke sesi.
-// `examDate` adalah salinan tanggal ujian (Exam.examDate). Unik per peserta,
-// sehingga database sendiri menolak penugasan kedua pada hari yang sama
-// (aturan 1 ujian per hari). Jika tanggal ujian diubah, perbarui kolom ini
-// dalam transaksi yang sama.
-model SessionParticipant {
-  id        Int      @id @default(autoincrement())
-  sessionId Int
-  userId    Int
-  examDate  DateTime @db.Date
-  createdAt DateTime @default(now())
-
-  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-
-  @@unique([sessionId, userId])
-  @@unique([userId, examDate])
-  @@index([sessionId])
-  @@map("session_participants")
-}
-
-model Attendance {
-  id          Int      @id @default(autoincrement())
-  sessionId   Int
-  userId      Int
-  checkedInAt DateTime @default(now())
-  ipAddress   String?  @db.VarChar(45)
-  userAgent   String?  @db.VarChar(255)
-
-  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-
-  @@unique([sessionId, userId])
-  @@index([sessionId])
-  @@map("attendances")
+  @@map("exam_package_questions")
 }
 
 // -----------------------------------------------------------------------------
@@ -359,36 +330,38 @@ model Attendance {
 // -----------------------------------------------------------------------------
 
 model ExamAttempt {
-  id                Int           @id @default(autoincrement())
-  sessionId         Int
+  id                Int            @id @default(autoincrement())
+  examId            Int
   userId            Int
-  startedAt         DateTime
-  // Batas akhir dihitung server: min(startedAt + durasi, sesi.endsAt)
-  deadlineAt        DateTime
-  extraSeconds      Int           @default(0) // tambahan waktu dari admin
+  jenjang           String         @db.VarChar(10) // kelompok hasil pemetaan
+  packageId         Int // QuestionPackage yang didapat dari ExamPackage
+  attendedAt        DateTime?
+  // Null sampai peserta pertama kali membuka soal.
+  startedAt         DateTime?
+  // Batas akhir: min(startedAt + durasi, exam.endsAt) + extraSeconds
+  expiresAt         DateTime?
+  extraSeconds      Int            @default(0)
   submittedAt       DateTime?
-  status            AttemptStatus @default(IN_PROGRESS)
-  // Urutan soal dan opsi untuk peserta ini (hasil pengacakan), agar tampilan
-  // tetap sama setelah refresh. questionOrder: [questionId, ...]
-  // optionOrder: { "<questionId>": [optionId, ...] }
-  questionOrder     Json
+  status            AttemptStatus  @default(IN_PROGRESS)
+  // Urutan soal dan opsi untuk peserta ini (hasil pengacakan).
+  questionOrder     Json?
   optionOrder       Json?
-  lastQuestionIndex Int           @default(0)
-  mcScore           Decimal?      @db.Decimal(8, 2)
-  essayScore        Decimal?      @db.Decimal(8, 2)
-  totalScore        Decimal?      @db.Decimal(8, 2)
-  gradingStatus     GradingStatus @default(NOT_GRADED)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  lastQuestionIndex Int            @default(0)
+  mcScore           Decimal?       @db.Decimal(8, 2)
+  essayScore        Decimal?       @db.Decimal(8, 2)
+  totalScore        Decimal?       @db.Decimal(8, 2)
+  gradingStatus     GradingStatus  @default(NOT_GRADED)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  session    ExamSession      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  exam       Exam             @relation(fields: [examId], references: [id], onDelete: Restrict)
   user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   answers    AttemptAnswer[]
   violations ViolationLog[]
 
-  @@unique([sessionId, userId])
-  @@index([sessionId, status])
-  @@index([sessionId, gradingStatus])
+  @@unique([examId, userId])
+  @@index([examId, status])
+  @@index([examId, gradingStatus])
   @@index([updatedAt, id])
   @@map("exam_attempts")
 }

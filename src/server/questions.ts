@@ -161,7 +161,7 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
 }
 
 export async function deleteQuestion(id: number, actorId: number, ipAddress?: string) {
-  const used = await prisma.examQuestion.count({ where: { questionId: id } });
+  const used = await prisma.examPackageQuestion.count({ where: { questionId: id } });
   if (used) throw new AppError("Soal sudah dipakai ujian. Nonaktifkan soal ini.", 409);
   await prisma.question.delete({ where: { id } });
   await writeAudit({ userId: actorId, action: "DELETE_QUESTION", entityType: "question", entityId: id, ipAddress });

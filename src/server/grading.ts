@@ -51,7 +51,12 @@ export async function graderView(answerId: number, graderId: number) {
     where: { id: answerId },
     include: {
       question: { include: { essayKey: true } },
-      attempt: { include: { user: true, session: { include: { exam: { include: { questions: true } } } } } },
+      attempt: {
+        include: {
+          user: true,
+          exam: { include: { packages: { include: { questions: true } } } },
+        },
+      },
     },
   });
   if (!answer || answer.question.type !== "ESSAY") throw new AppError("Jawaban uraian tidak ditemukan.", 404);
@@ -61,7 +66,8 @@ export async function graderView(answerId: number, graderId: number) {
   if (answer.gradingState === "GRADED" && answer.gradedById !== graderId) {
     throw new AppError("Jawaban ini sudah dinilai.", 409);
   }
-  const weight = answer.attempt.session.exam.questions.find((item) => item.questionId === answer.questionId);
+  const pack = answer.attempt.exam.packages.find((p) => p.jenjang === answer.attempt.jenjang);
+  const weight = pack?.questions.find((item) => item.questionId === answer.questionId);
   const lockedAt = answer.lockedAt ?? new Date();
   return {
     id: answer.id,
@@ -152,7 +158,7 @@ export async function listGradingQueue(graderId: number) {
     },
     include: {
       question: { select: { code: true, body: true } },
-      attempt: { include: { user: { select: { name: true } }, session: { include: { exam: { select: { name: true } } } } } },
+      attempt: { include: { user: { select: { name: true } }, exam: { select: { name: true } } } },
     },
     orderBy: { id: "asc" },
     take: 100,
