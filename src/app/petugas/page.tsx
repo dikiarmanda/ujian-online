@@ -10,7 +10,7 @@ export default async function PetugasHome() {
   const rows = await listGradingQueue(user.userId);
   return (
     <div className="min-h-screen bg-page">
-      <AppBar title="Penilaian uraian" name={user.name} />
+      <AppBar title="Penilaian uraian" name={user.name} role={user.role} />
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>

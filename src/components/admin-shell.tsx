@@ -85,7 +85,7 @@ export async function AdminShell({
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
-      <AppBar title="Ruang admin" name={name} />
+      <AppBar title="Ruang admin" name={name} role="ADMIN" />
       <div className="grid flex-1 md:grid-cols-[240px_1fr]">
         <nav className="border-b border-line/80 bg-paper md:sticky md:top-[61px] md:max-h-[calc(100vh-61px)] md:overflow-y-auto md:border-r md:border-b-0">
           <div className="flex h-full flex-col p-3 md:p-4">

@@ -16,7 +16,7 @@ export default async function PetugasUjianPage() {
 
   return (
     <div className="min-h-screen bg-page">
-      <AppBar title="Kontrol ujian" name={user.name} />
+      <AppBar title="Kontrol ujian" name={user.name} role={user.role} />
       <main className="mx-auto max-w-4xl px-4 py-8">
         <h1 className="mb-2 text-lg font-semibold">Ujian terbit</h1>
         <p className="mb-6 text-sm text-ink-muted">Buka detail untuk memberi aba-aba MULAI atau SELESAI.</p>
