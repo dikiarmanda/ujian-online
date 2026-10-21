@@ -38,13 +38,6 @@ export function isFinalGrading(status: string): boolean {
   return status === "COMPLETED";
 }
 
-export function retryAfterUntil(now: Date, endsAt: Date | null): number | null {
-  if (!endsAt) return null;
-  const remaining = endsAt.getTime() - now.getTime();
-  if (remaining < 0) return null;
-  return Math.max(1, Math.ceil(remaining / 1000));
-}
-
 export function scoreNumber(value: { toString(): string } | number | null | undefined): number | null {
   if (value == null) return null;
   const parsed = Number(value.toString());

@@ -5,7 +5,6 @@ import { redis } from "./redis";
 export type ExamStateCache = {
   phase: ExamPhase;
   startedAt: string | null;
-  endsAt: string;
 };
 
 function stateKey(examId: number): string {
@@ -25,13 +24,12 @@ export async function readExamState(examId: number): Promise<ExamStateCache | nu
   if (cached) return JSON.parse(cached) as ExamStateCache;
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
-    select: { phase: true, startedAt: true, endsAt: true },
+    select: { phase: true, startedAt: true },
   });
   if (!exam) return null;
   const state: ExamStateCache = {
     phase: exam.phase,
     startedAt: exam.startedAt?.toISOString() ?? null,
-    endsAt: exam.endsAt.toISOString(),
   };
   await writeExamState(examId, state);
   return state;

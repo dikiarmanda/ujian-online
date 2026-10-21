@@ -24,10 +24,9 @@ function StatCard({ label, value, hint }: { label: string; value: number | strin
   );
 }
 
-function getSessionState(startsAt: Date, endsAt: Date, now: Date) {
-  if (now >= startsAt && now <= endsAt) return { label: "Berlangsung", className: "bg-brand-soft text-brand" };
-  if (now < startsAt) return { label: "Mendatang", className: "bg-page text-ink-muted" };
-  return { label: "Selesai", className: "bg-brand text-white" };
+function getSessionState(startsAt: Date, now: Date) {
+  if (now >= startsAt) return { label: "Berlangsung", className: "bg-brand-soft text-brand" };
+  return { label: "Mendatang", className: "bg-page text-ink-muted" };
 }
 
 export default async function LaporanDetailPage({ params }: { params: Promise<{ sessionId: string }> }) {
@@ -44,7 +43,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
   }
 
   const now = new Date();
-  const state = getSessionState(report.startsAt, report.endsAt, now);
+  const state = getSessionState(report.startsAt, now);
   const attendancePct =
     report.attendance.assigned > 0 ? Math.round((report.attendance.attended / report.attendance.assigned) * 100) : 0;
   const finished = report.rows.filter((row) => row.status === "Selesai").length;
@@ -71,7 +70,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{report.examName}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">
-                Fase {report.phase} · {formatJakarta(report.startsAt)} → {formatJakarta(report.endsAt)}
+                Fase {report.phase} · {formatJakarta(report.startsAt)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

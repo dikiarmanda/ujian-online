@@ -81,7 +81,7 @@ export function AppBar({ title, name, role }: { title: string; name?: string; ro
             <span className="font-digits text-xs font-semibold text-ink">{currentTime} WIB</span>
             {role === "PARTICIPANT" && (
               <span className="text-[10px] text-ink-muted">
-                Ping: <span className={latencyInfo.className}>{latencyInfo.label}</span>
+                Kualitas Jaringan: <span className={latencyInfo.className}>{latencyInfo.label}</span>
                 {latency !== null ? ` (${latency}ms)` : ""}
               </span>
             )}

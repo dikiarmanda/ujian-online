@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 
 type SessionTone = "idle" | "live" | "done";
 
-function getExamPhaseState(phase: string, startsAt: Date, endsAt: Date, now: Date): { label: string; tone: SessionTone } {
+function getExamPhaseState(phase: string, now: Date): { label: string; tone: SessionTone } {
   if (phase === "RUNNING") return { label: "Berlangsung", tone: "live" };
-  if (phase === "ENDED" || now > endsAt) return { label: "Selesai", tone: "done" };
+  if (phase === "ENDED") return { label: "Selesai", tone: "done" };
   return { label: "Mendatang", tone: "idle" };
 }
 
@@ -307,7 +307,7 @@ export default async function AdminHome() {
                         <p className="mt-2.5 truncate font-semibold text-ink">{session.name}</p>
                         <p className="text-sm text-ink-muted">{session.name}</p>
                       </div>
-                      <p className="shrink-0 text-xs text-ink-muted">sampai {formatJakarta(session.endsAt)}</p>
+
                     </div>
                     <div className="mt-5 grid grid-cols-2 gap-4">
                       <ProgressBar value={attendancePct} label="hadir" />
@@ -377,7 +377,7 @@ export default async function AdminHome() {
             <>
               <ul className="flex flex-col gap-3 md:hidden">
                 {sessions.map((session) => {
-                  const state = getExamPhaseState(session.phase, session.startsAt, session.endsAt, now);
+                  const state = getExamPhaseState(session.phase, now);
                   const attendancePct =
                     session._count.attempts > 0
                       ? Math.round((session._count.packages / session._count.attempts) * 100)
@@ -423,7 +423,7 @@ export default async function AdminHome() {
                   </thead>
                   <tbody className="divide-y divide-line/70">
                     {sessions.map((session) => {
-                      const state = getExamPhaseState(session.phase, session.startsAt, session.endsAt, now);
+                      const state = getExamPhaseState(session.phase, now);
                       const attendancePct =
                         session._count.attempts > 0
                           ? Math.round((session._count.packages / session._count.attempts) * 100)

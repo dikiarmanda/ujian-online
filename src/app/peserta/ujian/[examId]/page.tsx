@@ -55,7 +55,7 @@ export default async function UjianPesertaPage({ params }: { params: Promise<{ e
       startsAt={exam.startsAt.toISOString()}
       serverNow={now.toISOString()}
       attended={Boolean(attempt?.attendedAt)}
-      canAttend={now >= exam.attendanceOpensAt && now <= exam.endsAt && exam.phase !== "ENDED"}
+      canAttend={now >= exam.attendanceOpensAt && exam.phase !== "ENDED"}
       initialPhase={exam.phase}
     />
   );

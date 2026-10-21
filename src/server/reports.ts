@@ -78,7 +78,6 @@ export async function examReport(examId: number) {
     examId: exam.id,
     examName: exam.name,
     startsAt: exam.startsAt,
-    endsAt: exam.endsAt,
     phase: exam.phase,
     durationMinutes: exam.durationMinutes,
     rows,

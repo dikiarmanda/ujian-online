@@ -120,7 +120,6 @@ export async function attend(
   if (exam.phase === "ENDED") throw new AppError("Ujian sudah ditutup.", 409);
   const now = new Date();
   if (now < exam.attendanceOpensAt) throw new AppError("Absensi belum dibuka.", 409);
-  if (now > exam.endsAt) throw new AppError("Batas waktu ujian sudah lewat.", 409);
 
   const examPack = await resolveExamPackage(examId, jenjangGroup);
   await prisma.examAttempt.upsert({
@@ -153,7 +152,6 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
     throw new AppError("Ujian belum dibuka oleh juri.", 403);
   }
   const now = new Date();
-  if (now > exam.endsAt) throw new AppError("Batas waktu ujian sudah lewat.", 403);
 
   const existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
   if (!existing?.attendedAt) throw new AppError("Absensi diperlukan sebelum mulai ujian.", 409);
@@ -176,7 +174,7 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
     const ids = item.question.options.map((option) => option.id);
     optionOrder[String(item.questionId)] = exam.shuffleOptions ? shuffle(ids) : ids;
   }
-  const expiresAt = computeDeadline(now, exam.durationMinutes, exam.endsAt, existing.extraSeconds);
+  const expiresAt = computeDeadline(now, exam.durationMinutes, null, existing.extraSeconds);
 
   // Idempotent: only set startedAt if still null
   const updated = await prisma.examAttempt.updateMany({
@@ -219,7 +217,7 @@ export async function getAttemptState(attemptId: number, userId: number) {
   const state = await readExamState(attempt.examId);
   if (state?.phase !== "RUNNING" && attempt.status === "IN_PROGRESS") {
     // Soft check: if ended, force finalize
-    if (state?.phase === "ENDED" || new Date() > attempt.exam.endsAt) {
+    if (state?.phase === "ENDED") {
       await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
       attempt.status = "TIME_EXPIRED";
     }
@@ -334,7 +332,6 @@ async function assertCanAnswer(examId: number, userId: number, expiresAt: Date |
     throw new AppError("Ujian tidak sedang berjalan.", 403);
   }
   const now = new Date();
-  if (now > new Date(state.endsAt)) throw new AppError("Batas waktu ujian sudah lewat.", 403);
   const cachedExpires = (await readAttemptExpires(examId, userId)) ?? expiresAt;
   if (!cachedExpires || now > cachedExpires) {
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 403);
@@ -501,7 +498,7 @@ export async function addExtraTime(attemptId: number, seconds: number, actorId: 
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   if (!attempt.startedAt) throw new AppError("Peserta belum memulai ujian.", 409);
   const extraSeconds = attempt.extraSeconds + seconds;
-  const expiresAt = computeDeadline(attempt.startedAt, attempt.exam.durationMinutes, attempt.exam.endsAt, extraSeconds);
+  const expiresAt = computeDeadline(attempt.startedAt, attempt.exam.durationMinutes, null, extraSeconds);
   await prisma.examAttempt.update({
     where: { id: attemptId },
     data: {

@@ -14,7 +14,6 @@ const createExamSchema = z.object({
   competitionId: z.number().int().positive(),
   attendanceOpensAt: z.string(),
   startsAt: z.string(),
-  endsAt: z.string(),
   durationMinutes: z.number().int().positive().max(600),
   shuffleQuestions: z.boolean().default(true),
   shuffleOptions: z.boolean().default(true),
@@ -25,7 +24,6 @@ const createExamSchema = z.object({
 const updateExamSchema = z.object({
   attendanceOpensAt: z.string().optional(),
   startsAt: z.string().optional(),
-  endsAt: z.string().optional(),
   durationMinutes: z.number().int().positive().max(600).optional(),
   shuffleQuestions: z.boolean().optional(),
   shuffleOptions: z.boolean().optional(),
@@ -33,14 +31,13 @@ const updateExamSchema = z.object({
   packages: packageByJenjangSchema.optional(),
 });
 
-function parseSchedule(input: { attendanceOpensAt: string; startsAt: string; endsAt: string }) {
+function parseSchedule(input: { attendanceOpensAt: string; startsAt: string }) {
   const attendanceOpensAt = parseJakartaDateTime(input.attendanceOpensAt);
   const startsAt = parseJakartaDateTime(input.startsAt);
-  const endsAt = parseJakartaDateTime(input.endsAt);
-  if (!(attendanceOpensAt < startsAt && startsAt < endsAt)) {
-    throw new AppError("Urutan waktu harus absensi, lalu mulai rencana, lalu selesai.", 400);
+  if (!(attendanceOpensAt < startsAt)) {
+    throw new AppError("Waktu absensi harus sebelum jadwal mulai.", 400);
   }
-  return { attendanceOpensAt, startsAt, endsAt };
+  return { attendanceOpensAt, startsAt };
 }
 
 const GROUPS: JenjangGroup[] = ["SD", "SMP", "SMA"];
@@ -126,7 +123,6 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
           competitionId: competition.id,
           attendanceOpensAt: schedule.attendanceOpensAt,
           startsAt: schedule.startsAt,
-          endsAt: schedule.endsAt,
           durationMinutes: parsed.data.durationMinutes,
           shuffleQuestions: parsed.data.shuffleQuestions,
           shuffleOptions: parsed.data.shuffleOptions,
@@ -146,7 +142,6 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
     await writeExamState(exam.id, {
       phase: exam.phase,
       startedAt: null,
-      endsAt: exam.endsAt.toISOString(),
     });
     await writeAudit({ userId: actorId, action: "CREATE_EXAM", entityType: "exam", entityId: exam.id, ipAddress });
     return exam;
@@ -172,13 +167,11 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
   let schedule = {
     attendanceOpensAt: existing.attendanceOpensAt,
     startsAt: existing.startsAt,
-    endsAt: existing.endsAt,
   };
-  if (parsed.data.attendanceOpensAt || parsed.data.startsAt || parsed.data.endsAt) {
+  if (parsed.data.attendanceOpensAt || parsed.data.startsAt) {
     schedule = parseSchedule({
       attendanceOpensAt: parsed.data.attendanceOpensAt ?? formatJakartaInput(existing.attendanceOpensAt),
       startsAt: parsed.data.startsAt ?? formatJakartaInput(existing.startsAt),
-      endsAt: parsed.data.endsAt ?? formatJakartaInput(existing.endsAt),
     });
   }
 
@@ -216,7 +209,6 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
       data: {
         attendanceOpensAt: schedule.attendanceOpensAt,
         startsAt: schedule.startsAt,
-        endsAt: schedule.endsAt,
         durationMinutes: parsed.data.durationMinutes ?? existing.durationMinutes,
         shuffleQuestions: parsed.data.shuffleQuestions ?? existing.shuffleQuestions,
         shuffleOptions: parsed.data.shuffleOptions ?? existing.shuffleOptions,
@@ -228,7 +220,6 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
   await writeExamState(id, {
     phase: existing.phase,
     startedAt: existing.startedAt?.toISOString() ?? null,
-    endsAt: schedule.endsAt.toISOString(),
   });
   await writeAudit({ userId: actorId, action: "UPDATE_EXAM", entityType: "exam", entityId: id, ipAddress });
 }
@@ -270,7 +261,6 @@ export async function startExam(examId: number, actorId: number, ipAddress?: str
   await writeExamState(examId, {
     phase: "RUNNING",
     startedAt: now.toISOString(),
-    endsAt: exam.endsAt.toISOString(),
   });
   await prefetchExamPackages(examId);
   await writeAudit({
@@ -297,7 +287,6 @@ export async function endExam(examId: number, actorId: number, ipAddress?: strin
   await writeExamState(examId, {
     phase: "ENDED",
     startedAt: exam.startedAt?.toISOString() ?? null,
-    endsAt: exam.endsAt.toISOString(),
   });
 
   const { finalizeAttempt } = await import("./attempts");

@@ -19,7 +19,7 @@ Mode mock menolak start bila `NODE_ENV=production`. Akun contoh setelah seed: id
 - Satu lomba OMBN (`competitionId`) = satu exam. Paket soal diplot per jenjang (SD/SMP/SMA) lewat `ExamPackage`.
 - Peserta masuk lewat `competition_id` + jenjang sekolah (`schools.tingkat`).
 - Setelah absensi, peserta menunggu di ruang tunggu sampai juri/petugas menekan **MULAI** (`phase = RUNNING`).
-- Timer dihitung per peserta sejak pertama kali membuka soal: `expiresAt = min(startedAt + durationMinutes, exam.endsAt)`.
+- Timer dihitung per peserta sejak pertama kali membuka soal: `expiresAt = startedAt + durationMinutes + extraSeconds`.
 - Variabel `OMBN_DATABASE_URL` hanya untuk baca (login admin/peserta, daftar lomba di form admin).
 
 Logo di `public/brand/logo.svg` adalah placeholder. Ganti dengan berkas resmi lembaga.

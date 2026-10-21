@@ -665,7 +665,6 @@ export function ExamForm({
             competitionId: compId,
             attendanceOpensAt: form.get("attendanceOpensAt"),
             startsAt: form.get("startsAt"),
-            endsAt: form.get("endsAt"),
             durationMinutes: Number(form.get("durationMinutes")),
             shuffleQuestions: form.get("shuffleQuestions") === "on",
             shuffleOptions: form.get("shuffleOptions") === "on",
@@ -723,16 +722,6 @@ export function ExamForm({
           Jadwal mulai (rencana)
           <DateTimePicker
             name="startsAt"
-            mode="datetime"
-            required
-            placeholder="Pilih tanggal dan jam"
-            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-          Batas akhir keras
-          <DateTimePicker
-            name="endsAt"
             mode="datetime"
             required
             placeholder="Pilih tanggal dan jam"

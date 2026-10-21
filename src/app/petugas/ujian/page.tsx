@@ -11,7 +11,7 @@ export default async function PetugasUjianPage() {
   const exams = await prisma.exam.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { startsAt: "desc" },
-    select: { id: true, name: true, phase: true, startsAt: true, endsAt: true, durationMinutes: true },
+    select: { id: true, name: true, phase: true, startsAt: true, durationMinutes: true },
   });
 
   return (

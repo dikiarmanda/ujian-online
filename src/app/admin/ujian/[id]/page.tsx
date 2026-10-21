@@ -76,7 +76,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                 Competition #{exam.competitionId} · {exam.durationMinutes} menit · absensi {formatJakarta(exam.attendanceOpensAt)}
               </p>
               <p className="mt-1 text-sm text-ink-muted">
-                Rencana {formatJakarta(exam.startsAt)} → batas {formatJakarta(exam.endsAt)}
+                Rencana {formatJakarta(exam.startsAt)}
               </p>
             </div>
           </div>

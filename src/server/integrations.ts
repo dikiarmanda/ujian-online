@@ -10,7 +10,6 @@ import {
   isFinalGrading,
   parseIncludeNonFinal,
   parseLimit,
-  retryAfterUntil,
   toResultRow,
   type ResultCursor,
 } from "./integration-rules";
@@ -136,8 +135,8 @@ async function assertNoActiveExam(): Promise<void> {
   const cached = await redis.get(EXAM_BLOCK_KEY);
   if (cached != null) {
     const until = Number(cached);
-    const retryAfter = until ? retryAfterUntil(now, new Date(until)) : null;
-    if (retryAfter) {
+    if (until && until > now.getTime()) {
+      const retryAfter = Math.ceil((until - now.getTime()) / 1000);
       throw new IntegrationError(
         "EXAM_IN_PROGRESS",
         "Layanan tidak tersedia selama sesi ujian berlangsung.",
@@ -148,17 +147,16 @@ async function assertNoActiveExam(): Promise<void> {
     if (!until) return;
   }
   const exam = await prismaReadonly.exam.findFirst({
-    where: { phase: "RUNNING", endsAt: { gte: now } },
-    orderBy: { endsAt: "desc" },
-    select: { endsAt: true },
+    where: { phase: "RUNNING" },
+    select: { id: true },
   });
-  await redis.set(EXAM_BLOCK_KEY, exam ? String(exam.endsAt.getTime()) : "0", "EX", 30);
+  await redis.set(EXAM_BLOCK_KEY, exam ? String(Date.now() + 30 * 60 * 1000) : "0", "EX", 30);
   if (exam) {
     throw new IntegrationError(
       "EXAM_IN_PROGRESS",
       "Layanan tidak tersedia selama ujian berlangsung.",
       503,
-      retryAfterUntil(now, exam.endsAt) ?? 30,
+      30 * 60,
     );
   }
 }
@@ -293,7 +291,6 @@ export async function listIntegrationExams(actor: ApiActor, url: URL) {
       id: true,
       name: true,
       startsAt: true,
-      endsAt: true,
       status: true,
       phase: true,
       durationMinutes: true,
@@ -306,7 +303,6 @@ export async function listIntegrationExams(actor: ApiActor, url: URL) {
       name: exam.name,
       competitionId: exam.competitionId,
       startsAt: exam.startsAt.toISOString(),
-      endsAt: exam.endsAt.toISOString(),
       status: exam.status,
       phase: exam.phase,
       durationMinutes: exam.durationMinutes,
@@ -319,7 +315,7 @@ export async function listIntegrationSessions(actor: ApiActor, examId: number) {
   await assertExamAccess(actor, examId);
   const exam = await prismaReadonly.exam.findUnique({
     where: { id: examId },
-    select: { id: true, name: true, startsAt: true, endsAt: true, attendanceOpensAt: true, phase: true },
+    select: { id: true, name: true, startsAt: true, attendanceOpensAt: true, phase: true },
   });
   if (!exam) throw new IntegrationError("NOT_FOUND", "Ujian tidak ditemukan.", 404);
   return {
@@ -328,7 +324,6 @@ export async function listIntegrationSessions(actor: ApiActor, examId: number) {
         id: exam.id,
         name: exam.name,
         startsAt: exam.startsAt.toISOString(),
-        endsAt: exam.endsAt.toISOString(),
         attendanceOpensAt: exam.attendanceOpensAt.toISOString(),
         phase: exam.phase,
       },

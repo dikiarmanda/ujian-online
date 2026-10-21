@@ -263,7 +263,6 @@ model Exam {
   competitionId     Int        @unique // referensi ke ombn.competitions.id (tanpa FK)
   attendanceOpensAt DateTime
   startsAt          DateTime // jadwal rencana (informasi)
-  endsAt            DateTime // batas akhir keras
   durationMinutes   Int
   shuffleQuestions  Boolean    @default(true)
   shuffleOptions    Boolean    @default(true)
@@ -338,7 +337,7 @@ model ExamAttempt {
   attendedAt        DateTime?
   // Null sampai peserta pertama kali membuka soal.
   startedAt         DateTime?
-  // Batas akhir: min(startedAt + durasi, exam.endsAt) + extraSeconds
+  // Batas akhir: startedAt + durasi + extraSeconds
   expiresAt         DateTime?
   extraSeconds      Int            @default(0)
   submittedAt       DateTime?

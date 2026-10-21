@@ -17,9 +17,9 @@ function StatCard({ label, value, hint }: { label: string; value: number; hint: 
   );
 }
 
-function getExamStatus(phase: string, startsAt: Date, endsAt: Date, now: Date): "live" | "upcoming" | "done" {
+function getExamStatus(phase: string, startsAt: Date, now: Date): "live" | "upcoming" | "done" {
   if (phase === "RUNNING") return "live";
-  if (phase === "ENDED" || now > endsAt) return "done";
+  if (phase === "ENDED") return "done";
   if (now < startsAt) return "upcoming";
   return "upcoming";
 }
@@ -45,9 +45,9 @@ export default async function LaporanIndexPage() {
   });
   const attendedMap = new Map(attendedCounts.map((row) => [row.examId, row._count._all]));
 
-  const live = exams.filter((exam) => getExamStatus(exam.phase, exam.startsAt, exam.endsAt, now) === "live").length;
-  const upcoming = exams.filter((exam) => getExamStatus(exam.phase, exam.startsAt, exam.endsAt, now) === "upcoming").length;
-  const done = exams.filter((exam) => getExamStatus(exam.phase, exam.startsAt, exam.endsAt, now) === "done").length;
+  const live = exams.filter((exam) => getExamStatus(exam.phase, exam.startsAt, now) === "live").length;
+  const upcoming = exams.filter((exam) => getExamStatus(exam.phase, exam.startsAt, now) === "upcoming").length;
+  const done = exams.filter((exam) => getExamStatus(exam.phase, exam.startsAt, now) === "done").length;
 
   return (
     <AdminShell name={user.name} current="/admin/laporan">
@@ -80,12 +80,12 @@ export default async function LaporanIndexPage() {
             examName: exam.name,
             sessionName: exam.phase,
             startsAtLabel: formatJakarta(exam.startsAt),
-            endsAtLabel: formatJakarta(exam.endsAt),
+            endsAtLabel: "",
             durationMinutes: exam.durationMinutes,
             participantCount: exam._count.attempts,
             attendanceCount: attendedMap.get(exam.id) ?? 0,
             attemptCount: exam._count.attempts,
-            status: getExamStatus(exam.phase, exam.startsAt, exam.endsAt, now),
+            status: getExamStatus(exam.phase, exam.startsAt, now),
           }))}
         />
       </div>

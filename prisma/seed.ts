@@ -93,7 +93,6 @@ async function main() {
   }
 
   const startsAt = new Date(Date.now() + 30 * 60_000);
-  const endsAt = new Date(Date.now() + 4 * 60 * 60_000);
   const attendanceOpensAt = new Date(Date.now() - 30 * 60_000);
 
   let exam = await prisma.exam.findUnique({ where: { competitionId: 1 } });
@@ -104,7 +103,6 @@ async function main() {
         competitionId: 1,
         attendanceOpensAt,
         startsAt,
-        endsAt,
         durationMinutes: 60,
         shuffleQuestions: false,
         shuffleOptions: false,
@@ -126,7 +124,6 @@ async function main() {
   await writeExamState(exam.id, {
     phase: exam.phase,
     startedAt: exam.startedAt?.toISOString() ?? null,
-    endsAt: exam.endsAt.toISOString(),
   });
 
   console.log("Data contoh siap. Masuk sebagai admin, petugas, atau peserta. Kata sandi apa saja (AUTH_DRIVER=mock).");
