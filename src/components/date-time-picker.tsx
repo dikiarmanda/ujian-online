@@ -43,7 +43,9 @@ export function DateTimePicker({
       time_24hr: true,
       allowInput: false,
       disableMobile: true,
-      dateFormat: isDatetime ? "j F Y, H:i" : "j F Y",
+      dateFormat: isDatetime ? "Y-m-dTH:i" : "Y-m-d",
+      altInput: true,
+      altFormat: isDatetime ? "j F Y, H:i" : "j F Y",
       defaultDate: defaultValue || undefined,
       appendTo: el.parentElement || undefined,
     });

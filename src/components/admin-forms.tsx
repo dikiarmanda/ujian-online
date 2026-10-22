@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { DateTimePicker } from "./date-time-picker";
 import { patchJqueryCompat } from "@/lib/jquery-compat";
 import "select2/dist/css/select2.min.css";
 
@@ -710,21 +709,19 @@ export function ExamForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
           Absensi dibuka
-          <DateTimePicker
+          <input
             name="attendanceOpensAt"
-            mode="datetime"
+            type="datetime-local"
             required
-            placeholder="Pilih tanggal dan jam"
             className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Jadwal mulai (rencana)
-          <DateTimePicker
+          <input
             name="startsAt"
-            mode="datetime"
+            type="datetime-local"
             required
-            placeholder="Pilih tanggal dan jam"
             className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
           />
         </label>

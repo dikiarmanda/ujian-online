@@ -7,6 +7,11 @@ import { getExamParticipantCounts } from "@/server/exams";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + "...";
+}
+
 export const dynamic = "force-dynamic";
 
 const statusMeta = {
@@ -43,7 +48,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
       packages: {
         include: {
           questionPackage: { select: { id: true, name: true } },
-          questions: { include: { question: { select: { code: true, type: true } } }, orderBy: { sortOrder: "asc" } },
+          questions: { include: { question: { select: { code: true, type: true, body: true } } }, orderBy: { sortOrder: "asc" } },
         },
         orderBy: { jenjang: "asc" },
       },
@@ -113,7 +118,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                         {index + 1}
                       </span>
                       <span className="min-w-0">
-                        <span className="font-semibold text-ink">{item.question.code}</span>
+                        <span className="font-semibold text-ink">{truncateText(item.question.body.replace(/<[^>]*>/g, ''), 20)}</span>
                         <span className="mt-0.5 block text-xs text-ink-muted">
                           {item.question.type === "ESSAY" ? "Uraian" : "PG"} · benar {Number(item.weight)}
                         </span>

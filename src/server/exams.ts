@@ -4,7 +4,7 @@ import { writeAudit } from "./audit";
 import { getCompetitionById, invalidateCompetitionCache } from "./competitions";
 import { prisma } from "./db";
 import { AppError } from "./errors";
-import { parseJakartaDateTime } from "./exam-rules";
+import { parseExamDate, parseJakartaDateTime } from "./exam-rules";
 import { writeExamState } from "./exam-state";
 import { applyPackageSnapshot, prefetchExamPackages } from "./packages";
 
@@ -40,7 +40,7 @@ function parseSchedule(input: { attendanceOpensAt: string; startsAt: string }) {
   return { attendanceOpensAt, startsAt };
 }
 
-const GROUPS: JenjangGroup[] = ["SD", "SMP", "SMA"];
+const GROUPS: JenjangGroup[] = ["SD", "SMP", "SMA", "SMK"];
 
 function normalizePackages(
   packages: Record<string, number>,
@@ -50,7 +50,7 @@ function normalizePackages(
   const seen = new Set<JenjangGroup>();
   for (const [raw, packageId] of Object.entries(packages)) {
     if (!GROUPS.includes(raw as JenjangGroup)) {
-      throw new AppError(`Kelompok paket harus SD, SMP, atau SMA (diterima: "${raw}").`, 400);
+      throw new AppError(`Kelompok paket harus SD, SMP, SMA, atau SMK (diterima: "${raw}").`, 400);
     }
     const group = raw as JenjangGroup;
     if (seen.has(group)) throw new AppError(`Kelompok ${group} diduplikasi.`, 400);

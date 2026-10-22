@@ -74,7 +74,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return json({ path: `/uploads/${name}` });
     }
     if (action === "ujian") {
-      const body: { id?: number } = await req.json();
+      const body = await req.json();
       if (body.id) {
         await updateExam(body.id, body, user.userId, ip);
         return json({ id: body.id });

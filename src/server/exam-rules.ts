@@ -36,7 +36,7 @@ export function computeDeadline(
 }
 
 export function parseExamDate(value: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value) && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
     throw new Error("Tanggal ujian tidak valid.");
   }
   return new Date(`${value}T00:00:00.000Z`);
@@ -65,9 +65,11 @@ export function formatExamDate(value: Date): string {
 }
 
 export function parseJakartaDateTime(value: string): Date {
+  // datetime-local input menghasilkan format: YYYY-MM-DDTHH:mm
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
     throw new Error("Waktu tidak valid.");
   }
+  // Parse sebagai WIB (UTC+7)
   return new Date(`${value}:00+07:00`);
 }
 

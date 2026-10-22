@@ -148,14 +148,13 @@ export default async function SoalPage({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-digits text-xs text-ink-muted">{question.code}</span>
                           <TypeBadge type={question.type} />
                           {!question.isActive ? (
                             <span className="rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">Nonaktif</span>
                           ) : null}
                         </div>
                         <Link href={`/admin/soal/${question.id}`} className="mt-2 block font-semibold text-ink hover:text-brand">
-                          {previewText(question.body)}
+                          {previewText(question.body, 20)}
                         </Link>
                         <p className="mt-1 text-sm text-ink-muted">{question.category.name}</p>
                         <p className="mt-1 font-digits text-xs text-ink-muted">
@@ -176,10 +175,9 @@ export default async function SoalPage({
                 <table className="w-full border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-line bg-page/80 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-                      <th className="px-5 py-3.5">Kode</th>
                       <th className="px-5 py-3.5">Kategori</th>
                       <th className="px-4 py-3.5">Jenis</th>
-                      <th className="px-4 py-3.5">Teks soal</th>
+                      <th className="px-4 py-3.5">Soal</th>
                       <th className="px-4 py-3.5">Bobot</th>
                       <th className="px-4 py-3.5">Status</th>
                       <th className="px-5 py-3.5 text-right">Aksi</th>
@@ -188,13 +186,12 @@ export default async function SoalPage({
                   <tbody className="divide-y divide-line/70">
                     {questions.map((question) => (
                       <tr key={question.id} className="transition-colors hover:bg-brand-soft/25">
-                        <td className="px-5 py-3.5 font-digits text-xs text-ink-muted">{question.code}</td>
                         <td className="px-5 py-3.5 text-ink-muted">{question.category.name}</td>
                         <td className="px-4 py-3.5">
                           <TypeBadge type={question.type} />
                         </td>
                         <td className="px-4 py-3.5">
-                          <Link href={`/admin/soal/${question.id}`} className="font-semibold text-ink hover:text-brand" title={question.code}>
+                          <Link href={`/admin/soal/${question.id}`} className="font-semibold text-ink hover:text-brand" title={previewText(question.body, 100)}>
                             {previewText(question.body, 50)}
                           </Link>
                         </td>

@@ -3,6 +3,11 @@ import { AppBar } from "@/components/chrome";
 import { requirePageUser } from "@/server/current-user";
 import { listGradingQueue } from "@/server/grading";
 
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + "...";
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function PetugasHome() {
@@ -28,7 +33,7 @@ export default async function PetugasHome() {
               <span>
                 <span className="font-semibold">{row.attempt.user.name}</span>
                 <span className="mt-0.5 block text-ink-muted">
-                  {row.attempt.exam.name} · {row.question.code}
+                  {row.attempt.exam.name} · {truncateText(row.question.body.replace(/<[^>]*>/g, ''), 20)}
                   {row.gradingState === "LOCKED" && row.lockedById === user.userId ? " · kunci Anda" : ""}
                 </span>
               </span>
