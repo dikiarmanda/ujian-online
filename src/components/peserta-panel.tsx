@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { ResetSessionButton } from "@/components/admin-forms";
+import { DataTable } from "@/components/data-table";
 
 export type PesertaRow = {
   id: number;
@@ -30,6 +31,28 @@ export function PesertaPanel({ users }: { users: PesertaRow[] }) {
       return haystack.includes(deferred);
     });
   }, [deferred, users]);
+
+  const headers = ["Peserta", "Identitas", "Kelompok", "NISN", "Sesi"];
+
+  const rows = useMemo(() => {
+    return filtered.map((user) => [
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-[11px] font-semibold text-brand">
+          {initials(user.name)}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink">{user.name}</p>
+          {!user.isActive ? <p className="text-xs text-ink-muted">Nonaktif</p> : null}
+        </div>
+      </div>,
+      <span className="font-digits text-ink tabular-nums">{user.identity}</span>,
+      user.groupName || "—",
+      <span className="font-digits text-ink-muted tabular-nums">{user.nisn || "—"}</span>,
+      <div className="flex justify-end">
+        <ResetSessionButton userId={user.id} />
+      </div>,
+    ]);
+  }, [filtered]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-line/80 bg-paper shadow-sm">
@@ -70,74 +93,7 @@ export function PesertaPanel({ users }: { users: PesertaRow[] }) {
           </p>
         </div>
       ) : (
-        <>
-          <ul className="divide-y divide-line/70 md:hidden">
-            {filtered.map((user) => (
-              <li key={user.id} className="flex flex-col gap-3 px-4 py-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-xs font-semibold text-brand">
-                    {initials(user.name)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-semibold text-ink">{user.name}</p>
-                      {!user.isActive ? (
-                        <span className="rounded-md bg-page px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted">Nonaktif</span>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 font-digits text-sm text-ink-muted">{user.identity}</p>
-                    <p className="mt-1 text-xs text-ink-muted">{user.groupName || "Tanpa kelompok"}</p>
-                    {user.nisn ? <p className="mt-0.5 text-xs text-ink-muted">NISN {user.nisn}</p> : null}
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <ResetSessionButton userId={user.id} />
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-line bg-page/80 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-                  <th className="px-5 py-3.5">Peserta</th>
-                  <th className="px-4 py-3.5">Identitas</th>
-                  <th className="px-4 py-3.5">Kelompok</th>
-                  <th className="px-4 py-3.5">NISN</th>
-                  <th className="px-5 py-3.5 text-right">Sesi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/70">
-                {filtered.map((user) => (
-                  <tr key={user.id} className="transition-colors hover:bg-brand-soft/25">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-[11px] font-semibold text-brand">
-                          {initials(user.name)}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-ink">{user.name}</p>
-                          {!user.isActive ? <p className="text-xs text-ink-muted">Nonaktif</p> : null}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="font-digits text-ink tabular-nums">{user.identity}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-ink-muted">{user.groupName || "—"}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="font-digits text-ink-muted tabular-nums">{user.nisn || "—"}</span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <ResetSessionButton userId={user.id} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <DataTable headers={headers} rows={rows} />
       )}
     </section>
   );
