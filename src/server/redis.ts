@@ -32,3 +32,12 @@ if (process.env.NODE_ENV !== "production") {
 export function createBullConnection(): Redis {
   return attachRedisHandlers(new Redis(env().redisUrl, { maxRetriesPerRequest: null }));
 }
+
+export async function checkRedisConnection(): Promise<boolean> {
+  try {
+    await redis.ping();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}

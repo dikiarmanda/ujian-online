@@ -4,6 +4,7 @@ import { AppFooter } from "@/components/chrome";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUser } from "@/server/current-user";
 import { homeForRole } from "@/server/exam-rules";
+import { checkRedisConnection } from "@/server/redis";
 import os from 'os';
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function LoginPage() {
   const headerList = await headers();
   const hostname = os.hostname();
   const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "127.0.0.1";
+  const redisConnected = await checkRedisConnection();
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
@@ -25,7 +27,7 @@ export default async function LoginPage() {
             <p className="text-sm text-white/80">Ujian online</p>
             <h1 className="mt-2 max-w-sm text-xl font-semibold leading-snug">Majelis Dikdasmen dan PNF PP Muhammadiyah</h1>
           </div>
-          <p className="text-xs text-white/75">Siapkan nomor peserta untuk masuk.</p>
+          {redisConnected && <p className="text-xs text-white/75">Siapkan nomor peserta untuk masuk.</p>}
         </section>
         <section className="flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-md rounded-md border border-line bg-paper p-8 shadow-paper">

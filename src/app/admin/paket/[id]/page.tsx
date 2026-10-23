@@ -95,7 +95,16 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
               <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight text-ink">{pack.name}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">{pack.items.length} soal dalam paket</p>
             </div>
-            {usedInExams === 0 ? <DeletePackageButton packageId={pack.id} /> : null}
+            <div className="flex gap-2">
+              {pack.items.length > 0 ? (
+                <Link
+                  href={`/admin/paket/${pack.id}/preview`}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-paper px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
+                  Preview
+                </Link>
+              ) : null}
+              {usedInExams === 0 ? <DeletePackageButton packageId={pack.id} /> : null}
+            </div>
           </div>
 
           {usedInExams > 0 ? (

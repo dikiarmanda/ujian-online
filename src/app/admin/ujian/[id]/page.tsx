@@ -84,6 +84,13 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                 Rencana {formatJakarta(exam.startsAt)}
               </p>
             </div>
+            {user.role === "ADMIN" && exam.phase === "NOT_STARTED" ? (
+              <Link
+                href={`/admin/ujian/${exam.id}/edit`}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                Edit ujian
+              </Link>
+            ) : null}
           </div>
         </header>
 

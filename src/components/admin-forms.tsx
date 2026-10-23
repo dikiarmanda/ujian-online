@@ -469,32 +469,45 @@ export function ImportForm() {
         setPending(true);
         setError(null);
         setMessage(null);
-        void file
-          .text()
-          .then((csv) =>
-            api<{ success: number; errors: string[] }>("/api/admin/impor", { body: { csv } }).then((result) => {
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const data = e.target?.result as string;
+          api<{ success: number; errors: string[] }>("/api/admin/impor", { body: { data } })
+            .then((result) => {
               setMessage(`Tersimpan ${result.success} soal.${result.errors.length ? ` ${result.errors.length} baris gagal.` : ""}`);
               if (result.errors.length) setError(result.errors.slice(0, 3).join(" "));
-            }),
-          )
-          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Impor gagal."))
-          .finally(() => setPending(false));
+            })
+            .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Impor gagal."))
+            .finally(() => setPending(false));
+        };
+        reader.onerror = () => {
+          setError("Gagal membaca berkas.");
+          setPending(false);
+        };
+
+        if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+          reader.readAsBinaryString(file);
+        } else {
+          reader.readAsText(file);
+        }
       }}>
       <p className="rounded-xl bg-page/80 px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
-        Kolom CSV:{" "}
+        Kolom Excel/CSV:{" "}
         <span className="font-digits text-ink">
-          paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, pedoman, rubrik
+          paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, pedoman, rubrik, ada_gambar
         </span>
         . Kolom <span className="font-digits text-ink">paket</span> menambahkan soal ke
         paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span> atau{" "}
-        <span className="font-semibold text-ink">uraian</span>. PG wajib isi minimal 4 opsi.
+        <span className="font-semibold text-ink">uraian</span>. PG wajib isi minimal 4 opsi. Kolom{" "}
+        <span className="font-digits text-ink">ada_gambar</span> diisi 1/true jika soal memiliki gambar.
       </p>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        Berkas CSV
+        Berkas Excel atau CSV
         <input
           name="file"
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.xls,.csv,text/csv"
           required
           className="rounded-xl border border-dashed border-line-strong/70 bg-page/40 px-3 py-3 font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand"
         />
@@ -505,7 +518,7 @@ export function ImportForm() {
         type="submit"
         disabled={pending}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
-        {pending ? "Mengimpor…" : "Impor CSV"}
+        {pending ? "Mengimpor…" : "Impor Excel/CSV"}
       </button>
     </form>
   );
@@ -529,17 +542,31 @@ export function ExamForm({
   packages,
   competitions,
   competitionsError,
+  examId,
+  initialData,
 }: {
   packages: PackageOption[];
   competitions: CompetitionOption[];
   competitionsError?: string | null;
+  examId?: number;
+  initialData?: {
+    competitionId: number;
+    attendanceOpensAt: string;
+    startsAt: string;
+    durationMinutes: number;
+    shuffleQuestions: boolean;
+    shuffleOptions: boolean;
+    status: string;
+    packages: Record<string, number>;
+  };
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [competitionId, setCompetitionId] = useState<number | "">("");
+  const [competitionId, setCompetitionId] = useState<number | "">(initialData?.competitionId ?? "");
   const formRef = useRef<HTMLFormElement>(null);
   const selected = competitions.find((row) => row.id === competitionId);
   const groups = selected?.jenjangGroups?.length ? selected.jenjangGroups : [];
+  const isEdit = Boolean(examId);
 
   useEffect(() => {
     let cancelled = false;
@@ -632,6 +659,63 @@ export function ExamForm({
     return () => clearInterval(interval);
   }, [competitionId]);
 
+  // Extra: ensure select2 value is set after initialization in edit mode
+  useEffect(() => {
+    if (!isEdit || !initialData?.competitionId || !formRef.current) return;
+
+    const timeout = setTimeout(() => {
+      if (!formRef.current) return;
+      const select = formRef.current.querySelector<HTMLSelectElement>('select[name="competitionId"]');
+      if (!select) return;
+
+      const $ = (window as any).$;
+      if (!$ || !$(select).data("select2")) return;
+
+      const $select = $(select) as JQuerySelect2;
+      const currentValue = $select.val();
+      const newValue = String(initialData.competitionId);
+
+      if (currentValue !== newValue) {
+        $select.val(newValue).trigger("change");
+      }
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [isEdit, initialData?.competitionId]);
+
+  // Pre-select packages when editing
+  useEffect(() => {
+    if (!isEdit || !formRef.current || !initialData?.packages) return;
+
+    const interval = setInterval(() => {
+      const $ = (window as any).$;
+      if (!$ || !formRef.current) return;
+
+      let allSet = true;
+      for (const [group, packageId] of Object.entries(initialData.packages)) {
+        const select = formRef.current.querySelector<HTMLSelectElement>(`select[name="package_${group}"]`);
+        if (!select || !$(select).data("select2")) {
+          allSet = false;
+          continue;
+        }
+
+        const $select = $(select) as JQuerySelect2;
+        const currentValue = $select.val();
+        const newValue = String(packageId);
+
+        if (currentValue !== newValue) {
+          $select.val(newValue).trigger("change");
+        }
+      }
+
+      if (allSet) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isEdit, initialData?.packages]);
+
   return (
     <form
       ref={formRef}
@@ -640,11 +724,11 @@ export function ExamForm({
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         const compId = Number(form.get("competitionId"));
-        if (!compId) {
+        if (!compId && !isEdit) {
           setError("Pilih lomba dari daftar.");
           return;
         }
-        if (groups.length === 0) {
+        if (groups.length === 0 && !isEdit) {
           setError("Lomba yang dipilih tidak memiliki jenjang.");
           return;
         }
@@ -659,17 +743,19 @@ export function ExamForm({
         }
         setPending(true);
         setError(null);
+        const payload = {
+          id: examId,
+          competitionId: compId,
+          attendanceOpensAt: form.get("attendanceOpensAt"),
+          startsAt: form.get("startsAt"),
+          durationMinutes: Number(form.get("durationMinutes")),
+          shuffleQuestions: form.get("shuffleQuestions") === "on",
+          shuffleOptions: form.get("shuffleOptions") === "on",
+          status: form.get("status"),
+          packages: packageMap,
+        };
         void api<{ id: number }>("/api/admin/ujian", {
-          body: {
-            competitionId: compId,
-            attendanceOpensAt: form.get("attendanceOpensAt"),
-            startsAt: form.get("startsAt"),
-            durationMinutes: Number(form.get("durationMinutes")),
-            shuffleQuestions: form.get("shuffleQuestions") === "on",
-            shuffleOptions: form.get("shuffleOptions") === "on",
-            status: form.get("status"),
-            packages: packageMap,
-          },
+          body: payload,
         })
           .then((result) => {
             window.location.href = `/admin/ujian/${result.id}`;
@@ -683,28 +769,30 @@ export function ExamForm({
         <p className="rounded-xl border border-dashed border-alert/40 bg-mark px-4 py-3 text-sm text-alert">{competitionsError}</p>
       ) : null}
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="exam-competition" className="text-sm font-semibold text-ink">
-          Lomba (OMBN)
-        </label>
-        <p className="text-xs text-ink-muted">Nama ujian diambil dari nama lomba. Hanya lomba yang belum punya ujian.</p>
-        <select
-          id="exam-competition"
-          name="competitionId"
-          required
-          defaultValue={competitionId === "" ? "" : String(competitionId)}
-          className="js-select2 rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
-          data-placeholder="Pilih lomba…">
-          <option value="" disabled>
-            Pilih lomba…
-          </option>
-          {competitions.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name} (#{row.id})
+      {!isEdit ? (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="exam-competition" className="text-sm font-semibold text-ink">
+            Lomba (OMBN)
+          </label>
+          <p className="text-xs text-ink-muted">Nama ujian diambil dari nama lomba. Hanya lomba yang belum punya ujian.</p>
+          <select
+            id="exam-competition"
+            name="competitionId"
+            required
+            defaultValue={competitionId === "" ? "" : String(competitionId)}
+            className="js-select2 rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
+            data-placeholder="Pilih lomba…">
+            <option value="" disabled>
+              Pilih lomba…
             </option>
-          ))}
-        </select>
-      </div>
+            {competitions.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.name} (#{row.id})
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
@@ -713,6 +801,7 @@ export function ExamForm({
             name="attendanceOpensAt"
             type="datetime-local"
             required
+            defaultValue={initialData?.attendanceOpensAt}
             className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
           />
         </label>
@@ -722,6 +811,7 @@ export function ExamForm({
             name="startsAt"
             type="datetime-local"
             required
+            defaultValue={initialData?.startsAt}
             className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
           />
         </label>
@@ -731,14 +821,14 @@ export function ExamForm({
             name="durationMinutes"
             type="number"
             min={1}
-            defaultValue={120}
+            defaultValue={initialData?.durationMinutes ?? 120}
             required
             className="rounded-xl border border-line px-3 py-2.5 font-normal"
           />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Status awal
-          <select name="status" defaultValue="DRAFT" className="rounded-xl border border-line px-3 py-2.5 font-normal">
+          <select name="status" defaultValue={initialData?.status ?? "DRAFT"} className="rounded-xl border border-line px-3 py-2.5 font-normal">
             <option value="DRAFT">Draf</option>
             <option value="PUBLISHED">Terbit</option>
             <option value="ARCHIVED">Arsip</option>
@@ -755,7 +845,7 @@ export function ExamForm({
               <select
                 name={`package_${group}`}
                 required
-                defaultValue=""
+                defaultValue={initialData?.packages[group] ?? ""}
                 className="rounded-xl border border-line px-3 py-2.5 font-normal">
                 <option value="" disabled>
                   Pilih paket…
@@ -780,11 +870,21 @@ export function ExamForm({
         <legend className="px-1 text-sm font-semibold text-ink">Pengacakan</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input type="checkbox" name="shuffleQuestions" defaultChecked className="mt-0.5 size-4 accent-[var(--color-brand)]" />
+            <input
+              type="checkbox"
+              name="shuffleQuestions"
+              defaultChecked={isEdit ? initialData?.shuffleQuestions : true}
+              className="mt-0.5 size-4 accent-[var(--color-brand)]"
+            />
             <span className="font-semibold">Acak urutan soal</span>
           </label>
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input type="checkbox" name="shuffleOptions" defaultChecked className="mt-0.5 size-4 accent-[var(--color-brand)]" />
+            <input
+              type="checkbox"
+              name="shuffleOptions"
+              defaultChecked={isEdit ? initialData?.shuffleOptions : true}
+              className="mt-0.5 size-4 accent-[var(--color-brand)]"
+            />
             <span className="font-semibold">Acak urutan opsi</span>
           </label>
         </div>
@@ -793,9 +893,9 @@ export function ExamForm({
       <ErrorText error={error} />
       <button
         type="submit"
-        disabled={pending || packages.length === 0 || !competitionId || groups.length === 0 || Boolean(competitionsError)}
+        disabled={pending || packages.length === 0 || (!competitionId && !isEdit) || (groups.length === 0 && !isEdit) || Boolean(competitionsError)}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
-        {pending ? "Menyimpan…" : "Buat ujian"}
+        {pending ? "Menyimpan…" : isEdit ? "Simpan perubahan" : "Buat ujian"}
       </button>
     </form>
   );

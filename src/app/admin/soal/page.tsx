@@ -80,7 +80,7 @@ export default async function SoalPage({
             <p className="text-sm text-ink-muted">Konten ujian</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Bank soal</h1>
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-              Kelola soal pilihan ganda dan uraian, atur kategori, atau impor dari CSV.
+              Kelola soal pilihan ganda dan uraian, atur kategori, atau impor dari Excel/CSV.
             </p>
           </div>
           <Link
@@ -130,7 +130,7 @@ export default async function SoalPage({
               <p className="mx-auto mt-1.5 max-w-sm text-sm text-ink-muted">
                 {hasFilter
                   ? "Coba ubah filter, atau hapus filter untuk melihat semua soal."
-                  : "Buat soal baru atau impor dari CSV untuk mulai mengisi bank soal."}
+                  : "Buat soal baru atau impor dari Excel/CSV untuk mulai mengisi bank soal."}
               </p>
               {!hasFilter ? (
                 <Link
@@ -246,12 +246,12 @@ export default async function SoalPage({
           <section id="impor" className="scroll-mt-24 rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight text-ink">Impor CSV</h2>
-                <p className="mt-0.5 text-sm text-ink-muted">Unggah banyak soal sekaligus dari berkas CSV.</p>
+                <h2 className="text-lg font-semibold tracking-tight text-ink">Impor Excel/CSV</h2>
+                <p className="mt-0.5 text-sm text-ink-muted">Unggah banyak soal sekaligus dari berkas Excel atau CSV.</p>
               </div>
               <a
-                href="/templates/template-impor-soal.csv"
-                download="template-impor-soal.csv"
+                href="/templates/template-impor-soal.xlsx"
+                download="template-impor-soal.xlsx"
                 className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
                 <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 4v10M8 10l4 4 4-4M5 18h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

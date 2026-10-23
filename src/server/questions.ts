@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { AppError } from "./errors";
 import { assertSingleCorrectOption } from "./exam-rules";
 import { assertUploadPath, sanitizeRichText } from "./rich-text";
+import * as XLSX from "xlsx";
 
 const optionSchema = z.object({
   label: z.string().trim().min(1).max(5),
@@ -211,10 +212,29 @@ function splitCsv(line: string): string[] {
   return cells.map((cell) => cell.trim());
 }
 
-export async function importQuestions(csv: string, actorId: number, ipAddress?: string) {
-  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) throw new AppError("Berkas tidak berisi data soal.", 400);
-  const header = splitCsv(lines[0]).map((cell) => cell.toLowerCase());
+function parseExcelFile(data: string): string[][] {
+  const workbook = XLSX.read(data, { type: "binary" });
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+}
+
+export async function importQuestions(data: string, actorId: number, ipAddress?: string) {
+  let rows: string[][];
+  let isExcel = false;
+
+  try {
+    rows = parseExcelFile(data);
+    if (rows.length > 0) {
+      isExcel = true;
+    }
+  } catch {
+    const lines = data.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+    rows = lines.map((line) => splitCsv(line));
+  }
+
+  if (rows.length < 2) throw new AppError("Berkas tidak berisi data soal.", 400);
+  const header = rows[0].map((cell) => String(cell).toLowerCase());
   const index = (name: string) => header.indexOf(name);
   const required = ["kategori", "jenis", "teks", "bobot"];
   for (const name of required) {
@@ -223,9 +243,10 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
   const packageCache = new Map<string, { id: number; nextOrder: number }>();
   let success = 0;
   const errors: string[] = [];
-  for (let row = 1; row < lines.length; row += 1) {
-    const cells = splitCsv(lines[row]);
-    const read = (name: string) => (index(name) < 0 ? "" : (cells[index(name)] ?? ""));
+
+  for (let row = 1; row < rows.length; row += 1) {
+    const cells = rows[row];
+    const read = (name: string) => (index(name) < 0 ? "" : String(cells[index(name)] ?? ""));
     try {
       const categoryName = read("kategori");
       const category = await prisma.questionCategory.upsert({
@@ -240,11 +261,16 @@ export async function importQuestions(csv: string, actorId: number, ipAddress?: 
         .filter((option) => option.body);
       const weight = Number(read("bobot") || 1);
       const wrongWeight = Math.abs(read("bobot_salah") === "" ? 1 : Number(read("bobot_salah")));
+      const hasImage = read("ada_gambar").toLowerCase() === "true" || read("ada_gambar") === "1";
+      let bodyText = read("teks");
+      if (hasImage) {
+        bodyText = `<p>[GAMBAR] ${bodyText}</p>`;
+      }
       const question = await createQuestion(
         {
           categoryId: category.id,
           type,
-          body: read("teks"),
+          body: bodyText,
           defaultWeight: weight,
           defaultWrongWeight: wrongWeight,
           isActive: true,

@@ -53,8 +53,8 @@ export async function POST(req: Request, ctx: Ctx) {
       return json({ ok: true });
     }
     if (action === "impor") {
-      const body = await readBody(req, z.object({ csv: z.string().min(1) }));
-      return json(await importQuestions(body.csv, user.userId, ip));
+      const body = await readBody(req, z.object({ data: z.string().min(1) }));
+      return json(await importQuestions(body.data, user.userId, ip));
     }
     if (action === "unggah") {
       const form = await req.formData();
