@@ -24,7 +24,6 @@ export default async function PesertaAdminPage() {
     prisma.user.findMany({
       where: { role: "PARTICIPANT" },
       orderBy: { name: "asc" },
-      take: 200,
       select: { id: true, name: true, identity: true, groupName: true, nisn: true, isActive: true },
     }),
     listSyncLogs(),
@@ -63,7 +62,7 @@ export default async function PesertaAdminPage() {
           <StatCard
             label="Total"
             value={totalCount}
-            hint={totalCount > users.length ? `Daftar menampilkan ${users.length} teratas` : "Akun peserta terdaftar"}
+            hint="Akun peserta terdaftar"
           />
           <StatCard label="Aktif" value={activeCount} hint="Dapat masuk ke ruang ujian" />
           <StatCard label="Kelompok" value={groupRows.length} hint="Kelas atau sekolah unik" />

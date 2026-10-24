@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import { ResetSessionButton } from "@/components/admin-forms";
-import { DataTable } from "@/components/data-table";
+import { PaginatedDataTable } from "@/components/data-table";
 
 export type PesertaRow = {
   id: number;
@@ -93,7 +93,7 @@ export function PesertaPanel({ users }: { users: PesertaRow[] }) {
           </p>
         </div>
       ) : (
-        <DataTable headers={headers} rows={rows} />
+        <PaginatedDataTable headers={headers} rows={rows} itemsPerPage={20} />
       )}
     </section>
   );

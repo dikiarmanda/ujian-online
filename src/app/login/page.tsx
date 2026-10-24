@@ -30,7 +30,14 @@ export default async function LoginPage() {
           </div>
           {redisConnected && <p className="text-xs text-white/75">Siapkan nomor peserta untuk masuk.</p>}
         </section>
-        <section className="flex items-center justify-center px-6 py-12">
+        <section
+          className="relative flex items-center justify-center px-6 py-12"
+          style={{
+            backgroundImage: "linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0.99)), url('/pattern-islamic.svg')",
+            backgroundPosition: "center",
+            backgroundRepeat: "repeat",
+            backgroundSize: "70px",
+          }}>
           <div className="absolute right-6 top-6 rounded-md bg-brand p-2">
             <NetworkQualityIndicator />
           </div>
