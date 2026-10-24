@@ -2,10 +2,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppFooter } from "@/components/chrome";
 import { LoginForm } from "@/components/login-form";
+import { NetworkQualityIndicator } from "@/components/network-quality";
 import { getCurrentUser } from "@/server/current-user";
 import { homeForRole } from "@/server/exam-rules";
 import { checkRedisConnection } from "@/server/redis";
-import os from 'os';
+import os from "os";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,9 @@ export default async function LoginPage() {
           {redisConnected && <p className="text-xs text-white/75">Siapkan nomor peserta untuk masuk.</p>}
         </section>
         <section className="flex items-center justify-center px-6 py-12">
+          <div className="absolute right-6 top-6 rounded-md bg-brand p-2">
+            <NetworkQualityIndicator />
+          </div>
           <div className="w-full max-w-md rounded-md border border-line bg-paper p-8 shadow-paper">
             <h2 className="text-lg font-semibold">Masuk</h2>
             <p className="mt-1 text-sm text-ink-muted">Nomor peserta atau email.</p>
