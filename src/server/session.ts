@@ -3,7 +3,8 @@ import type { JenjangGroup } from "@/lib/jenjang";
 import type { AppRole } from "./exam-rules";
 import { redis } from "./redis";
 
-const TTL_SECONDS = 60 * 60 * 12;
+// 3 hours TTL untuk sesi
+const TTL_SECONDS = 60 * 60 * 3;
 
 export type SessionRecord = {
   userId: number;

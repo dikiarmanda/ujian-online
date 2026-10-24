@@ -55,7 +55,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
     },
   });
   if (!exam) notFound();
-
+  console.log(exam.packages);
   const counts = await getExamParticipantCounts(exam.id);
   const status = statusMeta[exam.status];
   const phase = phaseMeta[exam.phase];
@@ -80,14 +80,10 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
               <p className="mt-1.5 text-sm text-ink-muted">
                 Competition #{exam.competitionId} · {exam.durationMinutes} menit · absensi {formatJakarta(exam.attendanceOpensAt)}
               </p>
-              <p className="mt-1 text-sm text-ink-muted">
-                Rencana {formatJakarta(exam.startsAt)}
-              </p>
+              <p className="mt-1 text-sm text-ink-muted">Rencana {formatJakarta(exam.startsAt)}</p>
             </div>
             {user.role === "ADMIN" && exam.phase === "NOT_STARTED" ? (
-              <Link
-                href={`/admin/ujian/${exam.id}/edit`}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+              <Link href={`/admin/ujian/${exam.id}/edit`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
                 Edit ujian
               </Link>
             ) : null}
@@ -114,18 +110,16 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
           <ul className="mt-4 flex flex-col gap-3">
             {exam.packages.map((pack) => (
               <li key={pack.id} className="rounded-xl border border-line/80 p-4">
-                <p className="font-semibold text-ink">
+                <Link href={`/admin/paket/${pack.examId}`} className="font-semibold text-ink hover:underline">
                   {pack.jenjang} · {pack.questionPackage.name}
-                </p>
+                </Link>
                 <p className="mt-1 text-xs text-ink-muted">{pack.questions.length} soal (snapshot)</p>
                 <ol className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {pack.questions.map((item, index) => (
+                  {pack.questions.slice(0, 3).map((item, index) => (
                     <li key={item.id} className="flex items-center gap-3 rounded-lg bg-page/80 px-3 py-2.5 text-sm">
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white">
-                        {index + 1}
-                      </span>
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white">{index + 1}</span>
                       <span className="min-w-0">
-                        <span className="font-semibold text-ink">{truncateText(item.question.body.replace(/<[^>]*>/g, ''), 20)}</span>
+                        <span className="font-semibold text-ink">{truncateText(item.question.body.replace(/<[^>]*>/g, ""), 20)}</span>
                         <span className="mt-0.5 block text-xs text-ink-muted">
                           {item.question.type === "ESSAY" ? "Uraian" : "PG"} · benar {Number(item.weight)}
                         </span>
