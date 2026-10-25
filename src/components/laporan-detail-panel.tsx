@@ -1,6 +1,9 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
+import { PaginatedDataTable } from "@/components/data-table";
 
 export type LaporanResultRow = {
   userId: number;
@@ -74,14 +77,7 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
             </div>
             <label className="relative block w-full sm:max-w-xs">
               <span className="sr-only">Cari peserta</span>
-              <svg
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true">
-                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-                <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              </svg>
+              <FontAwesomeIcon icon={Icon.Search} className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -116,102 +112,42 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
             </p>
           </div>
         ) : (
-          <>
-            <ul className="divide-y divide-line/70 lg:hidden">
-              {filtered.map((row) => (
-                <li key={row.userId} className="px-4 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${statusClass[row.status] ?? "bg-page text-ink-muted"}`}>
-                      {row.status}
-                    </span>
-                    {row.violations > 0 ? (
-                      <span className="inline-flex rounded-md bg-alert/10 px-2 py-1 text-xs font-semibold text-alert">
-                        {row.violations} pelanggaran
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 font-semibold text-ink">{row.name}</p>
-                  <p className="text-xs text-ink-muted">
-                    {row.identity}
-                    {row.groupName ? ` · ${row.groupName}` : ""}
-                  </p>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div className="rounded-lg bg-page/80 px-2 py-2">
-                      <p className="text-ink-muted">PG</p>
-                      <p className="font-digits font-semibold text-ink">{row.mcScore || "—"}</p>
-                    </div>
-                    <div className="rounded-lg bg-page/80 px-2 py-2">
-                      <p className="text-ink-muted">Uraian</p>
-                      <p className="font-digits font-semibold text-ink">{row.essayScore || "—"}</p>
-                    </div>
-                    <div className="rounded-lg bg-page/80 px-2 py-2">
-                      <p className="text-ink-muted">Total</p>
-                      <p className="font-digits font-semibold text-ink">{row.totalScore || "—"}</p>
-                    </div>
-                  </div>
-                  {row.gradingLabel !== "—" ? (
-                    <p className="mt-2 text-xs text-ink-muted">Penilaian: {row.gradingLabel}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-line bg-page/80 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-                    <th className="px-5 py-3.5">Peserta</th>
-                    <th className="px-4 py-3.5">Status</th>
-                    <th className="px-4 py-3.5">PG</th>
-                    <th className="px-4 py-3.5">Uraian</th>
-                    <th className="px-4 py-3.5">Total</th>
-                    <th className="px-4 py-3.5">Penilaian</th>
-                    <th className="px-5 py-3.5 text-right">Pelanggaran</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line/70">
-                  {filtered.map((row) => (
-                    <tr key={row.userId} className="transition-colors hover:bg-brand-soft/25">
-                      <td className="px-5 py-3.5">
-                        <p className="font-semibold text-ink">{row.name}</p>
-                        <p className="text-xs text-ink-muted">
-                          <span className="font-digits">{row.identity}</span>
-                          {row.groupName ? ` · ${row.groupName}` : ""}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${statusClass[row.status] ?? "bg-page text-ink-muted"}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 font-digits tabular-nums text-ink">{row.mcScore || "—"}</td>
-                      <td className="px-4 py-3.5 font-digits tabular-nums text-ink">{row.essayScore || "—"}</td>
-                      <td className="px-4 py-3.5 font-digits font-semibold tabular-nums text-ink">{row.totalScore || "—"}</td>
-                      <td className="px-4 py-3.5">
-                        {row.gradingStatus ? (
-                          <span
-                            className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
-                              gradingClass[row.gradingStatus] ?? "bg-page text-ink-muted"
-                            }`}>
-                            {row.gradingLabel}
-                          </span>
-                        ) : (
-                          <span className="text-ink-muted">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        {row.violations > 0 ? (
-                          <span className="font-digits font-semibold text-alert tabular-nums">{row.violations}</span>
-                        ) : (
-                          <span className="text-ink-muted">0</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+          <PaginatedDataTable
+            headers={["Peserta", "Status", "PG", "Uraian", "Total", "Penilaian", "Pelanggaran"]}
+            rows={filtered.map((row) => [
+              <div>
+                <p className="font-semibold text-ink">{row.name}</p>
+                <p className="text-xs text-ink-muted">
+                  <span className="font-digits">{row.identity}</span>
+                  {row.groupName ? ` · ${row.groupName}` : ""}
+                </p>
+              </div>,
+              <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${statusClass[row.status] ?? "bg-page text-ink-muted"}`}>
+                {row.status}
+              </span>,
+              <span className="font-digits tabular-nums text-ink">{row.mcScore || "—"}</span>,
+              <span className="font-digits tabular-nums text-ink">{row.essayScore || "—"}</span>,
+              <span className="font-digits font-semibold tabular-nums text-ink">{row.totalScore || "—"}</span>,
+              row.gradingStatus ? (
+                <span
+                  className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
+                    gradingClass[row.gradingStatus] ?? "bg-page text-ink-muted"
+                  }`}>
+                  {row.gradingLabel}
+                </span>
+              ) : (
+                <span className="text-ink-muted">—</span>
+              ),
+              <div className="text-right">
+                {row.violations > 0 ? (
+                  <span className="font-digits font-semibold text-alert tabular-nums">{row.violations}</span>
+                ) : (
+                  <span className="text-ink-muted">0</span>
+                )}
+              </div>,
+            ])}
+            itemsPerPage={10}
+          />
         )}
       </section>
 
@@ -228,8 +164,8 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
-            {items.map((item) => (
-              <li key={item.code} className="rounded-xl border border-line/70 px-4 py-3">
+            {items.map((item, index) => (
+              <li key={`${item.code}-${index}`} className="rounded-xl border border-line/70 px-4 py-3">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="font-semibold text-ink">{item.code}</p>
                   <p className="font-digits text-sm font-semibold tabular-nums text-ink">{item.percent}%</p>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { QuestionForm } from "@/components/admin-forms";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 
@@ -14,9 +16,7 @@ export default async function SoalBaruPage() {
       <div className="mx-auto flex max-w-4xl flex-col gap-8">
         <header className="flex flex-col gap-5">
           <Link href="/admin/soal" className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
-            <svg className="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M19 12H7M11 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <FontAwesomeIcon icon={Icon.ArrowLeft} className="size-3.5" />
             Kembali ke bank soal
           </Link>
           <div>

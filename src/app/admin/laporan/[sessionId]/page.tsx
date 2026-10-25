@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { LaporanDetailPanel } from "@/components/laporan-detail-panel";
+import { PaginatedDataTable } from "@/components/data-table";
 import { formatJakarta } from "@/lib/format";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
@@ -135,23 +136,16 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <h2 className="text-lg font-semibold tracking-tight text-ink">Catatan pelanggaran</h2>
               <p className="mt-0.5 text-sm text-ink-muted">{report.violations.length} kejadian tercatat selama sesi.</p>
             </div>
-            <ul className="divide-y divide-line/70 overflow-hidden rounded-xl border border-line/80">
-              {report.violations.slice(0, 20).map((item, index) => (
-                <li key={`${item.name}-${item.occurredAt}-${index}`} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{item.name}</p>
-                    <p className="text-xs text-ink-muted">
-                      {item.type}
-                      {item.questionNumber != null ? ` · soal #${item.questionNumber}` : ""}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-xs text-ink-muted">{formatJakarta(item.occurredAt)}</p>
-                </li>
-              ))}
-            </ul>
-            {report.violations.length > 20 ? (
-              <p className="mt-3 text-xs text-ink-muted">Menampilkan 20 teratas. Unduh Excel untuk data lengkap.</p>
-            ) : null}
+            <PaginatedDataTable
+              headers={["Nama", "Jenis", "Soal", "Waktu"]}
+              rows={report.violations.map((item) => [
+                <span className="font-semibold text-ink">{item.name}</span>,
+                <span className="text-sm text-ink">{item.type}</span>,
+                <span className="text-sm text-ink-muted">{item.questionNumber != null ? `#${item.questionNumber}` : "—"}</span>,
+                <span className="text-xs text-ink-muted">{formatJakarta(item.occurredAt)}</span>,
+              ])}
+              itemsPerPage={10}
+            />
           </section>
         ) : null}
       </div>
