@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ action: string }> };
 
 function requireJenjang(user: { jenjangGroup?: string | null }) {
-  if (!user.jenjangGroup || !["SD", "SMP", "SMA"].includes(user.jenjangGroup)) {
+  if (!user.jenjangGroup || !["SD", "SMP", "SMA", "SMK"].includes(user.jenjangGroup)) {
     throw new AppError("Jenjang peserta tidak tersedia pada sesi login. Masuk ulang.", 403);
   }
-  return user.jenjangGroup as "SD" | "SMP" | "SMA";
+  return user.jenjangGroup as "SD" | "SMP" | "SMA" | "SMK";
 }
 
 export async function POST(req: Request, ctx: Ctx) {

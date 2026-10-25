@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -47,27 +49,7 @@ export function LoginForm() {
             aria-pressed={showPassword}
             className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-muted hover:text-ink"
           >
-            {showPassword ? (
-              <svg className="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.1A9.8 9.8 0 0112 5c5 0 9.3 3.1 10.5 7.5a11 11 0 01-1.7 3.3M6.1 6.1A11 11 0 001.5 12.5C2.7 16.9 7 20 12 20a9.8 9.8 0 005.1-1.4"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : (
-              <svg className="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M2 12.5C3.2 8.1 7.5 5 12.5 5S21.8 8.1 23 12.5C21.8 16.9 17.5 20 12.5 20S3.2 16.9 2 12.5z"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                />
-                <circle cx="12.5" cy="12.5" r="3" stroke="currentColor" strokeWidth="1.8" />
-              </svg>
-            )}
+            <FontAwesomeIcon icon={showPassword ? Icon.EyeSlash : Icon.Eye} className="size-5" />
           </button>
         </span>
       </label>

@@ -2,69 +2,40 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { AppBar, AppFooter } from "@/components/chrome";
 import { DataTable } from "@/components/data-table";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 import os from 'os';
 
 const links = [
   {
     href: "/admin",
     label: "Ringkas",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={Icon.Home} className="size-4" />,
   },
   {
     href: "/admin/peserta",
     label: "Peserta",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M3.5 18.5c.7-2.6 2.8-4 5.5-4s4.8 1.4 5.5 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-        <circle cx="17" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M15.2 14.2c1.5.4 2.7 1.4 3.3 3.3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={Icon.Users} className="size-4" />,
   },
   {
     href: "/admin/ujian",
     label: "Jadwal Ujian",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M8 3.5v3M16 3.5v3M4 10h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-        <path d="m9 15 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={Icon.Calendar} className="size-4" />,
   },
   {
     href: "/admin/paket",
     label: "Paket soal",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 7.5h16v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-11Z" stroke="currentColor" strokeWidth="1.7" />
-        <path d="M8 7.5V5.8A1.8 1.8 0 0 1 9.8 4h4.4A1.8 1.8 0 0 1 16 5.8V7.5M8 12h8M8 15.5h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={Icon.Folder} className="size-4" />,
   },
   {
     href: "/admin/soal",
     label: "Bank soal",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M7 4.5h8.5L19 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-14a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-        <path d="M15.5 4.5V8H19M9 12h6M9 15.5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={Icon.File} className="size-4" />,
   },
   {
     href: "/admin/laporan",
     label: "Laporan",
-    icon: (
-      <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M5 19V9.5M10.5 19V5M16 19v-7M21 19H3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <FontAwesomeIcon icon={Icon.Chart} className="size-4" />,
   },
 ];
 

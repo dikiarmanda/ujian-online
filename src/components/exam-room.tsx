@@ -6,6 +6,8 @@ import { SubmittedNotice } from "@/components/chrome";
 import RichHtml from "@/components/rich-html";
 import { api } from "@/lib/api";
 import { countAnswerStats, type AnswerSnapshot } from "@/server/exam-rules";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 export type ExamQuestion = {
   id: number;
@@ -262,7 +264,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
           </div>
         </header>
         <article
-          className="max-w-[68ch] rounded-md border border-line bg-paper p-6 shadow-paper"
+          className="w-full rounded-md border border-line bg-paper p-6 shadow-paper"
           onKeyDown={(event) => {
             if (event.target instanceof HTMLTextAreaElement) return;
             if (event.key === "ArrowRight" && index < initial.questions.length - 1) void goTo(index + 1);
@@ -279,7 +281,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
                 const selected = answer.selectedOptionId === option.id;
                 return (
                   <label key={option.id} className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-md border px-3 py-2 ${selected ? "border-brand bg-brand-soft" : "border-line hover:border-line-strong"}`}>
-                    <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full font-digits text-sm ${selected ? "bg-brand text-white" : "bg-page text-ink-muted"}`}>{option.label}</span>
+                    <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full font-digits text-sm ${selected ? "bg-brand text-white" : "bg-page text-ink-muted"}`}>{String.fromCharCode(65 + question.options.findIndex((o) => o.id === option.id))}</span>
                     <input
                       type="radio"
                       name={`soal-${question.id}`}
@@ -299,20 +301,23 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
             <textarea className="mt-6 min-h-48 w-full text-base" value={answer.essayText ?? ""} onChange={(event) => useExam.getState().patchAnswer(question.id, { essayText: event.target.value })} />
           )}
           <div className="mt-6 flex flex-wrap gap-2">
-            <button type="button" className="min-h-11 rounded-md border border-line-strong px-4 disabled:opacity-40" disabled={index === 0} onClick={() => void goTo(index - 1)}>
+            <button type="button" className="min-h-11 rounded-md border border-line-strong px-4 flex items-center gap-2 disabled:opacity-40" disabled={index === 0} onClick={() => void goTo(index - 1)}>
+              <FontAwesomeIcon icon={Icon.ArrowLeft} className="w-5 h-5" />
               Sebelumnya
             </button>
             <button
               type="button"
-              className={`min-h-11 rounded-md border px-4 ${answer.isDoubtful ? "border-mark-edge bg-mark text-mark-ink" : "border-line-strong"}`}
+              className={`min-h-11 rounded-md border px-4 flex items-center gap-2 ${answer.isDoubtful ? "border-mark-edge bg-mark text-mark-ink" : "border-line-strong"}`}
               onClick={() => {
                 useExam.getState().patchAnswer(question.id, { isDoubtful: !answer.isDoubtful });
                 void persist(question.id);
               }}>
+              <FontAwesomeIcon icon={Icon.QuestionCircle} className="w-5 h-5" />
               Tandai ragu-ragu
             </button>
-            <button type="button" className="min-h-11 rounded-md bg-brand px-4 font-semibold text-white hover:brightness-110 disabled:opacity-40" disabled={index === initial.questions.length - 1} onClick={() => void goTo(index + 1)}>
+            <button type="button" className="min-h-11 rounded-md bg-brand px-4 font-semibold text-white hover:brightness-110 flex items-center gap-2 disabled:opacity-40" disabled={index === initial.questions.length - 1} onClick={() => void goTo(index + 1)}>
               Berikutnya
+              <FontAwesomeIcon icon={Icon.ArrowRight} className="w-5 h-5" />
             </button>
           </div>
         </article>

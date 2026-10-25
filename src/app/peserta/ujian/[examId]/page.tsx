@@ -42,21 +42,16 @@ export default async function UjianPesertaPage({ params }: { params: Promise<{ e
   if (attempt && attempt.status !== "IN_PROGRESS") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-page px-4">
-        <p className="rounded-md border border-line bg-paper p-6 text-sm shadow-paper">Ujian sudah selesai dikirim.</p>
+        <div className="flex flex-col items-center gap-4">
+          <p className="rounded-md border border-line bg-paper p-6 text-sm shadow-paper">Ujian sudah selesai dikirim.</p>
+          <a href="/peserta" className="inline-block rounded-md bg-brand px-5 py-2 text-sm font-semibold text-white shadow hover:bg-brand-dark transition">
+            Kembali ke halaman awal
+          </a>
+        </div>
       </main>
     );
   }
 
   const now = new Date();
-  return (
-    <WaitingRoom
-      examId={exam.id}
-      examName={exam.name}
-      startsAt={exam.startsAt.toISOString()}
-      serverNow={now.toISOString()}
-      attended={Boolean(attempt?.attendedAt)}
-      canAttend={now >= exam.attendanceOpensAt && exam.phase !== "ENDED"}
-      initialPhase={exam.phase}
-    />
-  );
+  return <WaitingRoom examId={exam.id} examName={exam.name} startsAt={exam.startsAt.toISOString()} serverNow={now.toISOString()} attended={Boolean(attempt?.attendedAt)} canAttend={now >= exam.attendanceOpensAt && exam.phase !== "ENDED"} initialPhase={exam.phase} />;
 }

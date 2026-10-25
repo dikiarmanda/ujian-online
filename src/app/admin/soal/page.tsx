@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { CategoryForm, ImportForm } from "@/components/admin-forms";
 import { SoalFilterForm } from "@/components/soal-filter-form";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 
@@ -253,9 +255,7 @@ export default async function SoalPage({
                 href="/templates/template-impor-soal.xlsx"
                 download="template-impor-soal.xlsx"
                 className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
-                <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M12 4v10M8 10l4 4 4-4M5 18h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <FontAwesomeIcon icon={Icon.Download} className="size-4" />
                 Unduh template
               </a>
             </div>

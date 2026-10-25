@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PackagePreview, type PackageQuestion } from "@/components/package-preview";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 
@@ -56,9 +58,7 @@ export default async function PackagePreviewPage({ params }: { params: Promise<{
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href={`/admin/paket/${pack.id}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
-              <svg className="size-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M19 12H7M11 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <FontAwesomeIcon icon={Icon.ArrowLeft} className="size-3.5" />
               Kembali ke edit paket
             </Link>
             <span className="text-ink-muted">/</span>

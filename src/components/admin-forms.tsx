@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { patchJqueryCompat } from "@/lib/jquery-compat";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 import "select2/dist/css/select2.min.css";
 
 const SummernoteEditor = dynamic(() => import("./summernote-editor"), {
@@ -50,15 +52,7 @@ export function SyncButton() {
               setPending(false);
             });
         }}>
-        <svg className="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4.5 12a7.5 7.5 0 0 1 12.7-5.4M19.5 12a7.5 7.5 0 0 1-12.7 5.4"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-          <path d="M17 3.5v4h4M7 20.5v-4H3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <FontAwesomeIcon icon={Icon.Refresh} className="size-4" spin={pending} />
         {pending ? "Menyinkronkan…" : "Sinkron peserta"}
       </button>
       <ErrorText error={error} />

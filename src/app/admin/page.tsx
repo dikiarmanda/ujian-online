@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { StatusChip } from "@/components/chrome";
 import { formatJakarta } from "@/lib/format";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 
@@ -13,62 +15,6 @@ function getExamPhaseState(phase: string, now: Date): { label: string; tone: Ses
   if (phase === "RUNNING") return { label: "Berlangsung", tone: "live" };
   if (phase === "ENDED") return { label: "Selesai", tone: "done" };
   return { label: "Mendatang", tone: "idle" };
-}
-
-function IconPulse({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M3 12h3.2l2.1-5.5L12.5 18l2.8-6H21"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconClipboard({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M9 4.5h6M8 3.5h8a1 1 0 0 1 1 1V6a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <rect x="5" y="6.5" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M9 12h6M9 15.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconUsers({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3.5 18.5c.7-2.6 2.8-4 5.5-4s4.8 1.4 5.5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="17" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M15.2 14.2c1.5.4 2.7 1.4 3.3 3.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconCheck({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.6" />
-      <path d="m8.5 12.2 2.4 2.4 4.6-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconArrow({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 12h12M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 function ProgressBar({ value, label }: { value: number; label: string }) {
@@ -231,7 +177,7 @@ export default async function AdminHome() {
             label="Sesi aktif"
             value={activeSessions}
             hint={upcomingSessions ? `${upcomingSessions} mendatang` : "Tidak ada jadwal berikutnya"}
-            icon={<IconPulse className="size-5" />}
+            icon={<FontAwesomeIcon icon={Icon.Rotate} className="size-5" />}
             emphasize={activeSessions > 0}
           />
           <StatCard
@@ -239,21 +185,21 @@ export default async function AdminHome() {
             label="Ujian"
             value={totalExams}
             hint={`${publishedExams} diterbitkan · ${totalSessions} sesi`}
-            icon={<IconClipboard className="size-5" />}
+            icon={<FontAwesomeIcon icon={Icon.Calendar} className="size-5" />}
           />
           <StatCard
             href="/admin/peserta"
             label="Peserta"
             value={totalParticipants}
             hint="Akun peserta terdaftar"
-            icon={<IconUsers className="size-5" />}
+            icon={<FontAwesomeIcon icon={Icon.Users} className="size-5" />}
           />
           <StatCard
             href="/admin/laporan"
             label="Pengerjaan"
             value={totalAttempts}
             hint={`${completedAttempts} sudah dikirim${pendingGrading ? ` · ${pendingGrading} menunggu` : ""}`}
-            icon={<IconCheck className="size-5" />}
+            icon={<FontAwesomeIcon icon={Icon.CheckCircle} className="size-5" />}
             emphasize={pendingGrading > 0}
           />
         </section>
@@ -275,7 +221,7 @@ export default async function AdminHome() {
                     </div>
                     <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-mark-ink">
                       Buka
-                      <IconArrow className="size-3.5" />
+                      <FontAwesomeIcon icon={Icon.ChevronRight} className="size-3.5" />
                     </span>
                   </Link>
                 </li>
@@ -334,7 +280,7 @@ export default async function AdminHome() {
             </div>
             <Link href="/admin/ujian" className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand hover:underline">
               Semua ujian
-              <IconArrow className="size-3.5" />
+              <FontAwesomeIcon icon={Icon.ChevronRight} className="size-3.5" />
             </Link>
           </div>
 
@@ -350,7 +296,7 @@ export default async function AdminHome() {
               />
               <div className="relative mx-auto flex max-w-md flex-col items-center">
                 <span className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
-                  <IconClipboard className="size-7" />
+                  <FontAwesomeIcon icon={Icon.Calendar} className="size-7" />
                 </span>
                 <p className="text-lg font-semibold text-ink">Belum ada sesi ujian</p>
                 <p className="mt-2 text-sm leading-relaxed text-ink-muted">
@@ -488,7 +434,7 @@ export default async function AdminHome() {
                 className="group flex flex-col rounded-xl border border-line/80 bg-paper p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-ink group-hover:text-brand">{item.title}</p>
-                  <IconArrow className="size-3.5 text-ink-muted opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100 group-hover:text-brand" />
+                  <FontAwesomeIcon icon={Icon.ChevronRight} className="size-3.5 text-ink-muted opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100 group-hover:text-brand" />
                 </div>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">{item.detail}</p>
               </Link>

@@ -27,11 +27,11 @@ export function homeForRole(role: AppRole): string {
 export function computeDeadline(
   startedAt: Date,
   durationMinutes: number,
-  sessionEndsAt: Date,
+  sessionEndsAt: Date | null,
   extraSeconds: number,
 ): Date {
   const byDuration = startedAt.getTime() + durationMinutes * 60_000;
-  const base = Math.min(byDuration, sessionEndsAt.getTime());
+  const base = sessionEndsAt ? Math.min(byDuration, sessionEndsAt.getTime()) : byDuration;
   return new Date(base + extraSeconds * 1000);
 }
 
