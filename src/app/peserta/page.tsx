@@ -8,6 +8,7 @@ import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 import { formatJakarta } from "@/lib/format";
 import { getCompetitionById } from "@/server/competitions";
+import { ExamPhase } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export default async function PesertaHome() {
   }
 
   const exams = await prisma.exam.findMany({
-    where: { competitionId: user.competitionId },
+    where: { competitionId: user.competitionId, phase: { not: ExamPhase.ENDED } },
     orderBy: { startsAt: "asc" },
     include: {
       attempts: { where: { userId: user.userId }, take: 1 },
@@ -169,8 +170,7 @@ export default async function PesertaHome() {
                         <div className="flex-1">
                           <h3 className="font-semibold text-ink">{exam.name}</h3>
                           <p className="mt-1 text-sm text-ink-muted">
-                            {formatJakarta(exam.startsAt)} · status{" "}
-                            <span className="font-semibold">{exam.status === "DRAFT" ? "Draf" : exam.status === "ARCHIVED" ? "Arsip" : exam.status}</span>
+                            {formatJakarta(exam.startsAt)} · status <span className="font-semibold">{exam.status === "DRAFT" ? "Draf" : exam.status === "ARCHIVED" ? "Arsip" : exam.status}</span>
                           </p>
                         </div>
                       </div>
@@ -209,11 +209,7 @@ export default async function PesertaHome() {
                             <span className="font-digits font-semibold text-ink">{exam.durationMinutes} menit</span>
                           </div>
                         </div>
-                        <Link
-                          href={`/peserta/ujian/${exam.id}`}
-                          className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-sm transition ${view.status === "Selesai" ? "pointer-events-none cursor-not-allowed bg-gray-300 text-ink-muted" : "bg-brand text-white hover:brightness-110 hover:shadow-md"}`}
-                          aria-disabled={view.status === "Selesai"}
-                          tabIndex={view.status === "Selesai" ? -1 : 0}>
+                        <Link href={`/peserta/ujian/${exam.id}`} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-sm transition ${view.status === "Selesai" ? "pointer-events-none cursor-not-allowed bg-gray-300 text-ink-muted" : "bg-brand text-white hover:brightness-110 hover:shadow-md"}`} aria-disabled={view.status === "Selesai"} tabIndex={view.status === "Selesai" ? -1 : 0}>
                           <FontAwesomeIcon icon={attempt?.attendedAt ? Icon.ArrowRight : Icon.Home} className="size-5" />
                           {attempt?.attendedAt ? "Lanjut ke Ujian" : "Masuk Waiting Room"}
                         </Link>

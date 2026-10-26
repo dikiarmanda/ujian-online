@@ -3,6 +3,7 @@ import { AppError } from "./errors";
 import { ombn } from "./ombn-db";
 import { prisma } from "./db";
 import { redis } from "./redis";
+import { ExamPhase } from "@/generated/prisma/client";
 
 const LIST_CACHE_KEY = "admin:competitions:all:v2";
 const LIST_TTL = 60;

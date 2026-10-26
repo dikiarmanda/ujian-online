@@ -7,7 +7,7 @@ import { getExamParticipantCounts } from "@/server/exams";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { faEye, faPenToSquare } from "@fortawesome/free-solid-svg-icons";
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -120,6 +120,12 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                     <span className="inline-flex items-center gap-1">
                       <FontAwesomeIcon icon={faPenToSquare} className="text-[15px]" />
                       Edit
+                    </span>
+                  </Link>
+                  <Link href={`/admin/paket/${pack.examId}/preview`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-paper px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
+                    <span className="inline-flex items-center gap-1">
+                      <FontAwesomeIcon icon={faEye} className="text-[15px]" />
+                      Preview
                     </span>
                   </Link>
                 </div>
