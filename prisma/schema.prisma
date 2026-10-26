@@ -36,6 +36,7 @@ enum Role {
 enum QuestionType {
   MULTIPLE_CHOICE // pilihan ganda
   ESSAY // uraian
+  SHORT_ANSWER // jawaban singkat
 }
 
 enum ExamStatus {
@@ -176,6 +177,7 @@ model Question {
   createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
   options       AnswerOption[]
   essayKey      EssayKey?
+  shortAnswerKey ShortAnswerKey?
   packageItems         QuestionPackageItem[]
   examPackageQuestions ExamPackageQuestion[]
   answers              AttemptAnswer[]
@@ -213,6 +215,17 @@ model EssayKey {
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("essay_keys")
+}
+
+// Bank jawaban singkat: kunci jawaban tunggal (case-insensitive)
+model ShortAnswerKey {
+  id         Int     @id @default(autoincrement())
+  questionId Int     @unique
+  answerKey  String  @db.VarChar(500) // jawaban singkat, dicek case-insensitive
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("short_answer_keys")
 }
 
 // -----------------------------------------------------------------------------
@@ -260,7 +273,7 @@ model QuestionPackageItem {
 model Exam {
   id                Int        @id @default(autoincrement())
   name              String     @db.VarChar(200) // snapshot dari competitions.nama_lomba
-  competitionId     Int        @unique // referensi ke ombn.competitions.id (tanpa FK)
+  competitionId     Int // referensi ke ombn.competitions.id (tanpa FK); satu lomba boleh beberapa ujian
   attendanceOpensAt DateTime
   startsAt          DateTime // jadwal rencana (informasi)
   durationMinutes   Int
@@ -283,6 +296,7 @@ model Exam {
   attempts   ExamAttempt[]
   apiClients ApiClientExam[]
 
+  @@index([competitionId])
   @@index([status])
   @@index([phase])
   @@index([startsAt])
@@ -398,9 +412,10 @@ model AttemptAnswer {
   questionId       Int
   selectedOptionId Int? // pilihan ganda
   essayText        String?            @db.MediumText // uraian
+  shortAnswerText  String?            @db.VarChar(500) // jawaban singkat
   isDoubtful       Boolean            @default(false) // ragu-ragu
   answeredAt       DateTime?
-  isCorrect        Boolean? // pilihan ganda, diisi saat pengiriman
+  isCorrect        Boolean? // pilihan ganda & jawaban singkat, diisi saat pengiriman
   score            Decimal?           @db.Decimal(6, 2)
   gradingState     AnswerGradingState @default(NOT_REQUIRED)
   lockedById       Int?

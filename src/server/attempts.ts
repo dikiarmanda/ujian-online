@@ -3,7 +3,7 @@ import type { JenjangGroup } from "@/lib/jenjang";
 import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
-import { computeDeadline, type AnswerSnapshot } from "./exam-rules";
+import { computeDeadline, shortAnswersMatch, type AnswerSnapshot } from "./exam-rules";
 import { readAttemptExpires, readExamState, writeAttemptExpires } from "./exam-state";
 import { packageCacheKey } from "./packages";
 import { redis } from "./redis";
@@ -12,7 +12,7 @@ import { sanitizeRichText } from "./rich-text";
 export type PublicOption = { id: number; label: string; body: string; imagePath: string | null };
 export type PublicQuestion = {
   id: number;
-  type: "MULTIPLE_CHOICE" | "ESSAY";
+  type: "MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER";
   body: string;
   imagePath: string | null;
   weight: string;
@@ -251,6 +251,7 @@ export async function getAttemptState(attemptId: number, userId: number) {
     answers[row.questionId] = {
       selectedOptionId: row.selectedOptionId,
       essayText: row.essayText,
+      shortAnswerText: row.shortAnswerText,
       isDoubtful: row.isDoubtful,
       answeredAt: row.answeredAt?.toISOString() ?? null,
     };
@@ -297,15 +298,16 @@ export async function flushAttempt(attemptId: number, force = false): Promise<vo
           const id = Number(questionId);
           const type = types.get(id);
           const gradingState = type === "ESSAY" ? "PENDING" : "NOT_REQUIRED";
-          return Prisma.sql`(${attemptId}, ${id}, ${answer.selectedOptionId}, ${answer.essayText}, ${answer.isDoubtful ? 1 : 0}, ${answer.answeredAt ? new Date(answer.answeredAt) : null}, UTC_TIMESTAMP(3), ${gradingState})`;
+          return Prisma.sql`(${attemptId}, ${id}, ${answer.selectedOptionId}, ${answer.essayText}, ${answer.shortAnswerText ?? null}, ${answer.isDoubtful ? 1 : 0}, ${answer.answeredAt ? new Date(answer.answeredAt) : null}, UTC_TIMESTAMP(3), ${gradingState})`;
         });
         await prisma.$executeRaw`
           INSERT INTO attempt_answers
-            (attemptId, questionId, selectedOptionId, essayText, isDoubtful, answeredAt, updatedAt, gradingState)
+            (attemptId, questionId, selectedOptionId, essayText, shortAnswerText, isDoubtful, answeredAt, updatedAt, gradingState)
           VALUES ${Prisma.join(rows)}
           ON DUPLICATE KEY UPDATE
             selectedOptionId = VALUES(selectedOptionId),
             essayText = VALUES(essayText),
+            shortAnswerText = VALUES(shortAnswerText),
             isDoubtful = VALUES(isDoubtful),
             answeredAt = VALUES(answeredAt),
             updatedAt = UTC_TIMESTAMP(3)
@@ -345,6 +347,7 @@ export async function saveAnswer(
     questionId: number;
     selectedOptionId: number | null;
     essayText: string | null;
+    shortAnswerText: string | null;
     isDoubtful: boolean;
     lastQuestionIndex: number;
   },
@@ -374,13 +377,20 @@ export async function saveAnswer(
       throw new AppError("Opsi jawaban tidak valid.", 400);
     }
     input.essayText = null;
+    input.shortAnswerText = null;
+  } else if (question.type === "SHORT_ANSWER") {
+    input.selectedOptionId = null;
+    input.essayText = null;
+    input.shortAnswerText = (input.shortAnswerText ?? "").slice(0, 500);
   } else {
     input.selectedOptionId = null;
     input.essayText = (input.essayText ?? "").slice(0, 20000);
+    input.shortAnswerText = null;
   }
   const payload: StoredAnswer = {
     selectedOptionId: input.selectedOptionId,
     essayText: input.essayText,
+    shortAnswerText: input.shortAnswerText,
     isDoubtful: input.isDoubtful,
     answeredAt: new Date().toISOString(),
   };
@@ -433,7 +443,7 @@ export async function finalizeAttempt(
   );
   const answers = await prisma.attemptAnswer.findMany({
     where: { attemptId },
-    include: { selectedOption: true, question: true },
+    include: { selectedOption: true, question: { include: { shortAnswerKey: true } } },
   });
   let mcScore = 0;
   let hasEssay = false;
@@ -443,8 +453,11 @@ export async function finalizeAttempt(
       continue;
     }
     const scoring = weights.get(answer.questionId) ?? { weight: 0, wrongWeight: 0 };
-    const answered = answer.selectedOptionId != null;
-    const correct = Boolean(answer.selectedOption?.isCorrect);
+    const short = answer.question.type === "SHORT_ANSWER";
+    const answered = short ? (answer.shortAnswerText ?? "").trim().length > 0 : answer.selectedOptionId != null;
+    const correct = short
+      ? shortAnswersMatch(answer.shortAnswerText, answer.question.shortAnswerKey?.answerKey)
+      : Boolean(answer.selectedOption?.isCorrect);
     const score = !answered ? 0 : correct ? scoring.weight : -scoring.wrongWeight;
     mcScore += score;
     await prisma.attemptAnswer.update({

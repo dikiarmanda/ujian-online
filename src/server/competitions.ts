@@ -4,7 +4,7 @@ import { ombn } from "./ombn-db";
 import { prisma } from "./db";
 import { redis } from "./redis";
 
-const LIST_CACHE_KEY = "admin:competitions:available";
+const LIST_CACHE_KEY = "admin:competitions:all:v2";
 const LIST_TTL = 60;
 
 export type CompetitionOption = {
@@ -19,12 +19,9 @@ async function loadCompetitionsFromOmbn(): Promise<CompetitionOption[]> {
     select: { id: true, nama_lomba: true, jenjang: true },
     orderBy: { id: "desc" },
   });
-  const used = await prisma.exam.findMany({ select: { competitionId: true } });
-  const taken = new Set(used.map((row) => row.competitionId));
   const options: CompetitionOption[] = [];
   for (const row of rows) {
     const id = Number(row.id);
-    if (taken.has(id)) continue;
     let jenjangGroups: JenjangGroup[];
     try {
       jenjangGroups = parseCompetitionJenjang(row.jenjang);

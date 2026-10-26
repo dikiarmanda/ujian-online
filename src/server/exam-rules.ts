@@ -76,6 +76,7 @@ export function parseJakartaDateTime(value: string): Date {
 export type AnswerSnapshot = {
   selectedOptionId: number | null;
   essayText: string | null;
+  shortAnswerText: string | null;
   isDoubtful: boolean;
 };
 
@@ -87,7 +88,9 @@ export function countAnswerStats(
   let doubtful = 0;
   for (const id of questionIds) {
     const answer = answers[id];
-    const filled = Boolean(answer && (answer.selectedOptionId != null || (answer.essayText ?? "").trim()));
+    const filled = Boolean(
+      answer && (answer.selectedOptionId != null || (answer.essayText ?? "").trim() || (answer.shortAnswerText ?? "").trim()),
+    );
     if (answer?.isDoubtful) doubtful += 1;
     else if (filled) answered += 1;
   }
@@ -96,6 +99,12 @@ export function countAnswerStats(
     doubtful,
     unanswered: questionIds.length - answered - doubtful,
   };
+}
+
+export function shortAnswersMatch(given: string | null | undefined, key: string | null | undefined): boolean {
+  const answer = (given ?? "").trim().toLowerCase();
+  const expected = (key ?? "").trim().toLowerCase();
+  return answer.length > 0 && expected.length > 0 && answer === expected;
 }
 
 export function assertSingleCorrectOption(correctCount: number, optionCount: number): void {

@@ -11,7 +11,7 @@ import { Icon } from "@/lib/icons";
 
 export type ExamQuestion = {
   id: number;
-  type: "MULTIPLE_CHOICE" | "ESSAY";
+  type: "MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER";
   body: string;
   imagePath: string | null;
   weight: string;
@@ -41,7 +41,7 @@ type ExamStore = {
 };
 
 function emptyAnswer(): AnswerSnapshot {
-  return { selectedOptionId: null, essayText: "", isDoubtful: false };
+  return { selectedOptionId: null, essayText: "", shortAnswerText: "", isDoubtful: false };
 }
 
 export function ExamRoom({ initial }: { initial: ExamInitial }) {
@@ -91,6 +91,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
           questionId,
           selectedOptionId: answer.selectedOptionId,
           essayText: answer.essayText,
+          shortAnswerText: answer.shortAnswerText,
           isDoubtful: answer.isDoubtful,
           lastQuestionIndex: nextIndex,
         },
@@ -133,9 +134,14 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
     };
   }, [deadline, initial.attemptId, offset]);
 
-  const essayText = question?.type === "ESSAY" ? (answers[question.id]?.essayText ?? "") : "";
+  const draftText =
+    question?.type === "ESSAY"
+      ? (answers[question.id]?.essayText ?? "")
+      : question?.type === "SHORT_ANSWER"
+        ? (answers[question.id]?.shortAnswerText ?? "")
+        : "";
   useEffect(() => {
-    if (!question || question.type !== "ESSAY") return;
+    if (!question || (question.type !== "ESSAY" && question.type !== "SHORT_ANSWER")) return;
     const questionId = question.id;
     const timer = window.setTimeout(() => {
       void persist(questionId);
@@ -143,7 +149,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
     return () => window.clearTimeout(timer);
     // persist membaca jawaban terbaru dari Zustand, jadi tidak masuk dependensi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question, essayText]);
+  }, [question, draftText]);
 
   useEffect(() => {
     if (remaining !== 0 || expired.current) return;
@@ -215,7 +221,9 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
       <div className="grid grid-cols-5 gap-2">
         {initial.questions.map((item, itemIndex) => {
           const state = answers[item.id];
-          const filled = Boolean(state && (state.selectedOptionId != null || (state.essayText ?? "").trim()));
+          const filled = Boolean(
+            state && (state.selectedOptionId != null || (state.essayText ?? "").trim() || (state.shortAnswerText ?? "").trim()),
+          );
           const doubtful = Boolean(state?.isDoubtful);
           const current = itemIndex === index;
           return (
@@ -266,7 +274,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
         <article
           className="w-full rounded-md border border-line bg-paper p-6 shadow-paper"
           onKeyDown={(event) => {
-            if (event.target instanceof HTMLTextAreaElement) return;
+            if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
             if (event.key === "ArrowRight" && index < initial.questions.length - 1) void goTo(index + 1);
             if (event.key === "ArrowLeft" && index > 0) void goTo(index - 1);
           }}>
@@ -297,6 +305,20 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
                 );
               })}
             </div>
+          ) : question.type === "SHORT_ANSWER" ? (
+            <label className="mt-6 block">
+              <span className="mb-2 block text-sm font-semibold">Jawaban singkat</span>
+              <input
+                type="text"
+                maxLength={500}
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full rounded-md border border-line px-3 py-3 text-base"
+                value={answer.shortAnswerText ?? ""}
+                onChange={(event) => useExam.getState().patchAnswer(question.id, { shortAnswerText: event.target.value })}
+              />
+              <span className="mt-1 block text-xs text-ink-muted">Huruf besar dan kecil dianggap sama.</span>
+            </label>
           ) : (
             <textarea className="mt-6 min-h-48 w-full text-base" value={answer.essayText ?? ""} onChange={(event) => useExam.getState().patchAnswer(question.id, { essayText: event.target.value })} />
           )}

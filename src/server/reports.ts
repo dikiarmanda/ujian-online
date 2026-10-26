@@ -42,7 +42,7 @@ export async function examReport(examId: number) {
 
   const mcQuestions = exam.packages.flatMap((pack) =>
     pack.questions
-      .filter((item) => item.question.type === "MULTIPLE_CHOICE")
+      .filter((item) => item.question.type === "MULTIPLE_CHOICE" || item.question.type === "SHORT_ANSWER")
       .map((item) => ({ ...item, jenjang: pack.jenjang })),
   );
   const finished = exam.attempts.filter((attempt) => attempt.status !== "IN_PROGRESS");
@@ -109,7 +109,7 @@ function sheet(name: string, headers: string[], data: string[][]): string {
 export function reportWorkbook(report: Awaited<ReturnType<typeof examReport>>): string {
   const nilai = sheet(
     "Nilai",
-    ["Nama", "Identitas", "Kelompok", "Jenjang", "Status", "Skor pilihan ganda", "Skor uraian", "Total", "Penilaian"],
+    ["Nama", "Identitas", "Kelompok", "Jenjang", "Status", "Skor otomatis", "Skor uraian", "Total", "Penilaian"],
     report.rows.map((row) => [
       row.name,
       row.identity,

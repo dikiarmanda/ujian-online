@@ -24,6 +24,7 @@ export default async function PackagePreviewPage({ params }: { params: Promise<{
             include: {
               options: { orderBy: { sortOrder: "asc" } },
               essayKey: true,
+              shortAnswerKey: true,
             },
           },
         },
@@ -49,7 +50,8 @@ export default async function PackagePreviewPage({ params }: { params: Promise<{
       isCorrect: opt.isCorrect,
     })),
     essayKey: item.question.essayKey?.answerKey,
-    essayRubric: item.question.essayKey?.rubric,
+    essayRubric: item.question.essayKey?.rubric ?? undefined,
+    shortAnswerKey: item.question.shortAnswerKey?.answerKey,
   }));
 
   return (

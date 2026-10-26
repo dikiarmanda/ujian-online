@@ -6,6 +6,8 @@ import { formatJakarta } from "@/lib/format";
 import { getExamParticipantCounts } from "@/server/exams";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPenToSquare } from "@fortawesome/free-solid-svg-icons";
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -110,9 +112,17 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
           <ul className="mt-4 flex flex-col gap-3">
             {exam.packages.map((pack) => (
               <li key={pack.id} className="rounded-xl border border-line/80 p-4">
-                <Link href={`/admin/paket/${pack.examId}`} className="font-semibold text-ink hover:underline">
-                  {pack.jenjang} · {pack.questionPackage.name}
-                </Link>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-ink">
+                    {pack.jenjang} · {pack.questionPackage.name}
+                  </span>
+                  <Link href={`/admin/paket/${pack.examId}`} className="inline-flex items-center rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-brand hover:border-brand hover:text-brand transition">
+                    <span className="inline-flex items-center gap-1">
+                      <FontAwesomeIcon icon={faPenToSquare} className="text-[15px]" />
+                      Edit
+                    </span>
+                  </Link>
+                </div>
                 <p className="mt-1 text-xs text-ink-muted">{pack.questions.length} soal (snapshot)</p>
                 <ol className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {pack.questions.slice(0, 3).map((item, index) => (
@@ -121,7 +131,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                       <span className="min-w-0">
                         <span className="font-semibold text-ink">{truncateText(item.question.body.replace(/<[^>]*>/g, ""), 20)}</span>
                         <span className="mt-0.5 block text-xs text-ink-muted">
-                          {item.question.type === "ESSAY" ? "Uraian" : "PG"} · benar {Number(item.weight)}
+                          {item.question.type === "ESSAY" ? "Uraian" : item.question.type === "SHORT_ANSWER" ? "Jawaban singkat" : "PG"} · benar {Number(item.weight)}
                         </span>
                       </span>
                     </li>

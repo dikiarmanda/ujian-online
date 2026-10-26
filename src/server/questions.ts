@@ -15,7 +15,7 @@ const optionSchema = z.object({
 
 const questionSchema = z.object({
   categoryId: z.number().int().positive(),
-  type: z.enum(["MULTIPLE_CHOICE", "ESSAY"]),
+  type: z.enum(["MULTIPLE_CHOICE", "ESSAY", "SHORT_ANSWER"]),
   body: z.string().trim().min(1),
   imagePath: z.string().nullable().optional(),
   defaultWeight: z.number().positive().max(1000),
@@ -27,10 +27,11 @@ const questionSchema = z.object({
   options: z.array(optionSchema).default([]),
   answerKey: z.string().optional(),
   rubric: z.string().optional(),
+  shortAnswerKey: z.string().max(500).optional(),
 });
 
-function questionCodeFor(type: "MULTIPLE_CHOICE" | "ESSAY", id: number): string {
-  const prefix = type === "ESSAY" ? "UR" : "PG";
+function questionCodeFor(type: "MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER", id: number): string {
+  const prefix = type === "ESSAY" ? "UR" : type === "SHORT_ANSWER" ? "JS" : "PG";
   return `${prefix}-${String(id).padStart(4, "0")}`;
 }
 
@@ -39,8 +40,18 @@ function validateQuestion(input: z.infer<typeof questionSchema>) {
     assertSingleCorrectOption(input.options.filter((option) => option.isCorrect).length, input.options.length);
     const labels = new Set(input.options.map((option) => option.label.toUpperCase()));
     if (labels.size !== input.options.length) throw new AppError("Label opsi tidak boleh kembar.", 400);
-  } else if (!input.answerKey?.trim()) {
-    throw new AppError("Uraian membutuhkan pedoman jawaban.", 400);
+  } else if (input.type === "ESSAY") {
+    if (!input.answerKey?.trim()) {
+      throw new AppError("Uraian membutuhkan pedoman jawaban.", 400);
+    }
+  } else if (input.type === "SHORT_ANSWER") {
+    const key = input.shortAnswerKey?.trim() ?? "";
+    if (!key) {
+      throw new AppError("Jawaban singkat membutuhkan satu kunci jawaban.", 400);
+    }
+    if (key.length > 500) {
+      throw new AppError("Kunci jawaban singkat maksimal 500 karakter.", 400);
+    }
   }
 }
 
@@ -88,6 +99,14 @@ export async function createQuestion(input: unknown, actorId: number, ipAddress?
                   },
                 }
               : undefined,
+          shortAnswerKey:
+            data.type === "SHORT_ANSWER"
+              ? {
+                  create: {
+                    answerKey: data.shortAnswerKey!.trim().toLowerCase(),
+                  },
+                }
+              : undefined,
         },
       });
       return tx.question.update({
@@ -124,6 +143,7 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
   await prisma.$transaction(async (tx) => {
     await tx.answerOption.deleteMany({ where: { questionId: id } });
     await tx.essayKey.deleteMany({ where: { questionId: id } });
+    await tx.shortAnswerKey.deleteMany({ where: { questionId: id } });
     await tx.question.update({
       where: { id },
       data: {
@@ -152,6 +172,14 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
                 create: {
                   answerKey: sanitizeRichText(data.answerKey!.trim()),
                   rubric: data.rubric?.trim() ? sanitizeRichText(data.rubric.trim()) : null,
+                },
+              }
+            : undefined,
+        shortAnswerKey:
+          data.type === "SHORT_ANSWER"
+            ? {
+                create: {
+                  answerKey: data.shortAnswerKey!.trim().toLowerCase(),
                 },
               }
             : undefined,
@@ -254,7 +282,8 @@ export async function importQuestions(data: string, actorId: number, ipAddress?:
         create: { name: categoryName },
         update: {},
       });
-      const type = read("jenis").toLowerCase() === "uraian" ? "ESSAY" : "MULTIPLE_CHOICE";
+      const typeLower = read("jenis").toLowerCase();
+      const type = typeLower === "uraian" ? "ESSAY" : typeLower === "jawaban singkat" || typeLower === "singkat" ? "SHORT_ANSWER" : "MULTIPLE_CHOICE";
       const labels = ["a", "b", "c", "d", "e"];
       const options = labels
         .map((label) => ({ label: label.toUpperCase(), body: read(`opsi_${label}`), isCorrect: read("kunci").toUpperCase() === label.toUpperCase() }))
@@ -277,6 +306,7 @@ export async function importQuestions(data: string, actorId: number, ipAddress?:
           options,
           answerKey: read("pedoman"),
           rubric: read("rubrik"),
+          shortAnswerKey: read("kunci_jawaban_singkat"),
         },
         actorId,
         ipAddress,

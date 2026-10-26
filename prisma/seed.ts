@@ -95,7 +95,7 @@ async function main() {
   const startsAt = new Date(Date.now() + 30 * 60_000);
   const attendanceOpensAt = new Date(Date.now() - 30 * 60_000);
 
-  let exam = await prisma.exam.findUnique({ where: { competitionId: 1 } });
+  let exam = await prisma.exam.findFirst({ where: { competitionId: 1 } });
   if (!exam) {
     exam = await prisma.exam.create({
       data: {

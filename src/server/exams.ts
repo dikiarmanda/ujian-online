@@ -96,9 +96,6 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
   if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Ujian tidak valid.", 400);
 
   const competition = await getCompetitionById(parsed.data.competitionId);
-  const existing = await prisma.exam.findUnique({ where: { competitionId: competition.id } });
-  if (existing) throw new AppError("Lomba ini sudah memiliki ujian.", 409);
-
   const schedule = parseSchedule(parsed.data);
   const requiredGroups =
     competition.jenjangGroups.length > 0

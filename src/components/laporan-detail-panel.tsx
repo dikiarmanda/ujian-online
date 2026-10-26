@@ -1,8 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Icon } from "@/lib/icons";
+import { useMemo, useState } from "react";
 import { PaginatedDataTable } from "@/components/data-table";
 
 export type LaporanResultRow = {
@@ -42,18 +40,12 @@ const gradingClass: Record<string, string> = {
 type StatusFilter = "ALL" | "Selesai" | "Mengerjakan" | "Sudah absen" | "Belum absen";
 
 export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; items: LaporanItemRow[] }) {
-  const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
-  const deferred = useDeferredValue(query.trim().toLowerCase());
 
   const filtered = useMemo(() => {
-    return rows.filter((row) => {
-      if (status !== "ALL" && row.status !== status) return false;
-      if (!deferred) return true;
-      const haystack = `${row.name} ${row.identity} ${row.groupName ?? ""}`.toLowerCase();
-      return haystack.includes(deferred);
-    });
-  }, [deferred, rows, status]);
+    if (status === "ALL") return rows;
+    return rows.filter((row) => row.status === status);
+  }, [rows, status]);
 
   const filters: { id: StatusFilter; label: string }[] = [
     { id: "ALL", label: "Semua" },
@@ -67,24 +59,12 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
     <div className="flex flex-col gap-8">
       <section className="overflow-hidden rounded-xl border border-line/80 bg-paper shadow-sm">
         <div className="flex flex-col gap-3 border-b border-line/70 px-4 py-4 sm:px-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold tracking-tight text-ink">Hasil peserta</h2>
-              <p className="mt-0.5 text-sm text-ink-muted">
-                Menampilkan {filtered.length}
-                {filtered.length !== rows.length ? ` dari ${rows.length}` : ""} peserta
-              </p>
-            </div>
-            <label className="relative block w-full sm:max-w-xs">
-              <span className="sr-only">Cari peserta</span>
-              <FontAwesomeIcon icon={Icon.Search} className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Cari nama atau nomor"
-                className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal text-ink placeholder:text-ink-muted focus:border-brand focus:bg-paper"
-              />
-            </label>
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-ink">Hasil peserta</h2>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              {filtered.length}
+              {filtered.length !== rows.length ? ` dari ${rows.length}` : ""} peserta
+            </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {filters.map((item) => {
@@ -108,12 +88,13 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
           <div className="px-6 py-12 text-center">
             <p className="text-base font-semibold text-ink">{rows.length === 0 ? "Belum ada peserta" : "Tidak ada yang cocok"}</p>
             <p className="mx-auto mt-1.5 max-w-sm text-sm text-ink-muted">
-              {rows.length === 0 ? "Tugaskan peserta ke sesi ini terlebih dahulu." : "Coba kata kunci atau filter status lain."}
+              {rows.length === 0 ? "Tugaskan peserta ke sesi ini terlebih dahulu." : "Coba filter status lain."}
             </p>
           </div>
         ) : (
+          <div className="p-4 sm:p-5">
           <PaginatedDataTable
-            headers={["Peserta", "Status", "PG", "Uraian", "Total", "Penilaian", "Pelanggaran"]}
+            headers={["Peserta", "Status", "Otomatis", "Uraian", "Total", "Penilaian", "Pelanggaran"]}
             rows={filtered.map((row) => [
               <div>
                 <p className="font-semibold text-ink">{row.name}</p>
@@ -146,21 +127,22 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
                 )}
               </div>,
             ])}
-            itemsPerPage={10}
+            searchPlaceholder="Cari nama atau nomor"
           />
+          </div>
         )}
       </section>
 
       <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold tracking-tight text-ink">Analisis soal PG</h2>
-          <p className="mt-0.5 text-sm text-ink-muted">Persentase jawaban benar di antara peserta yang sudah selesai.</p>
+          <h2 className="text-lg font-semibold tracking-tight text-ink">Analisis soal otomatis</h2>
+          <p className="mt-0.5 text-sm text-ink-muted">Persentase jawaban benar untuk pilihan ganda dan jawaban singkat.</p>
         </div>
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
             <p className="text-sm font-semibold text-ink">Belum ada data analisis</p>
-            <p className="mt-1 text-xs text-ink-muted">Analisis muncul setelah ada soal pilihan ganda dan peserta selesai mengerjakan.</p>
+            <p className="mt-1 text-xs text-ink-muted">Analisis muncul setelah ada soal otomatis dan peserta selesai mengerjakan.</p>
           </div>
         ) : (
           <ul className="flex flex-col gap-3">

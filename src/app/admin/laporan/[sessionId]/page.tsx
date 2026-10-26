@@ -144,7 +144,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
                 <span className="text-sm text-ink-muted">{item.questionNumber != null ? `#${item.questionNumber}` : "—"}</span>,
                 <span className="text-xs text-ink-muted">{formatJakarta(item.occurredAt)}</span>,
               ])}
-              itemsPerPage={10}
+              searchPlaceholder="Cari nama atau jenis"
             />
           </section>
         ) : null}

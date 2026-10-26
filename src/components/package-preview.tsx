@@ -5,7 +5,7 @@ import RichHtml from "@/components/rich-html";
 
 export type PackageQuestion = {
   id: number;
-  type: "MULTIPLE_CHOICE" | "ESSAY";
+  type: "MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER";
   body: string;
   imagePath: string | null;
   weight: string;
@@ -14,6 +14,7 @@ export type PackageQuestion = {
   options: { id: number; label: string; body: string; imagePath: string | null; isCorrect: boolean }[];
   essayKey?: string;
   essayRubric?: string;
+  shortAnswerKey?: string;
 };
 
 export function PackagePreview({ questions }: { questions: PackageQuestion[] }) {
@@ -42,10 +43,14 @@ export function PackagePreview({ questions }: { questions: PackageQuestion[] }) 
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-2 text-center text-xs">
+      <div className="grid grid-cols-3 gap-2 text-center text-xs">
         <div className="rounded-md bg-page px-2 py-2">
-          <dt className="text-ink-muted">Pilihan Ganda</dt>
+          <dt className="text-ink-muted">PG</dt>
           <dd className="font-digits text-base font-semibold">{questions.filter((q) => q.type === "MULTIPLE_CHOICE").length}</dd>
+        </div>
+        <div className="rounded-md bg-page px-2 py-2">
+          <dt className="text-ink-muted">Singkat</dt>
+          <dd className="font-digits text-base font-semibold">{questions.filter((q) => q.type === "SHORT_ANSWER").length}</dd>
         </div>
         <div className="rounded-md bg-page px-2 py-2">
           <dt className="text-ink-muted">Uraian</dt>
@@ -98,6 +103,12 @@ export function PackagePreview({ questions }: { questions: PackageQuestion[] }) 
                   {option.isCorrect && <span className="ml-auto text-xs font-semibold text-brand">✓ Kunci</span>}
                 </div>
               ))}
+            </div>
+          ) : question.type === "SHORT_ANSWER" ? (
+            <div className="mt-6">
+              <p className="mb-2 text-sm font-semibold text-ink-muted">Kunci jawaban singkat</p>
+              <p className="rounded-md border border-line bg-page px-4 py-3 text-sm text-ink">{question.shortAnswerKey || "Tidak ada kunci jawaban"}</p>
+              <p className="mt-1 text-xs text-ink-muted">Dicocokkan setelah diubah ke huruf kecil.</p>
             </div>
           ) : (
             <div className="mt-6">

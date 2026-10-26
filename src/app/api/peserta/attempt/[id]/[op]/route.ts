@@ -37,6 +37,7 @@ export async function POST(req: Request, ctx: Ctx) {
           questionId: z.number().int().positive(),
           selectedOptionId: z.number().int().positive().nullable(),
           essayText: z.string().nullable(),
+          shortAnswerText: z.string().max(500).nullable(),
           isDoubtful: z.boolean(),
           lastQuestionIndex: z.number().int().min(0),
         }),

@@ -165,7 +165,7 @@ export function QuestionForm({
     id: number;
     code: string;
     categoryId: number;
-    type: "MULTIPLE_CHOICE" | "ESSAY";
+    type: "MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER";
     body: string;
     defaultWeight: number;
     defaultWrongWeight: number;
@@ -173,9 +173,10 @@ export function QuestionForm({
     options: OptionDraft[];
     answerKey: string;
     rubric: string;
+    shortAnswerKey: string;
   };
 }) {
-  const [type, setType] = useState<"MULTIPLE_CHOICE" | "ESSAY">(initial?.type ?? "MULTIPLE_CHOICE");
+  const [type, setType] = useState<"MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER">(initial?.type ?? "MULTIPLE_CHOICE");
   const [options, setOptions] = useState<OptionDraft[]>(
     initial?.options?.length
       ? initial.options
@@ -190,6 +191,7 @@ export function QuestionForm({
   const [bodyHtml, setBodyHtml] = useState(initial?.body ?? "");
   const [answerKeyHtml, setAnswerKeyHtml] = useState(initial?.answerKey ?? "");
   const [rubricHtml, setRubricHtml] = useState(initial?.rubric ?? "");
+  const [shortAnswerKey, setShortAnswerKey] = useState(initial?.shortAnswerKey ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const editing = Boolean(initial?.id);
@@ -214,6 +216,16 @@ export function QuestionForm({
             setError("Pilih satu opsi terisi sebagai kunci jawaban.");
             return;
           }
+        } else if (type === "SHORT_ANSWER") {
+          if (!shortAnswerKey.trim()) {
+            setError("Jawaban singkat membutuhkan satu kunci jawaban.");
+            return;
+          }
+        } else if (type === "ESSAY") {
+          if (!stripHtml(answerKeyHtml)) {
+            setError("Uraian membutuhkan pedoman jawaban.");
+            return;
+          }
         }
         const form = new FormData(event.currentTarget);
         const rawWrong = form.get("defaultWrongWeight");
@@ -229,6 +241,7 @@ export function QuestionForm({
           options: filledOptions,
           answerKey: answerKeyHtml,
           rubric: rubricHtml,
+          shortAnswerKey,
         };
         setPending(true);
         setError(null);
@@ -305,6 +318,7 @@ export function QuestionForm({
               [
                 { id: "MULTIPLE_CHOICE" as const, label: "Pilihan ganda", hint: "Dinilai otomatis" },
                 { id: "ESSAY" as const, label: "Uraian", hint: "Dinilai petugas" },
+                { id: "SHORT_ANSWER" as const, label: "Jawaban singkat", hint: "Satu kunci, huruf kecil" },
               ] as const
             ).map((item) => {
               const active = type === item.id;
@@ -412,6 +426,25 @@ export function QuestionForm({
             ))}
           </div>
         </section>
+      ) : type === "SHORT_ANSWER" ? (
+        <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold tracking-tight text-ink">Kunci jawaban singkat</h2>
+            <p className="mt-0.5 text-sm text-ink-muted">Hanya satu kunci. Jawaban peserta dicocokkan setelah keduanya diubah ke huruf kecil.</p>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-ink">Kunci jawaban</label>
+            <input
+              type="text"
+              maxLength={500}
+              value={shortAnswerKey}
+              onChange={(e) => setShortAnswerKey(e.target.value)}
+              placeholder="Contoh: jakarta"
+              className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
+            />
+            <p className="mt-1 text-xs text-ink-muted">Jakarta, JAKARTA, dan jakarta dianggap sama. Spasi di awal dan akhir diabaikan.</p>
+          </div>
+        </section>
       ) : (
         <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
           <div className="mb-4">
@@ -489,11 +522,12 @@ export function ImportForm() {
       <p className="rounded-xl bg-page/80 px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
         Kolom Excel/CSV:{" "}
         <span className="font-digits text-ink">
-          paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, pedoman, rubrik, ada_gambar
+          paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, kunci_jawaban_singkat, pedoman, rubrik, ada_gambar
         </span>
         . Kolom <span className="font-digits text-ink">paket</span> menambahkan soal ke
-        paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span> atau{" "}
-        <span className="font-semibold text-ink">uraian</span>. PG wajib isi minimal 4 opsi. Kolom{" "}
+        paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span>,{" "}
+        <span className="font-semibold text-ink">uraian</span>, atau <span className="font-semibold text-ink">jawaban singkat</span>. PG wajib isi minimal 4 opsi. Jawaban singkat wajib satu kunci di kolom{" "}
+        <span className="font-digits text-ink">kunci_jawaban_singkat</span>. Kolom{" "}
         <span className="font-digits text-ink">ada_gambar</span> diisi 1/true jika soal memiliki gambar.
       </p>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
@@ -768,7 +802,7 @@ export function ExamForm({
           <label htmlFor="exam-competition" className="text-sm font-semibold text-ink">
             Lomba (OMBN)
           </label>
-          <p className="text-xs text-ink-muted">Nama ujian diambil dari nama lomba. Hanya lomba yang belum punya ujian.</p>
+          <p className="text-xs text-ink-muted">Nama ujian diambil dari nama lomba. Satu lomba boleh punya beberapa ujian.</p>
           <select
             id="exam-competition"
             name="competitionId"
@@ -1113,7 +1147,8 @@ export function QuestionPackageForm({
           <ul className="max-h-96 divide-y divide-line/70 overflow-auto rounded-xl border border-line/80">
             {filtered.map((question) => {
               const checked = picked.includes(question.id);
-              const typeLabel = question.type === "ESSAY" ? "Uraian" : question.type === "MULTIPLE_CHOICE" ? "Pilihan Ganda" : null;
+              const typeLabel =
+                question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
               return (
                 <li key={question.id}>
                   <label

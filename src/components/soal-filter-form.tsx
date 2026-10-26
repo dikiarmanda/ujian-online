@@ -140,6 +140,7 @@ export function SoalFilterForm({ kode, paket, kategori, jenis, packages, categor
         aria-label="Jenis soal">
         <option value="" />
         <option value="pg">Pilihan ganda</option>
+        <option value="singkat">Jawaban singkat</option>
         <option value="uraian">Uraian</option>
       </select>
 

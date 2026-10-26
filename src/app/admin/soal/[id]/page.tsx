@@ -23,6 +23,7 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
         category: true,
         options: { orderBy: { sortOrder: "asc" } },
         essayKey: true,
+        shortAnswerKey: true,
       },
     }),
     prisma.questionCategory.findMany({ orderBy: { name: "asc" } }),
@@ -44,9 +45,13 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
-                    question.type === "ESSAY" ? "bg-mark text-mark-ink" : "bg-brand-soft text-brand"
+                    question.type === "ESSAY"
+                      ? "bg-mark text-mark-ink"
+                      : question.type === "SHORT_ANSWER"
+                        ? "border border-line bg-page text-ink"
+                        : "bg-brand-soft text-brand"
                   }`}>
-                  {question.type === "ESSAY" ? "Uraian" : "Pilihan ganda"}
+                  {question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : "Pilihan ganda"}
                 </span>
                 <span
                   className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
@@ -107,6 +112,7 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
             })),
             answerKey: question.essayKey?.answerKey ?? "",
             rubric: question.essayKey?.rubric ?? "",
+            shortAnswerKey: question.shortAnswerKey?.answerKey ?? "",
           }}
         />
       </div>

@@ -11,6 +11,24 @@ import { getCompetitionById } from "@/server/competitions";
 
 export const dynamic = "force-dynamic";
 
+function attemptStatus(attempt: { attendedAt: Date | null; status: string; startedAt: Date | null } | undefined) {
+  let status = "Belum absen";
+  let tone: "idle" | "live" | "done" | "warn" = "warn";
+  if (attempt?.attendedAt) {
+    status = "Sudah absen";
+    tone = "idle";
+  }
+  if (attempt?.status === "IN_PROGRESS" && attempt.startedAt) {
+    status = "Mengerjakan";
+    tone = "live";
+  }
+  if (attempt && attempt.status !== "IN_PROGRESS") {
+    status = "Selesai";
+    tone = "done";
+  }
+  return { status, tone };
+}
+
 export default async function PesertaHome() {
   const user = await requirePageUser(["PARTICIPANT"]);
   const headerList = await headers();
@@ -41,30 +59,13 @@ export default async function PesertaHome() {
     competitionError = error instanceof Error ? error.message : "Gagal memuat data lomba.";
   }
 
-  const exam = await prisma.exam.findUnique({
+  const exams = await prisma.exam.findMany({
     where: { competitionId: user.competitionId },
+    orderBy: { startsAt: "asc" },
     include: {
       attempts: { where: { userId: user.userId }, take: 1 },
     },
   });
-
-  const attempt = exam?.attempts[0];
-  let status = "Belum absen";
-  let tone: "idle" | "live" | "done" | "warn" = "warn";
-  if (attempt?.attendedAt) {
-    status = "Sudah absen";
-    tone = "idle";
-  }
-  if (attempt?.status === "IN_PROGRESS" && attempt.startedAt) {
-    status = "Mengerjakan";
-    tone = "live";
-  }
-  if (attempt && attempt.status !== "IN_PROGRESS") {
-    status = "Selesai";
-    tone = "done";
-  }
-
-  const isExamValid = exam && exam.status === "PUBLISHED";
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
@@ -147,71 +148,80 @@ export default async function PesertaHome() {
         {/* Status Ujian Card */}
         <div className="mb-6">
           <h2 className="mb-4 text-lg font-semibold tracking-tight text-ink">Status Ujian</h2>
-          {!exam ? (
+          {exams.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line-strong/60 bg-page/40 p-12 text-center">
               <FontAwesomeIcon icon={Icon.Calendar} className="mb-4 size-16 text-ink-muted" />
               <h3 className="text-lg font-semibold text-ink">Belum Ada Ujian</h3>
               <p className="mt-2 max-w-sm text-sm text-ink-muted">Ujian untuk lomba Anda belum tersedia. Silakan cek kembali nanti.</p>
             </div>
-          ) : exam.status !== "PUBLISHED" ? (
-            <div className="rounded-2xl border border-line bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="flex size-12 items-center justify-center rounded-full bg-page">
-                  <FontAwesomeIcon icon={Icon.Clock} className="size-6 text-ink-muted" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-ink">{exam.name}</h3>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    Status: <span className="font-semibold">{exam.status === "DRAFT" ? "Draf" : exam.status === "ARCHIVED" ? "Arsip" : exam.status}</span>
-                  </p>
-                </div>
-              </div>
-            </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-line/80 bg-white shadow-sm">
-              <div className="border-b border-line/70 bg-gradient-to-r from-brand to-brand/80 px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-white text-brand">
-                      <FontAwesomeIcon icon={Icon.CheckCircle} className="size-5" />
+            <div className="flex flex-col gap-4">
+              {exams.map((exam) => {
+                const attempt = exam.attempts[0];
+                const view = attemptStatus(attempt);
+                if (exam.status !== "PUBLISHED") {
+                  return (
+                    <div key={exam.id} className="rounded-2xl border border-line bg-white p-6 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex size-12 items-center justify-center rounded-full bg-page">
+                          <FontAwesomeIcon icon={Icon.Clock} className="size-6 text-ink-muted" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-ink">{exam.name}</h3>
+                          <p className="mt-1 text-sm text-ink-muted">
+                            {formatJakarta(exam.startsAt)} · status{" "}
+                            <span className="font-semibold">{exam.status === "DRAFT" ? "Draf" : exam.status === "ARCHIVED" ? "Arsip" : exam.status}</span>
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white">{exam.name}</h3>
-                      <p className="text-xs text-white/80">
-                        {formatJakarta(exam.startsAt)} · {exam.durationMinutes} menit
-                      </p>
+                  );
+                }
+                return (
+                  <div key={exam.id} className="overflow-hidden rounded-2xl border border-line/80 bg-white shadow-sm">
+                    <div className="border-b border-line/70 bg-gradient-to-r from-brand to-brand/80 px-6 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-10 items-center justify-center rounded-full bg-white text-brand">
+                            <FontAwesomeIcon icon={Icon.CheckCircle} className="size-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-white">{exam.name}</h3>
+                            <p className="text-xs text-white/80">
+                              {formatJakarta(exam.startsAt)} · {exam.durationMinutes} menit
+                            </p>
+                          </div>
+                        </div>
+                        <StatusChip label={view.status} tone={view.tone} />
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={Icon.Clock} className="size-4 text-ink-muted" />
+                            <span className="text-ink-muted">Jadwal:</span>
+                            <span className="font-semibold text-ink">{formatJakarta(exam.startsAt)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={Icon.Hourglass} className="size-4 text-ink-muted" />
+                            <span className="text-ink-muted">Durasi:</span>
+                            <span className="font-digits font-semibold text-ink">{exam.durationMinutes} menit</span>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/peserta/ujian/${exam.id}`}
+                          className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-sm transition ${view.status === "Selesai" ? "pointer-events-none cursor-not-allowed bg-gray-300 text-ink-muted" : "bg-brand text-white hover:brightness-110 hover:shadow-md"}`}
+                          aria-disabled={view.status === "Selesai"}
+                          tabIndex={view.status === "Selesai" ? -1 : 0}>
+                          <FontAwesomeIcon icon={attempt?.attendedAt ? Icon.ArrowRight : Icon.Home} className="size-5" />
+                          {attempt?.attendedAt ? "Lanjut ke Ujian" : "Masuk Waiting Room"}
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                  <StatusChip label={status} tone={tone} />
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <FontAwesomeIcon icon={Icon.Clock} className="size-4 text-ink-muted" />
-                      <span className="text-ink-muted">Jadwal:</span>
-                      <span className="font-semibold text-ink">{formatJakarta(exam.startsAt)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FontAwesomeIcon icon={Icon.Hourglass} className="size-4 text-ink-muted" />
-                      <span className="text-ink-muted">Durasi:</span>
-                      <span className="font-digits font-semibold text-ink">{exam.durationMinutes} menit</span>
-                    </div>
-                  </div>
-                  {attempt?.attendedAt ? (
-                    <Link href={`/peserta/ujian/${exam.id}`} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-sm transition ${status === "Selesai" ? "bg-gray-300 text-ink-muted cursor-not-allowed pointer-events-none" : "bg-brand text-white hover:brightness-110 hover:shadow-md"}`} aria-disabled={status === "Selesai"} tabIndex={status === "Selesai" ? -1 : 0}>
-                      <FontAwesomeIcon icon={Icon.ArrowRight} className="size-5" />
-                      Lanjut ke Ujian
-                    </Link>
-                  ) : (
-                    <Link href={`/peserta/ujian/${exam.id}`} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold shadow-sm transition ${status === "Selesai" ? "bg-gray-300 text-ink-muted cursor-not-allowed pointer-events-none" : "bg-brand text-white hover:brightness-110 hover:shadow-md"}`} aria-disabled={status === "Selesai"} tabIndex={status === "Selesai" ? -1 : 0}>
-                      <FontAwesomeIcon icon={Icon.Home} className="size-5" />
-                      Masuk Waiting Room
-                    </Link>
-                  )}
-                </div>
-              </div>
+                );
+              })}
             </div>
           )}
         </div>

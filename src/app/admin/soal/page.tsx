@@ -19,9 +19,12 @@ function StatCard({ label, value, hint }: { label: string; value: number; hint: 
   );
 }
 
-function TypeBadge({ type }: { type: "MULTIPLE_CHOICE" | "ESSAY" }) {
+function TypeBadge({ type }: { type: "MULTIPLE_CHOICE" | "ESSAY" | "SHORT_ANSWER" }) {
   if (type === "ESSAY") {
     return <span className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>;
+  }
+  if (type === "SHORT_ANSWER") {
+    return <span className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>;
   }
   return <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>;
 }
@@ -50,9 +53,10 @@ export default async function SoalPage({
   const query = await searchParams;
   const categoryId = query.kategori ? Number(query.kategori) : undefined;
   const packageId = query.paket ? Number(query.paket) : undefined;
-  const typeFilter = query.jenis === "pg" ? "MULTIPLE_CHOICE" : query.jenis === "uraian" ? "ESSAY" : undefined;
+  const typeFilter =
+    query.jenis === "pg" ? "MULTIPLE_CHOICE" : query.jenis === "singkat" ? "SHORT_ANSWER" : query.jenis === "uraian" ? "ESSAY" : undefined;
 
-  const [questions, categories, packages, totalCount, activeCount, mcCount, essayCount] = await Promise.all([
+  const [questions, categories, packages, totalCount, activeCount, mcCount, shortCount, essayCount] = await Promise.all([
     prisma.question.findMany({
       where: {
         categoryId: Number.isFinite(categoryId) ? categoryId : undefined,
@@ -69,6 +73,7 @@ export default async function SoalPage({
     prisma.question.count(),
     prisma.question.count({ where: { isActive: true } }),
     prisma.question.count({ where: { type: "MULTIPLE_CHOICE" } }),
+    prisma.question.count({ where: { type: "SHORT_ANSWER" } }),
     prisma.question.count({ where: { type: "ESSAY" } }),
   ]);
 
@@ -82,7 +87,7 @@ export default async function SoalPage({
             <p className="text-sm text-ink-muted">Konten ujian</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Bank soal</h1>
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-              Kelola soal pilihan ganda dan uraian, atur kategori, atau impor dari Excel/CSV.
+              Kelola soal pilihan ganda, jawaban singkat, dan uraian, atur kategori, atau impor dari Excel/CSV.
             </p>
           </div>
           <Link
@@ -92,9 +97,10 @@ export default async function SoalPage({
           </Link>
         </header>
 
-        <section aria-label="Ringkasan bank soal" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label="Ringkasan bank soal" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <StatCard label="Total" value={totalCount} hint={`${activeCount} aktif`} />
           <StatCard label="Pilihan ganda" value={mcCount} hint="Dinilai otomatis" />
+          <StatCard label="Jawaban singkat" value={shortCount} hint="Satu kunci, huruf kecil" />
           <StatCard label="Uraian" value={essayCount} hint="Perlu penilaian petugas" />
           <StatCard label="Kategori" value={categories.length} hint="Pengelompokan soal" />
         </section>
