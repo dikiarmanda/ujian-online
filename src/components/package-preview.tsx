@@ -137,7 +137,8 @@ export function PackagePreview({ questions }: { questions: PackageQuestion[] }) 
           <div className="mt-4 rounded-md bg-page p-3 text-xs">
             <p className="font-semibold text-ink-muted">Bobot soal:</p>
             <p>Benar: {question.weight} poin</p>
-            <p>Salah: {question.wrongWeight} poin</p>
+            <p>Salah: −{question.wrongWeight} poin</p>
+            <p>Tidak dijawab: 0 poin</p>
           </div>
         </article>
       </section>

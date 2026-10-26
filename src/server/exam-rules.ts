@@ -107,6 +107,27 @@ export function shortAnswersMatch(given: string | null | undefined, key: string 
   return answer.length > 0 && expected.length > 0 && answer === expected;
 }
 
+/** Nilai otomatis. Soal yang tidak dijawab selalu 0, tidak kena bobot salah. */
+export function scoreObjectiveAnswer(input: {
+  type: "MULTIPLE_CHOICE" | "SHORT_ANSWER";
+  selectedOptionId: number | null;
+  optionIsCorrect: boolean | null;
+  shortAnswerText: string | null;
+  answerKey: string | null;
+  weight: number;
+  wrongWeight: number;
+}): { score: number; isCorrect: boolean | null } {
+  const answered =
+    input.type === "SHORT_ANSWER" ? (input.shortAnswerText ?? "").trim().length > 0 : input.selectedOptionId != null;
+  if (!answered) return { score: 0, isCorrect: null };
+  const correct =
+    input.type === "SHORT_ANSWER"
+      ? shortAnswersMatch(input.shortAnswerText, input.answerKey)
+      : Boolean(input.optionIsCorrect);
+  const penalty = -Math.abs(input.wrongWeight);
+  return { score: correct ? input.weight : penalty, isCorrect: correct };
+}
+
 export function assertSingleCorrectOption(correctCount: number, optionCount: number): void {
   if (optionCount < 4) {
     throw new Error("Pilihan ganda membutuhkan minimal 4 opsi.");

@@ -138,6 +138,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                         <span className="font-semibold text-ink">{truncateText(item.question.body.replace(/<[^>]*>/g, ""), 20)}</span>
                         <span className="mt-0.5 block text-xs text-ink-muted">
                           {item.question.type === "ESSAY" ? "Uraian" : item.question.type === "SHORT_ANSWER" ? "Jawaban singkat" : "PG"} · benar {Number(item.weight)}
+                          {item.question.type === "ESSAY" ? "" : ` · salah −${Number(item.wrongWeight)}`} · kosong 0
                         </span>
                       </span>
                     </li>

@@ -7,6 +7,7 @@ import {
   countAnswerStats,
   mapOmbnAdminRole,
   mapOriginRole,
+  scoreObjectiveAnswer,
   shortAnswersMatch,
 } from "./exam-rules";
 
@@ -51,6 +52,52 @@ test("ringkasan jawaban memisahkan ragu-ragu", () => {
     4: { selectedOptionId: null, essayText: null, shortAnswerText: "jakarta", isDoubtful: false },
   });
   assert.deepEqual(stats, { answered: 2, unanswered: 1, doubtful: 1 });
+});
+
+test("soal yang tidak dijawab bernilai 0", () => {
+  const blankChoice = scoreObjectiveAnswer({
+    type: "MULTIPLE_CHOICE",
+    selectedOptionId: null,
+    optionIsCorrect: null,
+    shortAnswerText: null,
+    answerKey: null,
+    weight: 2,
+    wrongWeight: 1,
+  });
+  assert.deepEqual(blankChoice, { score: 0, isCorrect: null });
+
+  const blankShort = scoreObjectiveAnswer({
+    type: "SHORT_ANSWER",
+    selectedOptionId: null,
+    optionIsCorrect: null,
+    shortAnswerText: "   ",
+    answerKey: "jakarta",
+    weight: 1,
+    wrongWeight: 1,
+  });
+  assert.deepEqual(blankShort, { score: 0, isCorrect: null });
+
+  const wrong = scoreObjectiveAnswer({
+    type: "MULTIPLE_CHOICE",
+    selectedOptionId: 4,
+    optionIsCorrect: false,
+    shortAnswerText: null,
+    answerKey: null,
+    weight: 2,
+    wrongWeight: 1,
+  });
+  assert.deepEqual(wrong, { score: -1, isCorrect: false });
+
+  const correct = scoreObjectiveAnswer({
+    type: "SHORT_ANSWER",
+    selectedOptionId: null,
+    optionIsCorrect: null,
+    shortAnswerText: "Jakarta",
+    answerKey: "jakarta",
+    weight: 1.5,
+    wrongWeight: 1,
+  });
+  assert.deepEqual(correct, { score: 1.5, isCorrect: true });
 });
 
 test("jawaban singkat cocok setelah diubah ke huruf kecil", () => {

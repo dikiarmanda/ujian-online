@@ -3,7 +3,7 @@ import type { JenjangGroup } from "@/lib/jenjang";
 import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
-import { computeDeadline, shortAnswersMatch, type AnswerSnapshot } from "./exam-rules";
+import { computeDeadline, scoreObjectiveAnswer, type AnswerSnapshot } from "./exam-rules";
 import { readAttemptExpires, readExamState, writeAttemptExpires } from "./exam-state";
 import { packageCacheKey } from "./packages";
 import { redis } from "./redis";
@@ -424,16 +424,6 @@ export async function finalizeAttempt(
   await redis.set(closedKey(attemptId), "1", "EX", 60 * 60 * 24);
   await flushAttempt(attemptId, true);
   const order = (attempt.questionOrder as number[]) ?? [];
-  const essayQuestions = await prisma.question.findMany({
-    where: { id: { in: order }, type: "ESSAY" },
-  });
-  for (const question of essayQuestions) {
-    await prisma.attemptAnswer.upsert({
-      where: { attemptId_questionId: { attemptId, questionId: question.id } },
-      create: { attemptId, questionId: question.id, essayText: "", gradingState: "PENDING" },
-      update: {},
-    });
-  }
   const pack = attempt.exam.packages.find((p) => p.jenjang === attempt.jenjang);
   const weights = new Map(
     (pack?.questions ?? []).map((item) => [
@@ -441,40 +431,90 @@ export async function finalizeAttempt(
       { weight: Number(item.weight), wrongWeight: Number(item.wrongWeight) },
     ]),
   );
+  const questionIds = order.length ? order : [...weights.keys()];
+  const questions = questionIds.length
+    ? await prisma.question.findMany({
+        where: { id: { in: questionIds } },
+        include: { shortAnswerKey: true },
+      })
+    : [];
+  const questionById = new Map(questions.map((question) => [question.id, question]));
   const answers = await prisma.attemptAnswer.findMany({
     where: { attemptId },
-    include: { selectedOption: true, question: { include: { shortAnswerKey: true } } },
+    include: { selectedOption: true },
   });
+  const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]));
   let mcScore = 0;
-  let hasEssay = false;
-  for (const answer of answers) {
-    if (answer.question.type === "ESSAY") {
-      hasEssay = true;
+  let blankEssays = 0;
+  let pendingEssays = 0;
+  for (const questionId of questionIds) {
+    const question = questionById.get(questionId);
+    if (!question) continue;
+    const answer = answerByQuestion.get(questionId);
+    const scoring = weights.get(questionId) ?? {
+      weight: Number(question.defaultWeight),
+      wrongWeight: Number(question.defaultWrongWeight),
+    };
+    if (question.type === "ESSAY") {
+      const text = (answer?.essayText ?? "").trim();
+      if (text) {
+        pendingEssays += 1;
+        continue;
+      }
+      blankEssays += 1;
+      await prisma.attemptAnswer.upsert({
+        where: { attemptId_questionId: { attemptId, questionId } },
+        create: {
+          attemptId,
+          questionId,
+          essayText: "",
+          score: "0.00",
+          gradingState: "GRADED",
+          gradedAt: new Date(),
+        },
+        update: {
+          score: "0.00",
+          gradingState: "GRADED",
+          gradedAt: new Date(),
+          lockedById: null,
+          lockedAt: null,
+        },
+      });
       continue;
     }
-    const scoring = weights.get(answer.questionId) ?? { weight: 0, wrongWeight: 0 };
-    const short = answer.question.type === "SHORT_ANSWER";
-    const answered = short ? (answer.shortAnswerText ?? "").trim().length > 0 : answer.selectedOptionId != null;
-    const correct = short
-      ? shortAnswersMatch(answer.shortAnswerText, answer.question.shortAnswerKey?.answerKey)
-      : Boolean(answer.selectedOption?.isCorrect);
-    const score = !answered ? 0 : correct ? scoring.weight : -scoring.wrongWeight;
-    mcScore += score;
-    await prisma.attemptAnswer.update({
-      where: { id: answer.id },
-      data: { isCorrect: answered ? correct : null, score: score.toFixed(2), gradingState: "NOT_REQUIRED" },
+    if (question.type !== "MULTIPLE_CHOICE" && question.type !== "SHORT_ANSWER") continue;
+    const result = scoreObjectiveAnswer({
+      type: question.type,
+      selectedOptionId: answer?.selectedOptionId ?? null,
+      optionIsCorrect: answer?.selectedOption?.isCorrect ?? null,
+      shortAnswerText: answer?.shortAnswerText ?? null,
+      answerKey: question.shortAnswerKey?.answerKey ?? null,
+      weight: scoring.weight,
+      wrongWeight: scoring.wrongWeight,
     });
+    mcScore += result.score;
+    const data = {
+      isCorrect: result.isCorrect,
+      score: result.score.toFixed(2),
+      gradingState: "NOT_REQUIRED" as const,
+    };
+    if (answer) {
+      await prisma.attemptAnswer.update({ where: { id: answer.id }, data });
+    } else {
+      await prisma.attemptAnswer.create({ data: { attemptId, questionId, ...data } });
+    }
   }
-  if (essayQuestions.length) hasEssay = true;
+  const essayCount = blankEssays + pendingEssays;
+  const gradingStatus = essayCount === 0 || pendingEssays === 0 ? "COMPLETED" : blankEssays > 0 ? "PARTIAL" : "NOT_GRADED";
   await prisma.examAttempt.update({
     where: { id: attemptId },
     data: {
       status: actual,
       submittedAt: new Date(),
       mcScore: mcScore.toFixed(2),
-      essayScore: hasEssay ? null : "0.00",
-      totalScore: hasEssay ? null : mcScore.toFixed(2),
-      gradingStatus: hasEssay ? "NOT_GRADED" : "COMPLETED",
+      essayScore: pendingEssays > 0 && blankEssays === 0 ? null : "0.00",
+      totalScore: pendingEssays === 0 ? mcScore.toFixed(2) : null,
+      gradingStatus,
       lastQuestionIndex: Number((await redis.hget(metaKey(attemptId), "lastQuestionIndex")) ?? 0),
     },
   });
