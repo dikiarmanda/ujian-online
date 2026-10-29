@@ -11,6 +11,7 @@ type SoalFilterFormProps = {
   paket?: string;
   kategori?: string;
   jenis?: string;
+  gambar?: string;
   packages: Option[];
   categories: Option[];
 };
@@ -27,7 +28,7 @@ function bindSelect2(jq: JQueryStatic, factory: unknown): void {
   }
 }
 
-export function SoalFilterForm({ kode, paket, kategori, jenis, packages, categories }: SoalFilterFormProps) {
+export function SoalFilterForm({ paket, kategori, jenis, gambar, packages, categories }: SoalFilterFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -85,24 +86,7 @@ export function SoalFilterForm({ kode, paket, kategori, jenis, packages, categor
   }, []);
 
   return (
-    <form ref={formRef} method="get" className="soal-filter-form mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-      <label className="relative block">
-        <span className="sr-only">Kode soal</span>
-        <svg
-          className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-ink-muted"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true">
-          <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-          <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-        </svg>
-        <input
-          name="kode"
-          defaultValue={kode}
-          placeholder="Cari kode soal"
-          className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
-        />
-      </label>
+    <form ref={formRef} method="get" className="soal-filter-form mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]">
 
       <select
         name="paket"
@@ -142,6 +126,17 @@ export function SoalFilterForm({ kode, paket, kategori, jenis, packages, categor
         <option value="pg">Pilihan ganda</option>
         <option value="singkat">Jawaban singkat</option>
         <option value="uraian">Uraian</option>
+      </select>
+
+      <select
+        name="gambar"
+        defaultValue={gambar ?? ""}
+        className="js-select2"
+        data-placeholder="Semua gambar"
+        aria-label="Gambar">
+        <option value="" />
+        <option value="ya">Ada gambar</option>
+        <option value="tidak">Tanpa gambar</option>
       </select>
 
       <button

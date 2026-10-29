@@ -1,10 +1,12 @@
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
 import { assertSingleCorrectOption } from "./exam-rules";
+import { inspectImportTable, parseImportSource, type ImportPreviewRow, type StoredImportItem } from "./import-rows";
+import { redis } from "./redis";
 import { assertUploadPath, sanitizeRichText } from "./rich-text";
-import * as XLSX from "xlsx";
 
 const optionSchema = z.object({
   label: z.string().trim().min(1).max(5),
@@ -192,8 +194,23 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
 export async function deleteQuestion(id: number, actorId: number, ipAddress?: string) {
   const used = await prisma.examPackageQuestion.count({ where: { questionId: id } });
   if (used) throw new AppError("Soal sudah dipakai ujian. Nonaktifkan soal ini.", 409);
-  await prisma.question.delete({ where: { id } });
+  await prisma.question.update({ where: { id }, data: { deletedAt: new Date() } });
   await writeAudit({ userId: actorId, action: "DELETE_QUESTION", entityType: "question", entityId: id, ipAddress });
+}
+
+export async function toggleQuestionStatus(id: number, actorId: number, ipAddress?: string) {
+  const question = await prisma.question.findUnique({ where: { id }, select: { isActive: true } });
+  if (!question) throw new AppError("Soal tidak ditemukan.", 404);
+  const newStatus = !question.isActive;
+  await prisma.question.update({ where: { id }, data: { isActive: newStatus } });
+  await writeAudit({
+    userId: actorId,
+    action: newStatus ? "ACTIVATE_QUESTION" : "DEACTIVATE_QUESTION",
+    entityType: "question",
+    entityId: id,
+    ipAddress,
+  });
+  return newStatus;
 }
 
 const categorySchema = z.object({
@@ -220,125 +237,111 @@ export async function createCategory(input: unknown, actorId: number) {
   }
 }
 
-function splitCsv(line: string): string[] {
-  const cells: string[] = [];
-  let current = "";
-  let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (quoted && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      cells.push(current);
-      current = "";
-    } else current += char;
-  }
-  cells.push(current);
-  return cells.map((cell) => cell.trim());
+const IMPORT_TTL_SECONDS = 60 * 30;
+
+function importKey(userId: number, token: string): string {
+  return `import:soal:${userId}:${token}`;
 }
 
-function parseExcelFile(data: string): string[][] {
-  const workbook = XLSX.read(data, { type: "binary" });
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  return XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
+export type { ImportPreviewRow } from "./import-rows";
+
+function publicImportRow(item: StoredImportItem): ImportPreviewRow {
+  const { payload: _payload, ...row } = item;
+  return row;
 }
 
-export async function importQuestions(data: string, actorId: number, ipAddress?: string) {
-  let rows: string[][];
-  let isExcel = false;
+export async function stageQuestionImport(data: string, userId: number): Promise<{ token: string; valid: number; invalid: number }> {
+  const items = inspectImportTable(parseImportSource(data));
+  const token = randomBytes(16).toString("hex");
+  await redis.set(importKey(userId, token), JSON.stringify(items), "EX", IMPORT_TTL_SECONDS);
+  return {
+    token,
+    valid: items.filter((item) => item.valid).length,
+    invalid: items.filter((item) => !item.valid).length,
+  };
+}
 
-  try {
-    rows = parseExcelFile(data);
-    if (rows.length > 0) {
-      isExcel = true;
-    }
-  } catch {
-    const lines = data.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-    rows = lines.map((line) => splitCsv(line));
-  }
+export async function readQuestionImport(token: string, userId: number): Promise<ImportPreviewRow[] | null> {
+  if (!/^[a-f0-9]{32}$/.test(token)) return null;
+  const raw = await redis.get(importKey(userId, token));
+  if (!raw) return null;
+  const items = JSON.parse(raw) as StoredImportItem[];
+  return items.map(publicImportRow);
+}
 
-  if (rows.length < 2) throw new AppError("Berkas tidak berisi data soal.", 400);
-  const header = rows[0].map((cell) => String(cell).toLowerCase());
-  const index = (name: string) => header.indexOf(name);
-  const required = ["kategori", "jenis", "teks", "bobot"];
-  for (const name of required) {
-    if (index(name) < 0) throw new AppError(`Kolom ${name} wajib ada.`, 400);
-  }
+export async function commitQuestionImport(
+  token: string,
+  selectedRows: number[],
+  actorId: number,
+  ipAddress?: string,
+): Promise<{ success: number; errors: string[] }> {
+  if (!/^[a-f0-9]{32}$/.test(token)) throw new AppError("Pratinjau impor tidak ditemukan.", 404);
+  const key = importKey(actorId, token);
+  const raw = await redis.get(key);
+  if (!raw) throw new AppError("Pratinjau impor sudah tidak berlaku. Unggah berkas lagi.", 404);
+  const items = JSON.parse(raw) as StoredImportItem[];
+  const picked = new Set(selectedRows);
+  const chosen = items.filter((item) => item.valid && item.payload && picked.has(item.row));
+  if (chosen.length === 0) throw new AppError("Pilih minimal satu soal yang valid.", 400);
+  await redis.del(key);
+
   const packageCache = new Map<string, { id: number; nextOrder: number }>();
   let success = 0;
   const errors: string[] = [];
-
-  for (let row = 1; row < rows.length; row += 1) {
-    const cells = rows[row];
-    const read = (name: string) => (index(name) < 0 ? "" : String(cells[index(name)] ?? ""));
+  for (const item of chosen) {
+    const payload = item.payload;
+    if (!payload) continue;
     try {
-      const categoryName = read("kategori");
       const category = await prisma.questionCategory.upsert({
-        where: { name: categoryName },
-        create: { name: categoryName },
+        where: { name: payload.categoryName },
+        create: { name: payload.categoryName },
         update: {},
       });
-      const typeLower = read("jenis").toLowerCase();
-      const type = typeLower === "uraian" ? "ESSAY" : typeLower === "jawaban singkat" || typeLower === "singkat" ? "SHORT_ANSWER" : "MULTIPLE_CHOICE";
-      const labels = ["a", "b", "c", "d", "e"];
-      const options = labels
-        .map((label) => ({ label: label.toUpperCase(), body: read(`opsi_${label}`), isCorrect: read("kunci").toUpperCase() === label.toUpperCase() }))
-        .filter((option) => option.body);
-      const weight = Number(read("bobot") || 1);
-      const wrongWeight = Math.abs(read("bobot_salah") === "" ? 1 : Number(read("bobot_salah")));
-      const hasImage = read("ada_gambar").toLowerCase() === "true" || read("ada_gambar") === "1";
-      let bodyText = read("teks");
-      if (hasImage) {
-        bodyText = `<p>[GAMBAR] ${bodyText}</p>`;
-      }
       const question = await createQuestion(
         {
           categoryId: category.id,
-          type,
-          body: bodyText,
-          defaultWeight: weight,
-          defaultWrongWeight: wrongWeight,
+          type: payload.type,
+          body: payload.body,
+          imagePath: payload.imagePath,
+          defaultWeight: payload.defaultWeight,
+          defaultWrongWeight: payload.defaultWrongWeight,
           isActive: true,
-          options,
-          answerKey: read("pedoman"),
-          rubric: read("rubrik"),
-          shortAnswerKey: read("kunci_jawaban_singkat"),
+          options: payload.options,
+          answerKey: payload.answerKey,
+          rubric: payload.rubric,
+          shortAnswerKey: payload.shortAnswerKey,
         },
         actorId,
         ipAddress,
       );
-      const packageName = read("paket").trim();
-      if (packageName) {
-        let pack = packageCache.get(packageName);
+      if (payload.packageName) {
+        let pack = packageCache.get(payload.packageName);
         if (!pack) {
           const existing = await prisma.questionPackage.upsert({
-            where: { name: packageName },
-            create: { name: packageName, createdById: actorId, isActive: true },
+            where: { name: payload.packageName },
+            create: { name: payload.packageName, createdById: actorId, isActive: true },
             update: {},
             include: { _count: { select: { items: true } } },
           });
           pack = { id: existing.id, nextOrder: existing._count.items + 1 };
-          packageCache.set(packageName, pack);
+          packageCache.set(payload.packageName, pack);
         }
         await prisma.questionPackageItem.create({
           data: {
             packageId: pack.id,
             questionId: question.id,
             sortOrder: pack.nextOrder,
-            weight: weight.toFixed(2),
-            wrongWeight: wrongWeight.toFixed(2),
+            weight: payload.defaultWeight.toFixed(2),
+            wrongWeight: payload.defaultWrongWeight.toFixed(2),
           },
         });
         pack.nextOrder += 1;
       }
       success += 1;
     } catch (error) {
-      errors.push(`Baris ${row + 1}: ${error instanceof Error ? error.message : "gagal"}`);
+      errors.push(`Baris ${item.row}: ${error instanceof Error ? error.message : "gagal disimpan"}`);
     }
   }
   return { success, errors };
 }
+

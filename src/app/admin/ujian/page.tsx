@@ -22,11 +22,12 @@ export default async function UjianPage() {
   const user = await requirePageUser(["ADMIN"]);
   const [exams, packages] = await Promise.all([
     prisma.exam.findMany({
+      where: { deletedAt: null },
       orderBy: { startsAt: "desc" },
       include: { _count: { select: { packages: true, attempts: true } } },
     }),
     prisma.questionPackage.findMany({
-      where: { isActive: true },
+      where: { isActive: true, deletedAt: null },
       orderBy: { name: "asc" },
       include: { _count: { select: { items: true } } },
     }),

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function PaketBaruPage() {
   const user = await requirePageUser(["ADMIN"]);
   const questions = await prisma.question.findMany({
-    where: { isActive: true },
+    where: { isActive: true, deletedAt: null },
     orderBy: { code: "asc" },
     select: {
       id: true,

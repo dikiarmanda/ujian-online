@@ -20,7 +20,7 @@ async function assertActiveQuestions(ids: number[]) {
   if (new Set(ids).size !== ids.length) {
     throw new AppError("Soal tidak boleh kembar dalam satu paket.", 400);
   }
-  const questions = await prisma.question.findMany({ where: { id: { in: ids }, isActive: true } });
+  const questions = await prisma.question.findMany({ where: { id: { in: ids }, isActive: true, deletedAt: null } });
   if (questions.length !== ids.length) {
     throw new AppError("Ada soal yang tidak aktif atau tidak ditemukan.", 400);
   }
@@ -104,7 +104,7 @@ export async function deleteQuestionPackage(id: number, actorId: number, ipAddre
   if (used) {
     throw new AppError("Paket sudah dipakai ujian. Nonaktifkan saja bila tidak ingin dipakai lagi.", 409);
   }
-  await prisma.questionPackage.delete({ where: { id } });
+  await prisma.questionPackage.update({ where: { id }, data: { deletedAt: new Date() } });
   await writeAudit({
     userId: actorId,
     action: "DELETE_PACKAGE",
@@ -119,15 +119,15 @@ type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 /** Salin isi template paket ke exam_package_questions (snapshot bobot). */
 export async function applyPackageSnapshot(tx: Tx, examPackageId: number, packageId: number) {
   const pack = await tx.questionPackage.findUnique({
-    where: { id: packageId },
+    where: { id: packageId, deletedAt: null },
     include: {
-      items: { orderBy: { sortOrder: "asc" }, include: { question: { select: { isActive: true } } } },
+      items: { orderBy: { sortOrder: "asc" }, include: { question: { select: { isActive: true, deletedAt: true } } } },
     },
   });
   if (!pack || !pack.isActive) throw new AppError("Paket soal tidak ditemukan atau tidak aktif.", 404);
   if (pack.items.length === 0) throw new AppError("Paket soal masih kosong.", 400);
-  if (pack.items.some((item) => !item.question.isActive)) {
-    throw new AppError("Paket berisi soal yang sudah nonaktif. Perbarui paket dulu.", 409);
+  if (pack.items.some((item) => !item.question.isActive || item.question.deletedAt !== null)) {
+    throw new AppError("Paket berisi soal yang sudah nonaktif atau dihapus. Perbarui paket dulu.", 409);
   }
   await tx.examPackageQuestion.deleteMany({ where: { examPackageId } });
   await tx.examPackageQuestion.createMany({

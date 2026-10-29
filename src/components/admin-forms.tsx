@@ -88,6 +88,32 @@ export function ResetSessionButton({ userId }: { userId: number }) {
   );
 }
 
+export function ToggleQuestionStatusButton({ questionId, isActive, onToggle }: { questionId: number; isActive: boolean; onToggle: (newStatus: boolean) => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={pending}
+        className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60"
+        onClick={() => {
+          setPending(true);
+          setError(null);
+          void api<{ isActive: boolean }>("/api/admin/toggle-soal", { body: { id: questionId } })
+            .then((result) => {
+              onToggle(result.isActive);
+            })
+            .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Gagal mengubah status."))
+            .finally(() => setPending(false));
+        }}>
+        {pending ? "Memproses…" : isActive ? "Nonaktifkan" : "Aktifkan"}
+      </button>
+      <ErrorText error={error} />
+    </div>
+  );
+}
+
 export function CategoryForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -484,7 +510,6 @@ export function QuestionForm({
 
 export function ImportForm() {
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   return (
     <form
@@ -495,18 +520,18 @@ export function ImportForm() {
         if (!file) return;
         setPending(true);
         setError(null);
-        setMessage(null);
 
         const reader = new FileReader();
         reader.onload = (e) => {
           const data = e.target?.result as string;
-          api<{ success: number; errors: string[] }>("/api/admin/impor", { body: { data } })
+          api<{ token: string }>("/api/admin/impor", { body: { data } })
             .then((result) => {
-              setMessage(`Tersimpan ${result.success} soal.${result.errors.length ? ` ${result.errors.length} baris gagal.` : ""}`);
-              if (result.errors.length) setError(result.errors.slice(0, 3).join(" "));
+              window.location.href = `/admin/soal/impor/${result.token}`;
             })
-            .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Impor gagal."))
-            .finally(() => setPending(false));
+            .catch((cause: unknown) => {
+              setError(cause instanceof Error ? cause.message : "Impor gagal.");
+              setPending(false);
+            });
         };
         reader.onerror = () => {
           setError("Gagal membaca berkas.");
@@ -528,7 +553,7 @@ export function ImportForm() {
         paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span>,{" "}
         <span className="font-semibold text-ink">uraian</span>, atau <span className="font-semibold text-ink">jawaban singkat</span>. PG wajib isi minimal 4 opsi. Jawaban singkat wajib satu kunci di kolom{" "}
         <span className="font-digits text-ink">kunci_jawaban_singkat</span>. Kolom{" "}
-        <span className="font-digits text-ink">ada_gambar</span> diisi 1/true jika soal memiliki gambar.
+        <span className="font-digits text-ink">ada_gambar</span> diisi 1/true jika soal memiliki gambar. Berkas dicek dulu di halaman pratinjau. Hanya soal valid yang dicentang yang disimpan.
       </p>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
         Berkas Excel atau CSV
@@ -540,13 +565,12 @@ export function ImportForm() {
           className="rounded-xl border border-dashed border-line-strong/70 bg-page/40 px-3 py-3 font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand"
         />
       </label>
-      {message ? <p className="text-sm text-ink">{message}</p> : null}
       <ErrorText error={error} />
       <button
         type="submit"
         disabled={pending}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
-        {pending ? "Mengimpor…" : "Impor Excel/CSV"}
+        {pending ? "Memeriksa berkas…" : "Periksa berkas"}
       </button>
     </form>
   );
@@ -1026,20 +1050,126 @@ export function QuestionPackageForm({
 }) {
   const [picked, setPicked] = useState<number[]>(initial?.questionIds ?? []);
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const deferred = query.trim().toLowerCase();
+
+  // Get unique categories
+  const categories = Array.from(new Set(questions.map((q) => q.categoryName).filter(Boolean))).sort();
+
   const filtered = questions.filter((question) => {
-    if (!deferred) return true;
-    const haystack = [question.code, stripHtml(question.body), question.categoryName ?? "", question.type ?? ""]
+    const matchesQuery = !deferred || [question.code, stripHtml(question.body), question.categoryName ?? "", question.type ?? ""]
       .join(" ")
-      .toLowerCase();
-    return haystack.includes(deferred);
+      .toLowerCase()
+      .includes(deferred);
+
+    const matchesCategory = !categoryFilter || question.categoryName === categoryFilter;
+
+    const matchesType = !typeFilter || question.type === typeFilter;
+
+    return matchesQuery && matchesCategory && matchesType;
   });
+
   const editing = Boolean(initial?.id);
+
+  const allSelected = filtered.length > 0 && filtered.every((q) => picked.includes(q.id));
+  const someSelected = filtered.some((q) => picked.includes(q.id));
+
+  // Initialize Select2
+  useEffect(() => {
+    let cancelled = false;
+    const cleanups: Array<() => void> = [];
+
+    void (async () => {
+      const jqueryMod = await import("jquery");
+      const $ = patchJqueryCompat((jqueryMod.default ?? jqueryMod) as unknown as JQueryStatic);
+      const win = window as Window & { jQuery?: JQueryStatic; $?: JQueryStatic };
+      win.jQuery = $;
+      win.$ = $;
+
+      // @ts-expect-error select2 full build belum punya deklarasi modul
+      const select2Mod = await import("select2/dist/js/select2.full.min.js");
+      bindSelect2($, (select2Mod as { default?: unknown }).default ?? select2Mod);
+
+      if (typeof ($.fn as { select2?: unknown }).select2 !== "function") {
+        const fallback = await import("select2");
+        bindSelect2($, (fallback as { default?: unknown }).default ?? fallback);
+      }
+
+      if (cancelled || !formRef.current) return;
+      if (typeof ($.fn as { select2?: unknown }).select2 !== "function") {
+        console.error("Select2 gagal terpasang ke jQuery.");
+        return;
+      }
+
+      const selects = formRef.current.querySelectorAll<HTMLSelectElement>("select.js-select2");
+      selects.forEach((el) => {
+        const $el = $(el) as unknown as JQuerySelect2;
+        $el.select2({
+          width: "100%",
+          allowClear: true,
+          placeholder: el.dataset.placeholder || "Pilih…",
+          language: {
+            noResults: () => "Tidak ada hasil",
+            searching: () => "Mencari…",
+          },
+        });
+
+        // Sync Select2 changes with React state
+        $el.on("change", function() {
+          const value = $(this).val() as string;
+          if (el.name === "categoryFilter") {
+            setCategoryFilter(value);
+          } else if (el.name === "typeFilter") {
+            setTypeFilter(value);
+          }
+        });
+
+        cleanups.push(() => {
+          try {
+            if ($el.data("select2")) $el.select2("destroy");
+          } catch {
+            /* sudah di-unmount */
+          }
+        });
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const cleanup of cleanups) cleanup();
+    };
+  }, []);
+
+  // Update Select2 when filter values change from React state
+  useEffect(() => {
+    if (!formRef.current) return;
+    void (async () => {
+      const jqueryMod = await import("jquery");
+      const $ = patchJqueryCompat((jqueryMod.default ?? jqueryMod) as unknown as JQueryStatic);
+      const categorySelect = formRef.current?.querySelector<HTMLSelectElement>('select[name="categoryFilter"]');
+      const typeSelect = formRef.current?.querySelector<HTMLSelectElement>('select[name="typeFilter"]');
+      if (categorySelect) {
+        const $el = $(categorySelect) as unknown as JQuerySelect2;
+        if ($el.data("select2")) {
+          $el.val(categoryFilter).trigger("change");
+        }
+      }
+      if (typeSelect) {
+        const $el = $(typeSelect) as unknown as JQuerySelect2;
+        if ($el.data("select2")) {
+          $el.val(typeFilter).trigger("change");
+        }
+      }
+    })();
+  }, [categoryFilter, typeFilter]);
 
   return (
     <form
+      ref={formRef}
       className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
@@ -1134,6 +1264,44 @@ export function QuestionPackageForm({
           </label>
         </div>
 
+        <div className="mb-4 flex flex-wrap gap-2">
+          <select
+            name="categoryFilter"
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
+            data-placeholder="Semua kategori">
+            <option value="" />
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+          <select
+            name="typeFilter"
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+            className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
+            data-placeholder="Semua jenis">
+            <option value="" />
+            <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
+            <option value="SHORT_ANSWER">Jawaban singkat</option>
+            <option value="ESSAY">Uraian</option>
+          </select>
+          {(categoryFilter || typeFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryFilter("");
+                setTypeFilter("");
+              }}
+              className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
+              Reset filter
+            </button>
+          )}
+        </div>
+
         {questions.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
             <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
@@ -1144,43 +1312,79 @@ export function QuestionPackageForm({
         ) : filtered.length === 0 ? (
           <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
         ) : (
-          <ul className="max-h-96 divide-y divide-line/70 overflow-auto rounded-xl border border-line/80">
-            {filtered.map((question) => {
-              const checked = picked.includes(question.id);
-              const typeLabel =
-                question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
-              return (
-                <li key={question.id}>
-                  <label
-                    className={`flex cursor-pointer items-center gap-3 px-3 py-3 text-sm transition-colors hover:bg-brand-soft/30 ${
-                      checked ? "bg-brand-soft/40" : "bg-paper"
-                    }`}>
+          <div className="max-h-96 overflow-auto rounded-xl border border-line/80">
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 bg-page/80 border-b border-line">
+                <tr className="text-left text-ink-muted">
+                  <th className="px-3 py-2 w-10">
                     <input
                       type="checkbox"
-                      checked={checked}
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected && !allSelected;
+                      }}
                       className="size-4 accent-[var(--color-brand)]"
                       onChange={(event) => {
-                        setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
+                        if (event.target.checked) {
+                          setPicked([...new Set([...picked, ...filtered.map((q) => q.id)])]);
+                        } else {
+                          setPicked(picked.filter((id) => !filtered.some((q) => q.id === id)));
+                        }
                       }}
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
-                      <span className="mt-0.5 block text-xs text-ink-muted">
+                  </th>
+                  <th className="px-3 py-2 font-semibold">Kategori</th>
+                  <th className="px-3 py-2 font-semibold">Jenis</th>
+                  <th className="px-3 py-2 font-semibold">Soal</th>
+                  <th className="px-3 py-2 font-semibold">Bobot</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line/70">
+                {filtered.map((question) => {
+                  const checked = picked.includes(question.id);
+                  const typeLabel =
+                    question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
+                  return (
+                    <tr
+                      key={question.id}
+                      className={`transition-colors hover:bg-brand-soft/30 ${checked ? "bg-brand-soft/40" : "bg-paper"}`}>
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          className="size-4 accent-[var(--color-brand)]"
+                          onChange={(event) => {
+                            setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-ink-muted">{question.categoryName || "—"}</td>
+                      <td className="px-3 py-2">
+                        {question.type === "ESSAY" ? (
+                          <span className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
+                        ) : question.type === "SHORT_ANSWER" ? (
+                          <span className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
+                        ) : (
+                          <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-ink-muted">
                         {[
-                          typeLabel,
-                          question.categoryName,
                           `benar ${question.defaultWeight}`,
                           Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")}
-                      </span>
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -1224,6 +1428,35 @@ export function DeletePackageButton({ packageId }: { packageId: number }) {
   );
 }
 
+
+export function DeleteExamButton({ examId }: { examId: number }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={pending}
+        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-alert/40 px-4 text-sm font-semibold text-alert transition hover:bg-alert/5 disabled:opacity-60"
+        onClick={() => {
+          if (!window.confirm("Hapus ujian ini? Tindakan tidak dapat dibatalkan.")) return;
+          setPending(true);
+          setError(null);
+          void api("/api/admin/hapus-ujian", { body: { id: examId } })
+            .then(() => {
+              window.location.href = "/admin/ujian";
+            })
+            .catch((cause: unknown) => {
+              setError(cause instanceof Error ? cause.message : "Gagal menghapus.");
+              setPending(false);
+            });
+        }}>
+        {pending ? "Menghapus…" : "Hapus ujian"}
+      </button>
+      <ErrorText error={error} />
+    </div>
+  );
+}
 
 export function ExtraTimeForm({ attemptId }: { attemptId: number }) {
   const [error, setError] = useState<string | null>(null);

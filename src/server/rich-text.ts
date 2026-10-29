@@ -71,7 +71,9 @@ export function sanitizeRichText(input: string): string {
     transformTags: {
       img: (_tagName, attribs) => {
         const src = attribs.src ?? "";
-        const safe = src.startsWith("/uploads/") && !src.includes("..");
+        const isLocalUpload = src.startsWith("/uploads/") && !src.includes("..");
+        const isDummyImage = src.startsWith("https://dummyimage.com/");
+        const safe = isLocalUpload || isDummyImage;
         if (!safe) return { tagName: "span", attribs: {} };
         const keep: Record<string, string> = { src, alt: attribs.alt ?? "" };
         for (const key of ["title", "width", "height", "style"] as const) {
@@ -103,7 +105,10 @@ export function sanitizeRichText(input: string): string {
 
 export function assertUploadPath(path: string | null | undefined): string | null {
   if (!path) return null;
-  if (!path.startsWith("/uploads/") || path.includes("..")) {
+  // Allow local upload paths and dummyimage.com URLs for imported questions
+  const isLocalUpload = path.startsWith("/uploads/") && !path.includes("..");
+  const isDummyImage = path.startsWith("https://dummyimage.com/");
+  if (!isLocalUpload && !isDummyImage) {
     throw new Error("Berkas gambar tidak valid.");
   }
   return path;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { CategoryForm, ImportForm } from "@/components/admin-forms";
 import { SoalFilterForm } from "@/components/soal-filter-form";
+import { SoalDataTable } from "@/components/soal-data-table";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
@@ -47,7 +48,7 @@ function weightLabel(benar: { toString(): string }, salah: { toString(): string 
 export default async function SoalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kategori?: string; jenis?: string; kode?: string; paket?: string }>;
+  searchParams: Promise<{ kategori?: string; jenis?: string; kode?: string; paket?: string; gambar?: string }>;
 }) {
   const user = await requirePageUser(["ADMIN"]);
   const query = await searchParams;
@@ -55,6 +56,7 @@ export default async function SoalPage({
   const packageId = query.paket ? Number(query.paket) : undefined;
   const typeFilter =
     query.jenis === "pg" ? "MULTIPLE_CHOICE" : query.jenis === "singkat" ? "SHORT_ANSWER" : query.jenis === "uraian" ? "ESSAY" : undefined;
+  const imageFilter = query.gambar === "ya" ? { not: null } : query.gambar === "tidak" ? null : undefined;
 
   const [questions, categories, packages, totalCount, activeCount, mcCount, shortCount, essayCount] = await Promise.all([
     prisma.question.findMany({
@@ -63,21 +65,30 @@ export default async function SoalPage({
         type: typeFilter,
         code: query.kode ? { contains: query.kode } : undefined,
         packageItems: Number.isFinite(packageId) ? { some: { packageId } } : undefined,
+        imagePath: imageFilter,
+        deletedAt: null,
       },
       include: { category: true },
-      orderBy: { code: "asc" },
+      orderBy: { isActive: "desc" },
       take: 300,
     }),
     prisma.questionCategory.findMany({ orderBy: { name: "asc" } }),
-    prisma.questionPackage.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.question.count(),
-    prisma.question.count({ where: { isActive: true } }),
-    prisma.question.count({ where: { type: "MULTIPLE_CHOICE" } }),
-    prisma.question.count({ where: { type: "SHORT_ANSWER" } }),
-    prisma.question.count({ where: { type: "ESSAY" } }),
+    prisma.questionPackage.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.question.count({ where: { deletedAt: null } }),
+    prisma.question.count({ where: { isActive: true, deletedAt: null } }),
+    prisma.question.count({ where: { type: "MULTIPLE_CHOICE", deletedAt: null } }),
+    prisma.question.count({ where: { type: "SHORT_ANSWER", deletedAt: null } }),
+    prisma.question.count({ where: { type: "ESSAY", deletedAt: null } }),
   ]);
 
-  const hasFilter = Boolean(query.kode || query.kategori || query.jenis || query.paket);
+  // Convert Decimal objects to plain numbers for client component
+  const serializedQuestions = questions.map((q) => ({
+    ...q,
+    defaultWeight: Number(q.defaultWeight),
+    defaultWrongWeight: Number(q.defaultWrongWeight),
+  }));
+
+  const hasFilter = Boolean(query.kode || query.kategori || query.jenis || query.paket || query.gambar);
 
   return (
     <AdminShell name={user.name} current="/admin/soal">
@@ -111,8 +122,8 @@ export default async function SoalPage({
               <div>
                 <h2 className="text-base font-semibold tracking-tight text-ink">Daftar soal</h2>
                 <p className="mt-0.5 text-sm text-ink-muted">
-                  Menampilkan {questions.length}
-                  {hasFilter ? " hasil filter" : totalCount > questions.length ? ` dari ${totalCount}` : ""} soal
+                  Menampilkan {serializedQuestions.length}
+                  {hasFilter ? " hasil filter" : totalCount > serializedQuestions.length ? ` dari ${totalCount}` : ""} soal
                 </p>
               </div>
               {hasFilter ? (
@@ -123,16 +134,16 @@ export default async function SoalPage({
             </div>
 
             <SoalFilterForm
-              kode={query.kode}
               paket={query.paket}
               kategori={query.kategori}
               jenis={query.jenis}
+              gambar={query.gambar}
               packages={packages.map((pack) => ({ value: String(pack.id), label: pack.name }))}
               categories={categories.map((category) => ({ value: String(category.id), label: category.name }))}
             />
           </div>
 
-          {questions.length === 0 ? (
+          {serializedQuestions.length === 0 ? (
             <div className="px-6 py-14 text-center">
               <p className="text-base font-semibold text-ink">{hasFilter ? "Tidak ada yang cocok" : "Belum ada soal"}</p>
               <p className="mx-auto mt-1.5 max-w-sm text-sm text-ink-muted">
@@ -149,83 +160,7 @@ export default async function SoalPage({
               ) : null}
             </div>
           ) : (
-            <>
-              <ul className="divide-y divide-line/70 md:hidden">
-                {questions.map((question) => (
-                  <li key={question.id} className="px-4 py-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <TypeBadge type={question.type} />
-                          {!question.isActive ? (
-                            <span className="rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">Nonaktif</span>
-                          ) : null}
-                        </div>
-                        <Link href={`/admin/soal/${question.id}`} className="mt-2 block font-semibold text-ink hover:text-brand">
-                          {previewText(question.body, 20)}
-                        </Link>
-                        <p className="mt-1 text-sm text-ink-muted">{question.category.name}</p>
-                        <p className="mt-1 font-digits text-xs text-ink-muted">
-                          Bobot {weightLabel(question.defaultWeight, question.defaultWrongWeight)}
-                        </p>
-                      </div>
-                      <Link
-                        href={`/admin/soal/${question.id}`}
-                        className="shrink-0 rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-brand transition hover:border-brand hover:bg-brand-soft">
-                        Edit
-                      </Link>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-line bg-page/80 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-                      <th className="px-5 py-3.5">Kategori</th>
-                      <th className="px-4 py-3.5">Jenis</th>
-                      <th className="px-4 py-3.5">Soal</th>
-                      <th className="px-4 py-3.5">Bobot</th>
-                      <th className="px-4 py-3.5">Status</th>
-                      <th className="px-5 py-3.5 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/70">
-                    {questions.map((question) => (
-                      <tr key={question.id} className="transition-colors hover:bg-brand-soft/25">
-                        <td className="px-5 py-3.5 text-ink-muted">{question.category.name}</td>
-                        <td className="px-4 py-3.5">
-                          <TypeBadge type={question.type} />
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <Link href={`/admin/soal/${question.id}`} className="font-semibold text-ink hover:text-brand" title={previewText(question.body, 100)}>
-                            {previewText(question.body, 50)}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3.5 font-digits tabular-nums text-ink">
-                          {weightLabel(question.defaultWeight, question.defaultWrongWeight)}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          {question.isActive ? (
-                            <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Aktif</span>
-                          ) : (
-                            <span className="inline-flex rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">Nonaktif</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <Link
-                            href={`/admin/soal/${question.id}`}
-                            className="inline-flex rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand">
-                            Edit
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+            <SoalDataTable questions={serializedQuestions} />
           )}
         </section>
 

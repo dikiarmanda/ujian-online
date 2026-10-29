@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function PaketPage() {
   const user = await requirePageUser(["ADMIN"]);
   const packages = await prisma.questionPackage.findMany({
+    where: { deletedAt: null },
     orderBy: { name: "asc" },
     include: { _count: { select: { items: true, examPackages: true } } },
   });

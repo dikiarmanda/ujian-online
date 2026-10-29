@@ -45,7 +45,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
   if (!Number.isFinite(examId)) notFound();
 
   const exam = await prisma.exam.findUnique({
-    where: { id: examId },
+    where: { id: examId, deletedAt: null },
     include: {
       packages: {
         include: {

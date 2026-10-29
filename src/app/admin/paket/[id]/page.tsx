@@ -17,11 +17,11 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
 
   const [pack, questions, usedInExams] = await Promise.all([
     prisma.questionPackage.findUnique({
-      where: { id: packageId },
+      where: { id: packageId, deletedAt: null },
       include: { items: { orderBy: { sortOrder: "asc" } } },
     }),
     prisma.question.findMany({
-      where: { isActive: true },
+      where: { isActive: true, deletedAt: null },
       orderBy: { code: "asc" },
       select: {
         id: true,
@@ -42,6 +42,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
     where: {
       id: { in: pack.items.map((item) => item.questionId) },
       isActive: false,
+      deletedAt: null,
     },
     select: {
       id: true,

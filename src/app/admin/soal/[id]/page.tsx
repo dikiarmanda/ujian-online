@@ -18,7 +18,7 @@ export default async function SoalEditPage({ params }: { params: Promise<{ id: s
 
   const [question, categories, usedInExams] = await Promise.all([
     prisma.question.findUnique({
-      where: { id: questionId },
+      where: { id: questionId, deletedAt: null },
       include: {
         category: true,
         options: { orderBy: { sortOrder: "asc" } },

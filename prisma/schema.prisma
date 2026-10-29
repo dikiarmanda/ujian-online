@@ -172,6 +172,7 @@ model Question {
   createdById   Int
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
 
   category      QuestionCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -184,6 +185,7 @@ model Question {
 
   @@index([categoryId, type])
   @@index([isActive])
+  @@index([deletedAt])
   @@map("questions")
 }
 
@@ -240,12 +242,14 @@ model QuestionPackage {
   createdById Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 
   createdBy    User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
   items        QuestionPackageItem[]
   examPackages ExamPackage[]
 
   @@index([isActive])
+  @@index([deletedAt])
   @@map("question_packages")
 }
 
@@ -288,6 +292,7 @@ model Exam {
   createdById       Int
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
 
   createdBy  User          @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   startedBy  User?         @relation("ExamStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
@@ -300,6 +305,7 @@ model Exam {
   @@index([status])
   @@index([phase])
   @@index([startsAt])
+  @@index([deletedAt])
   @@map("exams")
 }
 

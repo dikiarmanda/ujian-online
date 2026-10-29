@@ -86,7 +86,7 @@ export function DataTable({
   const to = Math.min(startIndex + pageSize, filtered.length);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col px-4 py-4 sm:px-5 gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="flex items-center gap-2 text-sm text-ink-muted">
           Tampilkan

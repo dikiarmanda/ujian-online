@@ -15,7 +15,7 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
   if (!Number.isFinite(examId)) notFound();
 
   const exam = await prisma.exam.findUnique({
-    where: { id: examId },
+    where: { id: examId, deletedAt: null },
     include: {
       packages: {
         select: { jenjang: true, packageId: true },
@@ -47,7 +47,7 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
 
   const [packages, availableCompetitions] = await Promise.all([
     prisma.questionPackage.findMany({
-      where: { isActive: true },
+      where: { isActive: true, deletedAt: null },
       orderBy: { name: "asc" },
       include: { _count: { select: { items: true } } },
     }),

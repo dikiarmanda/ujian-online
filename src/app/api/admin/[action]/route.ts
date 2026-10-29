@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resetParticipantSession } from "@/server/auth/service";
-import { createExam, updateExam } from "@/server/exams";
+import { createExam, deleteExam, updateExam } from "@/server/exams";
 import { releaseLock } from "@/server/grading";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 import {
@@ -11,7 +11,7 @@ import {
   deleteQuestionPackage,
   updateQuestionPackage,
 } from "@/server/packages";
-import { createCategory, createQuestion, deleteQuestion, importQuestions, updateQuestion } from "@/server/questions";
+import { commitQuestionImport, createCategory, createQuestion, deleteQuestion, stageQuestionImport, toggleQuestionStatus, updateQuestion } from "@/server/questions";
 import { syncParticipants } from "@/server/sync";
 import { addExtraTime } from "@/server/attempts";
 
@@ -52,9 +52,24 @@ export async function POST(req: Request, ctx: Ctx) {
       await deleteQuestion(body.id, user.userId, ip);
       return json({ ok: true });
     }
+    if (action === "toggle-soal") {
+      const body = await readBody(req, z.object({ id: z.number().int().positive() }));
+      const newStatus = await toggleQuestionStatus(body.id, user.userId, ip);
+      return json({ isActive: newStatus });
+    }
     if (action === "impor") {
       const body = await readBody(req, z.object({ data: z.string().min(1) }));
-      return json(await importQuestions(body.data, user.userId, ip));
+      return json(await stageQuestionImport(body.data, user.userId));
+    }
+    if (action === "impor-simpan") {
+      const body = await readBody(
+        req,
+        z.object({
+          token: z.string().regex(/^[a-f0-9]{32}$/),
+          rows: z.array(z.number().int().positive()).max(5000),
+        }),
+      );
+      return json(await commitQuestionImport(body.token, body.rows, user.userId, ip));
     }
     if (action === "unggah") {
       const form = await req.formData();
@@ -94,6 +109,11 @@ export async function POST(req: Request, ctx: Ctx) {
     if (action === "hapus-paket-soal") {
       const body = await readBody(req, z.object({ id: z.number().int().positive() }));
       await deleteQuestionPackage(body.id, user.userId, ip);
+      return json({ ok: true });
+    }
+    if (action === "hapus-ujian") {
+      const body = await readBody(req, z.object({ id: z.number().int().positive() }));
+      await deleteExam(body.id, user.userId, ip);
       return json({ ok: true });
     }
     if (action === "waktu") {
