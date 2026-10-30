@@ -58,6 +58,7 @@ export async function examReport(examId: number) {
     const percent = total ? Math.round((correct / total) * 1000) / 10 : 0;
     return {
       code: item.question.code,
+      question: item.question.body,
       questionId: item.questionId,
       jenjang: item.jenjang,
       correct,
@@ -166,6 +167,102 @@ export async function reportPdf(report: Awaited<ReturnType<typeof examReport>>):
   }
   doc.end();
   return done;
+}
+
+export async function attemptReport(attemptId: number) {
+  const attempt = await prisma.examAttempt.findUnique({
+    where: { id: attemptId },
+    include: {
+      user: true,
+      exam: {
+        include: {
+          packages: {
+            include: { questions: { include: { question: { include: { options: true, essayKey: true, shortAnswerKey: true } } }, orderBy: { sortOrder: "asc" } } },
+          },
+        },
+      },
+      answers: {
+        include: {
+          question: { include: { options: true, essayKey: true, shortAnswerKey: true } },
+          selectedOption: true,
+        },
+        orderBy: { questionId: "asc" },
+      },
+      violations: true,
+    },
+  });
+  if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
+
+  const pack = attempt.exam.packages.find((p) => p.jenjang === attempt.jenjang);
+  if (!pack) throw new AppError("Paket soal tidak ditemukan.", 404);
+
+  const questionMap = new Map(pack.questions.map((item) => [item.questionId, item]));
+  const answerMap = new Map(attempt.answers.map((a) => [a.questionId, a]));
+
+  const answerDetails = pack.questions.map((item) => {
+    const question = item.question;
+    const answer = answerMap.get(item.questionId) ?? null;
+    const weight = Number(item.weight);
+    const isCorrect = answer?.isCorrect ?? null;
+    const score = answer?.score ?? null;
+
+    let answerText: string | null = null;
+    let correctAnswer: string | null = null;
+
+    if (question.type === "MULTIPLE_CHOICE") {
+      answerText = answer?.selectedOption?.label ?? null;
+      correctAnswer = question.options.find((o) => o.isCorrect)?.label ?? null;
+    } else if (question.type === "SHORT_ANSWER") {
+      answerText = answer?.shortAnswerText ?? null;
+      correctAnswer = question.shortAnswerKey?.answerKey ?? null;
+    } else if (question.type === "ESSAY") {
+      answerText = answer?.essayText ?? null;
+      correctAnswer = question.essayKey?.answerKey ?? null;
+    }
+
+    return {
+      questionId: item.questionId,
+      code: question.code,
+      type: question.type,
+      body: question.body,
+      weight,
+      isCorrect,
+      score,
+      answerText,
+      correctAnswer,
+      gradingNote: answer?.gradingNote ?? null,
+    };
+  });
+
+  return {
+    attemptId: attempt.id,
+    examId: attempt.exam.id,
+    examName: attempt.exam.name,
+    phase: attempt.exam.phase,
+    startsAt: attempt.exam.startsAt,
+    durationMinutes: attempt.exam.durationMinutes,
+    user: {
+      id: attempt.user.id,
+      name: attempt.user.name,
+      identity: attempt.user.identity,
+      groupName: attempt.user.groupName,
+    },
+    jenjang: attempt.jenjang,
+    status: attempt.status,
+    attendedAt: attempt.attendedAt,
+    startedAt: attempt.startedAt,
+    submittedAt: attempt.submittedAt,
+    mcScore: attempt.mcScore,
+    essayScore: attempt.essayScore,
+    totalScore: attempt.totalScore,
+    gradingStatus: attempt.gradingStatus,
+    answers: answerDetails,
+    violations: attempt.violations.map((v) => ({
+      type: v.type,
+      occurredAt: v.occurredAt.toISOString(),
+      questionNumber: v.questionNumber,
+    })),
+  };
 }
 
 /** Alias lama untuk kompatibilitas sementara. */

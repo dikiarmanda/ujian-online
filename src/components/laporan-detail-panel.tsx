@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PaginatedDataTable } from "@/components/data-table";
 
@@ -15,10 +16,12 @@ export type LaporanResultRow = {
   gradingStatus: string;
   gradingLabel: string;
   violations: number;
+  attemptId: number;
 };
 
 export type LaporanItemRow = {
   code: string;
+  question: string;
   correct: number;
   total: number;
   percent: number;
@@ -41,6 +44,25 @@ type StatusFilter = "ALL" | "Selesai" | "Mengerjakan" | "Sudah absen" | "Belum a
 
 export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; items: LaporanItemRow[] }) {
   const [status, setStatus] = useState<StatusFilter>("ALL");
+
+  const groupedItems = useMemo(() => {
+    const grouped = new Map<string, { question: string; correct: number; total: number }>();
+    for (const item of items) {
+      const existing = grouped.get(item.code) ?? { question: item.question, correct: 0, total: 0 };
+      grouped.set(item.code, {
+        question: existing.question,
+        correct: existing.correct + item.correct,
+        total: existing.total + item.total,
+      });
+    }
+    return Array.from(grouped.entries()).map(([code, data]) => ({
+      code,
+      question: data.question,
+      correct: data.correct,
+      total: data.total,
+      percent: data.total > 0 ? Math.round((data.correct / data.total) * 1000) / 10 : 0,
+    }));
+  }, [items]);
 
   const filtered = useMemo(() => {
     if (status === "ALL") return rows;
@@ -92,17 +114,17 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
             </p>
           </div>
         ) : (
-          <div className="p-4 sm:p-5">
+          <div>
           <PaginatedDataTable
             headers={["Peserta", "Status", "Otomatis", "Uraian", "Total", "Penilaian", "Pelanggaran"]}
             rows={filtered.map((row) => [
-              <div>
-                <p className="font-semibold text-ink">{row.name}</p>
+              <Link href={`/admin/laporan/peserta/${row.attemptId}`} className="block">
+                <p className="font-semibold text-ink hover:text-brand">{row.name}</p>
                 <p className="text-xs text-ink-muted">
                   <span className="font-digits">{row.identity}</span>
                   {row.groupName ? ` · ${row.groupName}` : ""}
                 </p>
-              </div>,
+              </Link>,
               <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${statusClass[row.status] ?? "bg-page text-ink-muted"}`}>
                 {row.status}
               </span>,
@@ -133,38 +155,38 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
         )}
       </section>
 
-      <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
-        <div className="mb-4">
+      <section className="rounded-xl border border-line/80 bg-paper shadow-sm">
+        <div className="p-5 pb-0 sm:p-6 sm:pb-0">
           <h2 className="text-lg font-semibold tracking-tight text-ink">Analisis soal otomatis</h2>
           <p className="mt-0.5 text-sm text-ink-muted">Persentase jawaban benar untuk pilihan ganda dan jawaban singkat.</p>
         </div>
 
-        {items.length === 0 ? (
+        {groupedItems.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
             <p className="text-sm font-semibold text-ink">Belum ada data analisis</p>
             <p className="mt-1 text-xs text-ink-muted">Analisis muncul setelah ada soal otomatis dan peserta selesai mengerjakan.</p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-3">
-            {items.map((item, index) => (
-              <li key={`${item.code}-${index}`} className="rounded-xl border border-line/70 px-4 py-3">
+          <PaginatedDataTable
+            headers={["Soal", "Persentase", "Benar", "Total"]}
+            rows={groupedItems.map((item) => [
+              <span className="font-semibold text-ink">{item.question}</span>,
+              <div className="flex flex-col gap-1">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-semibold text-ink">{item.code}</p>
-                  <p className="font-digits text-sm font-semibold tabular-nums text-ink">{item.percent}%</p>
+                  <span className="font-digits text-sm font-semibold tabular-nums text-ink">{item.percent}%</span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-page">
+                <div className="h-1.5 overflow-hidden rounded-full bg-page">
                   <div
                     className="h-full rounded-full bg-brand transition-[width]"
                     style={{ width: `${Math.max(0, Math.min(100, item.percent))}%` }}
                   />
                 </div>
-                <p className="mt-1.5 text-xs text-ink-muted">
-                  <span className="font-digits font-semibold text-ink">{item.correct}</span> benar dari{" "}
-                  <span className="font-digits font-semibold text-ink">{item.total}</span> peserta selesai
-                </p>
-              </li>
-            ))}
-          </ul>
+              </div>,
+              <span className="font-digits tabular-nums text-ink">{item.correct}</span>,
+              <span className="font-digits tabular-nums text-ink">{item.total}</span>,
+            ])}
+            searchPlaceholder="Cari kode soal"
+          />
         )}
       </section>
     </div>

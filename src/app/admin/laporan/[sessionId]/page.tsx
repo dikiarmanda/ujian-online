@@ -102,7 +102,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
           />
           <StatCard label="Selesai" value={finished} hint={inProgress ? `${inProgress} masih mengerjakan` : "Sudah mengirim jawaban"} />
           <StatCard
-            label="Penilaian"
+            label="Belum Dinilai"
             value={pendingGrading}
             hint={pendingGrading ? "Menunggu nilai uraian" : "Tidak ada antrean penilaian"}
           />
@@ -126,13 +126,14 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
             gradingStatus: row.gradingStatus,
             gradingLabel: gradingLabel[row.gradingStatus] ?? "—",
             violations: row.violations,
+            attemptId: row.attemptId,
           }))}
           items={report.items}
         />
 
         {report.violations.length > 0 ? (
-          <section className="rounded-xl border border-mark-edge/25 bg-paper p-5 shadow-sm sm:p-6">
-            <div className="mb-4">
+          <section className="rounded-xl border border-mark-edge/25 bg-paper shadow-sm">
+            <div className="pb-0 p-5 sm:p-6 sm:pb-0">
               <h2 className="text-lg font-semibold tracking-tight text-ink">Catatan pelanggaran</h2>
               <p className="mt-0.5 text-sm text-ink-muted">{report.violations.length} kejadian tercatat selama sesi.</p>
             </div>
