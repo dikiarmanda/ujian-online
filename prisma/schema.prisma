@@ -369,6 +369,7 @@ model ExamAttempt {
   mcScore           Decimal?       @db.Decimal(8, 2)
   essayScore        Decimal?       @db.Decimal(8, 2)
   totalScore        Decimal?       @db.Decimal(8, 2)
+  rank              Int?
   gradingStatus     GradingStatus  @default(NOT_GRADED)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -557,4 +558,55 @@ model ApiAccessLog {
 
   @@index([clientId, createdAt])
   @@map("api_access_logs")
+}
+
+// -----------------------------------------------------------------------------
+// Data peserta lomba OMBN (read-only, di-sync dari database lomba)
+// -----------------------------------------------------------------------------
+
+enum JenisKelamin {
+  L
+  P
+}
+
+model LombaPeserta {
+  id                      Int          @id @default(autoincrement())
+  nomorPeserta            String       @unique @db.VarChar(20) @map("nomor_peserta")
+  password                String       @db.Text
+  competitionId           Int          @map("competition_id")
+  schoolId                Int          @map("school_id")
+  tagihanId               Int?         @map("tagihan_id")
+  nama                    String       @db.VarChar(150)
+  namaKelompok            String?      @db.VarChar(150) @map("nama_kelompok")
+  nisn                    String?      @db.VarChar(30)
+  nik                     String?      @db.VarChar(16)
+  tempatLahir             String?      @db.VarChar(100) @map("tempat_lahir")
+  tanggalLahir            DateTime?    @db.Date @map("tanggal_lahir")
+  jenisKelamin            JenisKelamin? @map("jenis_kelamin")
+  anggota                 Json?        @map("anggota")
+  berkas                  String?      @db.VarChar(255)
+  foto                    String?      @db.VarChar(255)
+  nominal                 Decimal      @default(0) @db.Decimal(12, 2)
+  presensi                DateTime?    @map("presensi")
+  peringkat               Int?         @map("peringkat")
+  urutKabupaten           Int?         @map("urut_kabupaten")
+  nilaiAkhir              Decimal      @default(0) @db.Decimal(8, 2) @map("nilai_akhir")
+  waktuAkhirUjianKabupaten DateTime? @map("waktu_akhir_ujian_kabupaten")
+  urutProvinsi            Int?         @map("urut_provinsi")
+  nilaiNasional           Decimal      @default(0) @db.Decimal(8, 2) @map("nilai_nasional")
+  waktuAkhirUjian         DateTime?    @map("waktu_akhir_ujian")
+  babak                   Json?        @map("babak")
+  perlengkapan            Json?        @map("perlengkapan")
+  preGroupNpsn            String?      @db.VarChar(150) @map("pre_group_npsn")
+  createdAt               DateTime?    @map("created_at")
+  updatedAt               DateTime?    @map("updated_at")
+  tagihanNasionalId       Int?         @map("tagihan_nasional_id")
+
+  @@index([schoolId])
+  @@index([competitionId, schoolId])
+  @@index([tagihanId])
+  @@index([presensi])
+  @@index([peringkat])
+  @@index([tagihanNasionalId])
+  @@map("lomba_peserta")
 }

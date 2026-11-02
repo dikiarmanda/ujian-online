@@ -37,6 +37,7 @@ export async function examReport(examId: number) {
       gradingStatus: attempt.gradingStatus ?? "",
       violations: attempt.violations.length,
       attemptId: attempt.id,
+      rank: attempt.rank,
     };
   });
 
@@ -256,6 +257,7 @@ export async function attemptReport(attemptId: number) {
     essayScore: attempt.essayScore,
     totalScore: attempt.totalScore,
     gradingStatus: attempt.gradingStatus,
+    rank: attempt.rank,
     answers: answerDetails,
     violations: attempt.violations.map((v) => ({
       type: v.type,
@@ -263,6 +265,37 @@ export async function attemptReport(attemptId: number) {
       questionNumber: v.questionNumber,
     })),
   };
+}
+
+export async function calculateRanks(examId: number) {
+  const attempts = await prisma.examAttempt.findMany({
+    where: {
+      examId,
+      gradingStatus: "COMPLETED",
+      totalScore: { not: null },
+      status: { in: ["SUBMITTED", "TIME_EXPIRED"] },
+    },
+    orderBy: [{ totalScore: "desc" }, { submittedAt: "asc" }],
+  });
+
+  let rank = 1;
+  for (let i = 0; i < attempts.length; i++) {
+    const attempt = attempts[i];
+
+    if (i > 0) {
+      const prevAttempt = attempts[i - 1];
+      if (Number(attempt.totalScore) !== Number(prevAttempt.totalScore)) {
+        rank = i + 1;
+      }
+    }
+
+    await prisma.examAttempt.update({
+      where: { id: attempt.id },
+      data: { rank },
+    });
+  }
+
+  return { updated: attempts.length };
 }
 
 /** Alias lama untuk kompatibilitas sementara. */

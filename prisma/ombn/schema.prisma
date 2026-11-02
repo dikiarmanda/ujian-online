@@ -105,39 +105,47 @@ model jobs {
 }
 
 model lomba_peserta {
-  id             BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
-  nomor_peserta  String?                      @unique(map: "lomba_peserta_nomor_peserta_unique") @db.VarChar(20)
-  password       String?                      @db.Text
-  competition_id BigInt                       @db.UnsignedBigInt
-  school_id      BigInt                       @db.UnsignedBigInt
-  tagihan_id     BigInt?                      @db.UnsignedBigInt
-  nama           String                       @db.VarChar(150)
-  nama_kelompok  String?                      @db.VarChar(150)
-  nisn           String?                      @db.VarChar(30)
-  nik            String?                      @db.VarChar(16)
-  tempat_lahir   String?                      @db.VarChar(100)
-  tanggal_lahir  DateTime?                    @db.Date
-  jenis_kelamin  lomba_peserta_jenis_kelamin?
-  anggota        Json?
-  berkas         String?                      @db.VarChar(255)
-  foto           String?                      @db.VarChar(255)
-  nominal        Decimal                      @default(0.00) @db.Decimal(12, 2)
-  presensi       DateTime?                    @db.Timestamp(0)
-  peringkat      Int?                         @db.UnsignedSmallInt
-  babak          Json?
-  perlengkapan   Json?
-  pre_group_npsn String?                      @db.VarChar(150)
-  created_at     DateTime?                    @db.Timestamp(0)
-  updated_at     DateTime?                    @db.Timestamp(0)
-  competitions   competitions                 @relation(fields: [competition_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "lomba_peserta_competition_id_foreign")
-  schools        schools                      @relation(fields: [school_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "lomba_peserta_school_id_foreign")
-  lomba_tagihan  lomba_tagihan?               @relation(fields: [tagihan_id], references: [id], onUpdate: NoAction, map: "lomba_peserta_tagihan_id_foreign")
+  id                       BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
+  nomor_peserta            String?                      @unique(map: "lomba_peserta_nomor_peserta_unique") @db.VarChar(20)
+  password                 String?                      @db.Text
+  competition_id           BigInt                       @db.UnsignedBigInt
+  school_id                BigInt                       @db.UnsignedBigInt
+  tagihan_id              BigInt?                      @db.UnsignedBigInt
+  nama                     String                       @db.VarChar(150)
+  nama_kelompok            String?                      @db.VarChar(150)
+  nisn                     String?                      @db.VarChar(30)
+  nik                      String?                      @db.VarChar(16)
+  tempat_lahir             String?                      @db.VarChar(100)
+  tanggal_lahir            DateTime?                    @db.Date
+  jenis_kelamin            lomba_peserta_jenis_kelamin?
+  anggota                  Json?
+  berkas                   String?                      @db.VarChar(255)
+  foto                     String?                      @db.VarChar(255)
+  nominal                  Decimal                      @default(0.00) @db.Decimal(12, 2)
+  presensi                 DateTime?                    @db.Timestamp(0)
+  peringkat                Int?                         @db.UnsignedSmallInt
+  urut_kabupaten           Int?                         @db.UnsignedSmallInt
+  nilai_akhir              Decimal                      @default(0.00) @db.Decimal(8, 2)
+  waktu_akhir_ujian_kabupaten DateTime?                 @db.Timestamp(0)
+  urut_provinsi            Int?                         @db.UnsignedSmallInt
+  nilai_nasional           Decimal                      @default(0.00) @db.Decimal(8, 2)
+  waktu_akhir_ujian        DateTime?                    @db.Timestamp(0)
+  babak                    Json?
+  perlengkapan             Json?
+  pre_group_npsn           String?                      @db.VarChar(150)
+  created_at               DateTime?                    @db.Timestamp(0)
+  updated_at               DateTime?                    @db.Timestamp(0)
+  tagihan_nasional_id      BigInt?                      @db.UnsignedBigInt
+  competitions             competitions                 @relation(fields: [competition_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "lomba_peserta_competition_id_foreign")
+  schools                  schools                      @relation(fields: [school_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "lomba_peserta_school_id_foreign")
+  lomba_tagihan            lomba_tagihan?               @relation(fields: [tagihan_id], references: [id], onUpdate: NoAction, map: "lomba_peserta_tagihan_id_foreign")
 
   @@index([competition_id, school_id], map: "lomba_peserta_competition_id_school_id_index")
   @@index([peringkat], map: "lomba_peserta_peringkat_index")
   @@index([presensi], map: "lomba_peserta_presensi_index")
   @@index([school_id], map: "lomba_peserta_school_id_foreign")
   @@index([tagihan_id], map: "lomba_peserta_tagihan_id_foreign")
+  @@index([tagihan_nasional_id], map: "lomba_peserta_tagihan_nasional_id_index")
 }
 
 model lomba_tagihan {

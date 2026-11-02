@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
 import { sessionReport } from "@/server/reports";
+import { RankButton } from "@/components/rank-button";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
                 className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
                 Unduh PDF
               </a>
+              <RankButton examId={id} pendingGrading={pendingGrading} />
             </div>
           </div>
         </header>
@@ -127,6 +129,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
             gradingLabel: gradingLabel[row.gradingStatus] ?? "—",
             violations: row.violations,
             attemptId: row.attemptId,
+            rank: row.rank,
           }))}
           items={report.items}
         />

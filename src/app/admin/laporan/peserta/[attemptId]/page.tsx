@@ -78,14 +78,10 @@ export default async function PesertaDetailPage({ params }: { params: Promise<{ 
         </header>
 
         <section aria-label="Ringkasan peserta" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Peringkat" value={report.rank ? `#${report.rank}` : "—"} hint="Berdasarkan skor dan durasi" />
           <StatCard label="Skor otomatis" value={report.mcScore?.toString() ?? "—"} hint="Pilihan ganda & jawaban singkat" />
           <StatCard label="Skor uraian" value={report.essayScore?.toString() ?? "—"} hint="Nilai manual petugas" />
           <StatCard label="Total" value={report.totalScore?.toString() ?? "—"} hint="Skor akhir peserta" />
-          <StatCard
-            label="Penilaian"
-            value={report.gradingStatus === "COMPLETED" ? "Selesai" : report.gradingStatus === "PARTIAL" ? "Sebagian" : "Belum"}
-            hint="Status penilaian uraian"
-          />
         </section>
 
         <section className="rounded-xl border border-line/80 bg-paper shadow-sm">

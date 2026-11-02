@@ -17,6 +17,7 @@ export type LaporanResultRow = {
   gradingLabel: string;
   violations: number;
   attemptId: number;
+  rank: number | null;
 };
 
 export type LaporanItemRow = {
@@ -116,8 +117,9 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
         ) : (
           <div>
           <PaginatedDataTable
-            headers={["Peserta", "Status", "Otomatis", "Uraian", "Total", "Penilaian", "Pelanggaran"]}
+            headers={["Peringkat", "Peserta", "Status", "Otomatis", "Uraian", "Total", "Penilaian", "Pelanggaran"]}
             rows={filtered.map((row) => [
+              <span className="font-digits font-semibold tabular-nums text-ink">{row.rank ? `#${row.rank}` : "—"}</span>,
               <Link href={`/admin/laporan/peserta/${row.attemptId}`} className="block">
                 <p className="font-semibold text-ink hover:text-brand">{row.name}</p>
                 <p className="text-xs text-ink-muted">
