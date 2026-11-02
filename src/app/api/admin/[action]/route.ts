@@ -12,7 +12,7 @@ import {
   updateQuestionPackage,
 } from "@/server/packages";
 import { commitQuestionImport, createCategory, createQuestion, deleteQuestion, stageQuestionImport, toggleQuestionStatus, updateQuestion } from "@/server/questions";
-import { syncParticipants } from "@/server/sync";
+import { syncParticipants, syncExamResultsToOmbn } from "@/server/sync";
 import { addExtraTime } from "@/server/attempts";
 
 export const runtime = "nodejs";
@@ -27,6 +27,10 @@ export async function POST(req: Request, ctx: Ctx) {
     const ip = requestIp(req);
     if (action === "sinkron") {
       const log = await syncParticipants(user.userId, ip);
+      return json({ id: log.id, successCount: log.successCount, failedCount: log.failedCount });
+    }
+    if (action === "sinkron-hasil-ujian") {
+      const log = await syncExamResultsToOmbn(user.userId, ip);
       return json({ id: log.id, successCount: log.successCount, failedCount: log.failedCount });
     }
     if (action === "sesi-login") {

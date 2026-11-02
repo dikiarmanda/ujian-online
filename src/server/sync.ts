@@ -120,5 +120,126 @@ export async function listSyncLogs() {
 }
 
 export function isUniqueConflict(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+  return error instanceof Prisma.PrismaClientKnownRequestError && (error as Prisma.PrismaClientKnownRequestError).code === "P2002";
+}
+
+export async function syncExamResultsToOmbn(triggeredById: number | null, ipAddress?: string) {
+  const log = await prisma.syncLog.create({ data: { triggeredById } });
+  let successCount = 0;
+  let failedCount = 0;
+  const failures: { externalId: string | null; identity: string | null; reason: string }[] = [];
+
+  try {
+    const examAttempts = await prisma.examAttempt.findMany({
+      where: {
+        totalScore: { not: null },
+        rank: { not: null },
+      },
+      include: {
+        user: {
+          select: {
+            identity: true,
+          },
+        },
+      },
+    });
+
+    for (const attempt of examAttempts) {
+      const identity = attempt.user.identity?.trim();
+      if (!identity) {
+        failedCount += 1;
+        failures.push({
+          externalId: null,
+          identity: null,
+          reason: "Identity tidak ditemukan pada user.",
+        });
+        continue;
+      }
+
+      try {
+        const peserta = await ombn.lomba_peserta.findUnique({
+          where: { nomor_peserta: identity },
+          select: {
+            id: true,
+            nomor_peserta: true,
+            urut_kabupaten: true,
+          },
+        });
+
+        if (!peserta) {
+          failedCount += 1;
+          failures.push({
+            externalId: null,
+            identity,
+            reason: "Peserta tidak ditemukan di database OMBN.",
+          });
+          continue;
+        }
+
+        const externalId = `ombn-peserta:${peserta.id.toString()}`;
+        const updateData: any = {
+          updated_at: new Date(),
+        };
+
+        if (peserta.urut_kabupaten === null) {
+          updateData.nilai_akhir = attempt.totalScore;
+          updateData.urut_kabupaten = attempt.rank;
+          updateData.waktu_akhir_ujian_kabupaten = attempt.submittedAt || new Date();
+        } else {
+          updateData.nilai_nasional = attempt.totalScore;
+          updateData.urut_provinsi = attempt.rank;
+          updateData.waktu_akhir_ujian = attempt.submittedAt || new Date();
+        }
+
+        await ombn.lomba_peserta.update({
+          where: { id: peserta.id },
+          data: updateData,
+        });
+
+        successCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        failures.push({
+          externalId: null,
+          identity,
+          reason: error instanceof Error ? error.message : "Gagal menyimpan hasil ujian.",
+        });
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Sinkronisasi hasil ujian terhenti.";
+    await prisma.syncLog.update({
+      where: { id: log.id },
+      data: { finishedAt: new Date(), successCount, failedCount: failedCount + 1, message },
+    });
+    throw new AppError("Database OMBN sedang tidak dapat dihubungi. Coba lagi dalam beberapa saat.", 503);
+  }
+
+  if (failures.length) {
+    await prisma.syncFailure.createMany({
+      data: failures.map((failure) => ({ ...failure, syncLogId: log.id })),
+    });
+  }
+
+  const updated = await prisma.syncLog.update({
+    where: { id: log.id },
+    data: {
+      finishedAt: new Date(),
+      successCount,
+      failedCount,
+      message: failedCount ? "Sebagian data gagal disimpan." : "Sinkronisasi hasil ujian selesai.",
+    },
+    include: { failures: true },
+  });
+
+  await writeAudit({
+    userId: triggeredById,
+    action: "SYNC_EXAM_RESULTS",
+    entityType: "sync_log",
+    entityId: updated.id,
+    meta: { successCount, failedCount },
+    ipAddress,
+  });
+
+  return updated;
 }
