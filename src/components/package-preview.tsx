@@ -82,7 +82,7 @@ export function PackagePreview({ questions }: { questions: PackageQuestion[] }) 
             </button>
           </div>
         </header>
-        <article className="max-w-[68ch] rounded-md border border-line bg-paper p-6 shadow-paper">
+        <article className="rounded-md border border-line bg-paper p-6 shadow-paper">
           <h1 className="text-xs font-semibold tracking-wide text-brand uppercase">
             Soal {index + 1} dari {questions.length}
           </h1>

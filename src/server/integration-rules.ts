@@ -38,6 +38,12 @@ export function isFinalGrading(status: string): boolean {
   return status === "COMPLETED";
 }
 
+export function retryAfterUntil(now: Date, until: Date): number | null {
+  const diff = until.getTime() - now.getTime();
+  if (diff <= 0) return null;
+  return Math.floor(diff / 1000);
+}
+
 export function scoreNumber(value: { toString(): string } | number | null | undefined): number | null {
   if (value == null) return null;
   const parsed = Number(value.toString());
