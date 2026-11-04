@@ -104,6 +104,7 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
             examId={exam.id}
             initialData={{
               competitionId: exam.competitionId,
+              competitionLevel: exam.competitionLevel,
               attendanceOpensAt: exam.attendanceOpensAt.toISOString().slice(0, 16),
               startsAt: exam.startsAt.toISOString().slice(0, 16),
               durationMinutes: exam.durationMinutes,

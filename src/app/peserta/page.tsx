@@ -188,6 +188,9 @@ export default async function PesertaHome() {
                           <div>
                             <h3 className="font-semibold text-white">{exam.name}</h3>
                             <p className="text-xs text-white/80">
+                              Tingkat: {exam.competitionLevel}
+                            </p>
+                            <p className="text-xs text-white/80">
                               {formatJakarta(exam.startsAt)} · {exam.durationMinutes} menit
                             </p>
                           </div>

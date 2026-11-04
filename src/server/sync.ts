@@ -142,6 +142,11 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
             identity: true,
           },
         },
+        exam: {
+          select: {
+            competitionLevel: true,
+          },
+        },
       },
     });
 
@@ -163,7 +168,6 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
           select: {
             id: true,
             nomor_peserta: true,
-            urut_kabupaten: true,
           },
         });
 
@@ -182,14 +186,16 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
           updated_at: new Date(),
         };
 
-        if (peserta.urut_kabupaten === null) {
+        if (attempt.exam.competitionLevel === "KABUPATEN") {
           updateData.nilai_akhir = attempt.totalScore;
           updateData.urut_kabupaten = attempt.rank;
           updateData.waktu_akhir_ujian_kabupaten = attempt.submittedAt || new Date();
-        } else {
-          updateData.nilai_nasional = attempt.totalScore;
+        } else if (attempt.exam.competitionLevel === "PROVINSI") {
+          updateData.nilai_akhir = attempt.totalScore;
           updateData.urut_provinsi = attempt.rank;
           updateData.waktu_akhir_ujian = attempt.submittedAt || new Date();
+        } else if (attempt.exam.competitionLevel === "NASIONAL") {
+          updateData.peringkat = attempt.rank;
         }
 
         await ombn.lomba_peserta.update({

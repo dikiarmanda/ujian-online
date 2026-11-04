@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
+import { DataTable } from "@/components/data-table";
 
 export type UjianRow = {
   id: number;
   name: string;
   examDateLabel: string;
+  competitionLevel: string;
   durationMinutes: number;
   questionCount: number;
   sessionCount: number;
@@ -118,75 +120,30 @@ export function UjianPanel({ exams }: { exams: UjianRow[] }) {
           ) : null}
         </div>
       ) : (
-        <>
-          <ul className="divide-y divide-line/70 md:hidden">
-            {filtered.map((exam) => (
-              <li key={exam.id} className="px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <StatusBadge status={exam.status} />
-                    <Link href={`/admin/ujian/${exam.id}`} className="mt-2 block truncate font-semibold text-ink hover:text-brand">
-                      {exam.name}
-                    </Link>
-                    <p className="mt-1 text-sm text-ink-muted">{exam.examDateLabel}</p>
-                    <p className="mt-1 text-xs text-ink-muted">
-                      {exam.durationMinutes} mnt · {exam.questionCount} paket · {exam.sessionCount} attempt
-                    </p>
-                  </div>
-                  <Link
-                    href={`/admin/ujian/${exam.id}`}
-                    className="shrink-0 rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-brand transition hover:border-brand hover:bg-brand-soft">
-                    Kelola
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-line bg-page/80 text-xs font-semibold tracking-wide text-ink-muted uppercase">
-                  <th className="px-5 py-3.5">Ujian</th>
-                  <th className="px-4 py-3.5">Tanggal</th>
-                  <th className="px-4 py-3.5">Durasi</th>
-                  <th className="px-4 py-3.5">Soal</th>
-                  <th className="px-4 py-3.5">Sesi</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/70">
-                {filtered.map((exam) => (
-                  <tr key={exam.id} className="transition-colors hover:bg-brand-soft/25">
-                    <td className="px-5 py-3.5">
-                      <Link href={`/admin/ujian/${exam.id}`} className="font-semibold text-ink hover:text-brand">
-                        {exam.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3.5 text-ink">{exam.examDateLabel}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="font-digits tabular-nums text-ink">{exam.durationMinutes}</span>
-                      <span className="text-ink-muted"> mnt</span>
-                    </td>
-                    <td className="px-4 py-3.5 font-digits tabular-nums text-ink">{exam.questionCount}</td>
-                    <td className="px-4 py-3.5 font-digits tabular-nums text-ink">{exam.sessionCount}</td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge status={exam.status} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <Link
-                        href={`/admin/ujian/${exam.id}`}
-                        className="inline-flex rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand">
-                        Kelola
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <DataTable
+          headers={["Ujian", "Tingkat", "Tanggal", "Durasi", "Soal", "Sesi", "Status", "Aksi"]}
+          rows={filtered.map((exam) => [
+            <Link href={`/admin/ujian/${exam.id}`} className="font-semibold text-ink hover:text-brand">
+              {exam.name}
+            </Link>,
+            <span className="text-ink">{exam.competitionLevel}</span>,
+            <span className="text-ink">{exam.examDateLabel}</span>,
+            <span className="font-digits tabular-nums text-ink">{exam.durationMinutes} menit</span>,
+            <span className="font-digits tabular-nums text-ink">{exam.questionCount}</span>,
+            <span className="font-digits tabular-nums text-ink">{exam.sessionCount}</span>,
+            <StatusBadge status={exam.status} />,
+            <div className="text-right">
+              <Link
+                href={`/admin/ujian/${exam.id}`}
+                className="inline-flex rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand">
+                Kelola
+              </Link>
+            </div>,
+          ])}
+          itemsPerPage={5}
+          pageSizeOptions={[5, 10, 25, 50]}
+          searchable={false}
+        />
       )}
     </section>
   );

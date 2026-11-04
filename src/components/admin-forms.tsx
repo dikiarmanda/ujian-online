@@ -603,6 +603,7 @@ export function ExamForm({
   examId?: number;
   initialData?: {
     competitionId: number;
+    competitionLevel: string;
     attendanceOpensAt: string;
     startsAt: string;
     durationMinutes: number;
@@ -615,6 +616,7 @@ export function ExamForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [competitionId, setCompetitionId] = useState<number | "">(initialData?.competitionId ?? "");
+  const [competitionLevel, setCompetitionLevel] = useState<string>(initialData?.competitionLevel ?? "KABUPATEN");
   const formRef = useRef<HTMLFormElement>(null);
   const selected = competitions.find((row) => row.id === competitionId);
   const groups = selected?.jenjangGroups?.length ? selected.jenjangGroups : [];
@@ -798,6 +800,7 @@ export function ExamForm({
         const payload = {
           id: examId,
           competitionId: compId,
+          competitionLevel: form.get("competitionLevel"),
           attendanceOpensAt: form.get("attendanceOpensAt"),
           startsAt: form.get("startsAt"),
           durationMinutes: Number(form.get("durationMinutes")),
@@ -845,6 +848,23 @@ export function ExamForm({
           </select>
         </div>
       ) : null}
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="exam-competition-level" className="text-sm font-semibold text-ink">
+          Tingkat Lomba
+        </label>
+        <p className="text-xs text-ink-muted">Tingkat lomba untuk pengelompokan dan pelaporan.</p>
+        <select
+          id="exam-competition-level"
+          name="competitionLevel"
+          required
+          defaultValue={competitionLevel}
+          className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
+          <option value="KABUPATEN">Kabupaten</option>
+          <option value="PROVINSI">Provinsi</option>
+          <option value="NASIONAL">Nasional</option>
+        </select>
+      </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">

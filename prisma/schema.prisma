@@ -80,6 +80,12 @@ enum ViolationType {
   RIGHT_CLICK
 }
 
+enum CompetitionLevel {
+  KABUPATEN
+  PROVINSI
+  NASIONAL
+}
+
 // -----------------------------------------------------------------------------
 // Pengguna. Password tidak disimpan di sini; login peserta dan admin dicek ke OMBN.
 // -----------------------------------------------------------------------------
@@ -275,23 +281,24 @@ model QuestionPackageItem {
 // -----------------------------------------------------------------------------
 
 model Exam {
-  id                Int        @id @default(autoincrement())
-  name              String     @db.VarChar(200) // snapshot dari competitions.nama_lomba
+  id                Int              @id @default(autoincrement())
+  name              String           @db.VarChar(200) // snapshot dari competitions.nama_lomba
   competitionId     Int // referensi ke ombn.competitions.id (tanpa FK); satu lomba boleh beberapa ujian
+  competitionLevel  CompetitionLevel @default(KABUPATEN)
   attendanceOpensAt DateTime
   startsAt          DateTime // jadwal rencana (informasi)
   durationMinutes   Int
-  shuffleQuestions  Boolean    @default(true)
-  shuffleOptions    Boolean    @default(true)
-  status            ExamStatus @default(DRAFT)
-  phase             ExamPhase  @default(NOT_STARTED)
+  shuffleQuestions  Boolean          @default(true)
+  shuffleOptions    Boolean          @default(true)
+  status            ExamStatus       @default(DRAFT)
+  phase             ExamPhase        @default(NOT_STARTED)
   startedAt         DateTime?
   startedById       Int?
   endedAt           DateTime?
   endedById         Int?
   createdById       Int
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
   deletedAt         DateTime?
 
   createdBy  User          @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -302,6 +309,7 @@ model Exam {
   apiClients ApiClientExam[]
 
   @@index([competitionId])
+  @@index([competitionLevel])
   @@index([status])
   @@index([phase])
   @@index([startsAt])

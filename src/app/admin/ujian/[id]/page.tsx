@@ -80,7 +80,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
               </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{exam.name}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">
-                Competition #{exam.competitionId} · {exam.durationMinutes} menit · absensi {formatJakarta(exam.attendanceOpensAt)}
+                Tingkat {exam.competitionLevel} · {exam.durationMinutes} menit · absensi {formatJakarta(exam.attendanceOpensAt)}
               </p>
               <p className="mt-1 text-sm text-ink-muted">Rencana {formatJakarta(exam.startsAt)}</p>
             </div>

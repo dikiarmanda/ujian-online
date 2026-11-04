@@ -50,7 +50,7 @@ export default async function UjianPage() {
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
         <header className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-sm text-ink-muted">Jadwal & paket per jenjang</p>
+            <p className="text-sm text-ink-muted">Jadwal ujian & paket per jenjang</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Jadwal Ujian</h1>
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
               Buat ujian dari lomba OMBN, atur paket per jenjang, lalu juri memberi aba-aba mulai.
@@ -75,6 +75,7 @@ export default async function UjianPage() {
             id: exam.id,
             name: exam.name,
             examDateLabel: formatJakarta(exam.startsAt),
+            competitionLevel: exam.competitionLevel,
             durationMinutes: exam.durationMinutes,
             questionCount: exam._count.packages,
             sessionCount: exam._count.attempts,

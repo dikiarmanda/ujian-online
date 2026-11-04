@@ -12,6 +12,7 @@ const packageByJenjangSchema = z.record(z.string(), z.number().int().positive())
 
 const createExamSchema = z.object({
   competitionId: z.number().int().positive(),
+  competitionLevel: z.enum(["KABUPATEN", "PROVINSI", "NASIONAL"]).default("KABUPATEN"),
   attendanceOpensAt: z.string(),
   startsAt: z.string(),
   durationMinutes: z.number().int().positive().max(600),
@@ -22,6 +23,7 @@ const createExamSchema = z.object({
 });
 
 const updateExamSchema = z.object({
+  competitionLevel: z.enum(["KABUPATEN", "PROVINSI", "NASIONAL"]).optional(),
   attendanceOpensAt: z.string().optional(),
   startsAt: z.string().optional(),
   durationMinutes: z.number().int().positive().max(600).optional(),
@@ -118,6 +120,7 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
         data: {
           name: competition.name,
           competitionId: competition.id,
+          competitionLevel: parsed.data.competitionLevel,
           attendanceOpensAt: schedule.attendanceOpensAt,
           startsAt: schedule.startsAt,
           durationMinutes: parsed.data.durationMinutes,
@@ -204,6 +207,7 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
     await tx.exam.update({
       where: { id },
       data: {
+        competitionLevel: parsed.data.competitionLevel ?? existing.competitionLevel,
         attendanceOpensAt: schedule.attendanceOpensAt,
         startsAt: schedule.startsAt,
         durationMinutes: parsed.data.durationMinutes ?? existing.durationMinutes,
