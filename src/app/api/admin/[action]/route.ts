@@ -30,7 +30,8 @@ export async function POST(req: Request, ctx: Ctx) {
       return json({ id: log.id, successCount: log.successCount, failedCount: log.failedCount });
     }
     if (action === "sinkron-hasil-ujian") {
-      const log = await syncExamResultsToOmbn(user.userId, ip);
+      const body = await readBody(req, z.object({ examId: z.number().int().positive() }));
+      const log = await syncExamResultsToOmbn(body.examId, user.userId, ip);
       return json({ id: log.id, successCount: log.successCount, failedCount: log.failedCount });
     }
     if (action === "sesi-login") {

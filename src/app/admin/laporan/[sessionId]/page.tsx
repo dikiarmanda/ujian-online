@@ -9,6 +9,7 @@ import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
 import { sessionReport } from "@/server/reports";
 import { RankButton } from "@/components/rank-button";
+import { SyncButton } from "@/components/sync-button";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
   const inProgress = report.rows.filter((row) => row.status === "Mengerjakan").length;
   const pendingGrading = report.rows.filter((row) => row.gradingStatus === "NOT_GRADED" || row.gradingStatus === "PARTIAL").length;
   const totalViolations = report.rows.reduce((sum, row) => sum + row.violations, 0);
+  const hasRank = report.rows.some((row) => row.rank != null);
 
   return (
     <AdminShell name={user.name} current="/admin/laporan">
@@ -74,24 +76,27 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <p className="mt-1.5 text-sm text-ink-muted">
                 Fase {report.phase} · {formatJakarta(report.startsAt)}
               </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/admin/ujian/${report.examId}`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                  Kelola ujian
+                </Link>
+                <a
+                  href={`/api/admin/laporan/${sessionId}/excel`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                  Unduh Excel
+                </a>
+                <a
+                  href={`/api/admin/laporan/${sessionId}/pdf`}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
+                  Unduh PDF
+                </a>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/admin/ujian/${report.examId}`}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
-                Kelola ujian
-              </Link>
-              <a
-                href={`/api/admin/laporan/${sessionId}/excel`}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
-                Unduh Excel
-              </a>
-              <a
-                href={`/api/admin/laporan/${sessionId}/pdf`}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
-                Unduh PDF
-              </a>
-              <RankButton examId={id} pendingGrading={pendingGrading} />
+              <RankButton examId={id} pendingGrading={pendingGrading} phase={report.phase} />
+              <SyncButton examId={id} hasRank={hasRank} />
             </div>
           </div>
         </header>

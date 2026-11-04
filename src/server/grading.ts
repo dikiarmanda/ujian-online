@@ -147,13 +147,16 @@ export async function releaseLock(answerId: number, actorId: number, graderId?: 
   });
 }
 
-export async function listGradingQueue(graderId: number) {
+export async function listGradingQueue(graderId: number, aksesLomba?: number[]) {
   const lockSeconds = env().gradingLockSeconds;
   const cutoff = new Date(Date.now() - lockSeconds * 1000);
   return prisma.attemptAnswer.findMany({
     where: {
       question: { type: "ESSAY" },
-      attempt: { status: { in: ["SUBMITTED", "TIME_EXPIRED"] } },
+      attempt: {
+        status: { in: ["SUBMITTED", "TIME_EXPIRED"] },
+        ...(aksesLomba && aksesLomba.length > 0 ? { exam: { competitionId: { in: aksesLomba } } } : {}),
+      },
       OR: [{ gradingState: "PENDING" }, { gradingState: "LOCKED", lockedById: graderId }, { gradingState: "LOCKED", lockedAt: { lt: cutoff } }],
     },
     include: {

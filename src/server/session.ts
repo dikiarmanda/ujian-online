@@ -14,6 +14,8 @@ export type SessionRecord = {
   /** Hanya untuk peserta: competition ombn + kelompok jenjang paket. */
   competitionId?: number | null;
   jenjangGroup?: JenjangGroup | null;
+  /** Hanya untuk admin/petugas: array id competition yang bisa diakses */
+  aksesLomba?: number[] | null;
 };
 
 function sessionKey(sid: string): string {

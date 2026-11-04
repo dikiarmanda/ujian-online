@@ -29,6 +29,7 @@ type Account = {
   nisn: string | null;
   competitionId: number | null;
   jenjangGroup: JenjangGroup | null;
+  aksesLomba: number[] | null;
 };
 
 function failureKey(kind: "id" | "ip", value: string): string {
@@ -107,6 +108,7 @@ async function findPeserta(identity: string, password: string): Promise<Account>
     nisn: row.nisn?.trim() || null,
     competitionId: Number(row.competition_id),
     jenjangGroup,
+    aksesLomba: null,
   };
 }
 
@@ -114,7 +116,18 @@ const DUMMY_PASSWORD_HASH = "$2b$10$1Q69Iil8ANk9qyR7Lpm8rOyPlFKhvhQMldijT3ebtaqX
 
 async function findAdmin(identity: string, password: string): Promise<Account> {
   console.log("[LOGIN] Finding admin - Identity:", identity);
-  const row = await ombn.admins.findUnique({ where: { email: identity } });
+  const row = await ombn.admins.findUnique({
+    where: { email: identity },
+    select: {
+      id: true,
+      nama_lengkap: true,
+      email: true,
+      password_hash: true,
+      role: true,
+      status: true,
+      akses_lomba: true,
+    },
+  });
   console.log("[LOGIN] Admin found:", !!row, "Status:", row?.status);
   const role = row ? mapOmbnAdminRole(row.role) : null;
   console.log("[LOGIN] Mapped role:", role, "Original role:", row?.role);
@@ -130,6 +143,19 @@ async function findAdmin(identity: string, password: string): Promise<Account> {
     console.log("[LOGIN] Admin login failed - Row exists:", !!row, "Status:", row?.status, "Role:", role, "Matched:", matched);
     throw genericLoginError();
   }
+
+  // Parse akses_lomba JSON array
+  let aksesLomba: number[] | null = null;
+  if (row.akses_lomba) {
+    try {
+      const parsed = Array.isArray(row.akses_lomba) ? row.akses_lomba : JSON.parse(JSON.stringify(row.akses_lomba));
+      aksesLomba = parsed.map(Number).filter((id: any) => Number.isInteger(id));
+      console.log("[LOGIN] Akses lomba:", aksesLomba);
+    } catch (error) {
+      console.log("[LOGIN] Failed to parse akses_lomba:", error);
+    }
+  }
+
   console.log("[LOGIN] Admin login success - Name:", row.nama_lengkap, "Role:", role);
   return {
     externalId: `ombn-admin:${row.id.toString()}`,
@@ -140,6 +166,7 @@ async function findAdmin(identity: string, password: string): Promise<Account> {
     nisn: null,
     competitionId: null,
     jenjangGroup: null,
+    aksesLomba,
   };
 }
 
@@ -184,6 +211,7 @@ async function findMockAccount(identity: string): Promise<Account | null> {
       nisn: null,
       competitionId: null,
       jenjangGroup: null,
+      aksesLomba: null,
     };
   }
   if (key === "petugas") {
@@ -196,6 +224,7 @@ async function findMockAccount(identity: string): Promise<Account | null> {
       nisn: null,
       competitionId: null,
       jenjangGroup: null,
+      aksesLomba: null,
     };
   }
   if (key === "peserta" || key === "beban") {
@@ -208,6 +237,7 @@ async function findMockAccount(identity: string): Promise<Account | null> {
       nisn: null,
       competitionId: 1,
       jenjangGroup: "SMP",
+      aksesLomba: null,
     };
   }
   return null;
@@ -267,6 +297,7 @@ export async function loginUser(input: unknown, ipAddress: string) {
     name: user.name,
     competitionId: account.competitionId,
     jenjangGroup: account.jenjangGroup,
+    aksesLomba: account.aksesLomba,
   });
   console.log("[LOGIN] Session created - Session ID:", sid, "User ID:", user.id);
   await writeAudit({

@@ -123,7 +123,7 @@ export function isUniqueConflict(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && (error as Prisma.PrismaClientKnownRequestError).code === "P2002";
 }
 
-export async function syncExamResultsToOmbn(triggeredById: number | null, ipAddress?: string) {
+export async function syncExamResultsToOmbn(examId: number, triggeredById: number | null, ipAddress?: string) {
   const log = await prisma.syncLog.create({ data: { triggeredById } });
   let successCount = 0;
   let failedCount = 0;
@@ -132,6 +132,7 @@ export async function syncExamResultsToOmbn(triggeredById: number | null, ipAddr
   try {
     const examAttempts = await prisma.examAttempt.findMany({
       where: {
+        examId,
         totalScore: { not: null },
         rank: { not: null },
       },
