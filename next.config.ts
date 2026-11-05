@@ -14,7 +14,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // output: "standalone",
   agentRules: false,
   allowedDevOrigins: ["127.0.0.1", "localhost", "192.168.19.251", "ujian.dikdasmen.id"],
   serverExternalPackages: ["@prisma/client", "@prisma/adapter-mariadb", "mariadb", "bullmq", "ioredis", "pdfkit", "bcrypt"],

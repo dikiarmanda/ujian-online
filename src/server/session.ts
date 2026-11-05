@@ -65,12 +65,16 @@ export async function resetUserSession(userId: number): Promise<void> {
 }
 
 export function sessionCookie(sid: string): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  // Use Secure flag if explicitly set via env var, or if NODE_ENV is production
+  // This allows production deployments behind proxies to disable Secure flag if needed
+  const useSecure = process.env.COOKIE_SECURE === "true" || (process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false");
+  const secure = useSecure ? "; Secure" : "";
   return `sid=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${TTL_SECONDS}${secure}`;
 }
 
 export function clearSessionCookie(): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const useSecure = process.env.COOKIE_SECURE === "true" || (process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false");
+  const secure = useSecure ? "; Secure" : "";
   return `sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure}`;
 }
 
