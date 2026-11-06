@@ -13,7 +13,7 @@ export type PaketData = {
 };
 
 export function PaketTable({ packages }: { packages: PaketData[] }) {
-  const headers = ["Nama paket", "Deskripsi", "Jumlah soal", "Ujian", "Status", "Aksi"];
+  const headers = ["Nama paket", "Deskripsi", "Jumlah soal", "Jadwal ujian", "Status", "Aksi"];
 
   const rows = packages.map((pack) => [
     <Link href={`/admin/paket/${String(pack.id)}`} className="font-semibold text-ink hover:text-brand">

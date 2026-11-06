@@ -1419,7 +1419,7 @@ export function QuestionPackageForm({
   );
 }
 
-export function DeletePackageButton({ packageId }: { packageId: number }) {
+export function DeletePackageButton({ packageId, usedInExams }: { packageId: number; usedInExams: number }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   return (
@@ -1429,7 +1429,11 @@ export function DeletePackageButton({ packageId }: { packageId: number }) {
         disabled={pending}
         className="inline-flex min-h-10 items-center justify-center rounded-xl border border-alert/40 px-4 text-sm font-semibold text-alert transition hover:bg-alert/5 disabled:opacity-60"
         onClick={() => {
-          if (!window.confirm("Hapus paket ini?")) return;
+          let message = "Hapus paket ini?";
+          if (usedInExams > 0) {
+            message = `Paket ini dipakai di ${usedInExams} jadwal ujian. Hapus tetap? Ujian yang sudah dibuat tidak akan terpengaruh.`;
+          }
+          if (!window.confirm(message)) return;
           setPending(true);
           setError(null);
           void api("/api/admin/hapus-paket-soal", { body: { id: packageId } })

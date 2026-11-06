@@ -101,15 +101,15 @@ export async function updateQuestionPackage(id: number, input: unknown, actorId:
 
 export async function deleteQuestionPackage(id: number, actorId: number, ipAddress?: string) {
   const used = await prisma.examPackage.count({ where: { packageId: id } });
-  if (used) {
-    throw new AppError("Paket sudah dipakai ujian. Nonaktifkan saja bila tidak ingin dipakai lagi.", 409);
-  }
+  // Paket boleh dihapus meski dipakai ujian, karena soal sudah disalin ke exam_package_questions
+  // Paket yang sudah dihapus tidak bisa dipilih untuk ujian baru
   await prisma.questionPackage.update({ where: { id }, data: { deletedAt: new Date() } });
   await writeAudit({
     userId: actorId,
     action: "DELETE_PACKAGE",
     entityType: "question_package",
     entityId: id,
+    meta: { usedInExams: used },
     ipAddress,
   });
 }

@@ -116,13 +116,13 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                   <span className="font-semibold text-ink">
                     {pack.jenjang} · {pack.questionPackage.name}
                   </span>
-                  <Link href={`/admin/paket/${pack.examId}`} className="inline-flex items-center rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-brand hover:border-brand hover:text-brand transition">
+                  <Link href={`/admin/paket/${pack.questionPackage.id}`} className="inline-flex items-center rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-brand hover:border-brand hover:text-brand transition">
                     <span className="inline-flex items-center gap-1">
                       <FontAwesomeIcon icon={faPenToSquare} className="text-[15px]" />
                       Edit
                     </span>
                   </Link>
-                  <Link href={`/admin/paket/${pack.examId}/preview`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-paper px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
+                  <Link href={`/admin/paket/${pack.questionPackage.id}/preview`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-paper px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
                     <span className="inline-flex items-center gap-1">
                       <FontAwesomeIcon icon={faEye} className="text-[15px]" />
                       Preview

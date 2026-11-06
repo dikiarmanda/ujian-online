@@ -89,7 +89,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
                 </span>
                 {usedInExams > 0 ? (
                   <span className="rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">
-                    Dipakai di {usedInExams} ujian
+                    Dipakai di {usedInExams} jadwal ujian
                   </span>
                 ) : null}
               </div>
@@ -104,13 +104,13 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
                   Preview
                 </Link>
               ) : null}
-              {usedInExams === 0 ? <DeletePackageButton packageId={pack.id} /> : null}
+              <DeletePackageButton packageId={pack.id} usedInExams={usedInExams} />
             </div>
           </div>
 
           {usedInExams > 0 ? (
-            <p className="rounded-xl border border-mark-edge/25 bg-mark/40 px-4 py-3 text-sm text-mark-ink">
-              Paket ini sudah dipakai ujian. Hapus tidak tersedia — nonaktifkan saja bila tidak ingin dipilih lagi.
+            <p className="rounded-xl border border-page/50 bg-page py-3 text-sm text-ink-muted">
+              Paket ini dipakai di {usedInExams} jadwal ujian. Paket bisa dipakai di banyak jadwal ujian.
               Perubahan isi paket tidak otomatis mengubah ujian yang sudah dibuat.
             </p>
           ) : null}

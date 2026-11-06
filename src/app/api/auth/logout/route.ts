@@ -1,6 +1,7 @@
 import { writeAudit } from "@/server/audit";
 import { assertMutationOrigin, json, requestIp, withErrors } from "@/server/http";
-import { clearSessionCookie, destroySession, readCookie, readSession } from "@/server/session";
+import { destroySession, readCookie, readSession } from "@/server/session";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,18 @@ export async function POST(req: Request) {
         });
       }
     }
-    return json({ ok: true }, 200, { "set-cookie": clearSessionCookie() });
+
+    const useSecure = process.env.COOKIE_SECURE === "true" || (process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false");
+
+    const response = NextResponse.json({ ok: true }, { status: 200 });
+    response.cookies.set("sid", "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: useSecure,
+      path: "/",
+      maxAge: 0,
+    });
+
+    return response;
   });
 }

@@ -69,6 +69,15 @@ async function clearLoginFailures(identity: string, ipAddress: string): Promise<
 
 async function findPeserta(identity: string, password: string): Promise<Account> {
   console.log("[LOGIN] Finding peserta - Identity:", identity);
+  console.log("[LOGIN] Testing OMBN database connection...");
+  try {
+    await ombn.$queryRaw`SELECT 1`;
+    console.log("[LOGIN] OMBN database connection OK");
+  } catch (dbError) {
+    console.log("[LOGIN] OMBN database connection FAILED:", dbError);
+    throw dbError;
+  }
+
   const row = await ombn.lomba_peserta.findUnique({
     where: { nomor_peserta: identity },
     select: {
@@ -116,6 +125,15 @@ const DUMMY_PASSWORD_HASH = "$2b$10$1Q69Iil8ANk9qyR7Lpm8rOyPlFKhvhQMldijT3ebtaqX
 
 async function findAdmin(identity: string, password: string): Promise<Account> {
   console.log("[LOGIN] Finding admin - Identity:", identity);
+  console.log("[LOGIN] Testing OMBN database connection...");
+  try {
+    await ombn.$queryRaw`SELECT 1`;
+    console.log("[LOGIN] OMBN database connection OK");
+  } catch (dbError) {
+    console.log("[LOGIN] OMBN database connection FAILED:", dbError);
+    throw dbError;
+  }
+
   const row = await ombn.admins.findUnique({
     where: { email: identity },
     select: {
@@ -253,6 +271,17 @@ export async function loginUser(input: unknown, ipAddress: string) {
   const identity = parsed.data.identity;
   const password = parsed.data.password;
   console.log("[LOGIN] Input validated - Identity:", identity, "IsEmail:", identity.includes("@"));
+
+  // Test OMBN database connection early
+  console.log("[LOGIN] Testing OMBN database connection before login...");
+  try {
+    await ombn.$queryRaw`SELECT 1`;
+    console.log("[LOGIN] OMBN database connection OK");
+  } catch (dbError) {
+    console.log("[LOGIN] OMBN database connection FAILED:", dbError);
+    throw dbError;
+  }
+
   await assertLoginAllowed(identity.toLowerCase(), ipAddress);
   console.log("[LOGIN] Login allowed - Not locked");
   let account: Account;
@@ -282,7 +311,7 @@ export async function loginUser(input: unknown, ipAddress: string) {
       console.log("[LOGIN] Error - Identity:", identity, "IP:", ipAddress, "Error:", error.message, "Status:", error.status);
       throw error;
     }
-    console.log("[LOGIN] Origin Down - Identity:", identity, "IP:", ipAddress);
+    console.log("[LOGIN] Origin Down - Identity:", identity, "IP:", ipAddress, "Error:", error);
     throw new OriginDownError();
   }
   await clearLoginFailures(identity.toLowerCase(), ipAddress);
