@@ -5,6 +5,8 @@ import { ExamForm } from "@/components/admin-forms";
 import { listAvailableCompetitions } from "@/server/competitions";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +91,7 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
         <header className="flex flex-col gap-5">
           <Link href={`/admin/ujian/${exam.id}`} className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+            <FontAwesomeIcon icon={faArrowLeft} className="size-3.5" />
             Kembali ke detail ujian
           </Link>
           <div>

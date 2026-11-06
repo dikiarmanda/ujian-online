@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
-import { ExamControlButtons } from "@/components/admin-forms";
+import { ExamControlButtons, DeleteExamButton, DeletePackageButton } from "@/components/admin-forms";
 import { formatJakarta } from "@/lib/format";
 import { getExamParticipantCounts } from "@/server/exams";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faEye, faPenToSquare } from "@fortawesome/free-solid-svg-icons";
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -57,7 +57,17 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
     },
   });
   if (!exam) notFound();
-  console.log(exam.packages);
+
+  // Get usage count for each package
+  const packageUsage = await Promise.all(
+    exam.packages.map(async (pack) => {
+      const usedInExams = await prisma.examPackage.count({
+        where: { packageId: pack.packageId },
+      });
+      return { packageId: pack.packageId, usedInExams };
+    })
+  );
+  const packageUsageMap = new Map(packageUsage.map((p) => [p.packageId, p.usedInExams]));
   const counts = await getExamParticipantCounts(exam.id);
   const status = statusMeta[exam.status];
   const phase = phaseMeta[exam.phase];
@@ -68,6 +78,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
         <header className="flex flex-col gap-5">
           {user.role === "ADMIN" ? (
             <Link href="/admin/ujian" className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+              <FontAwesomeIcon icon={faArrowLeft} className="size-3.5" />
               Kembali ke daftar ujian
             </Link>
           ) : null}
@@ -84,10 +95,13 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
               </p>
               <p className="mt-1 text-sm text-ink-muted">Rencana {formatJakarta(exam.startsAt)}</p>
             </div>
-            {user.role === "ADMIN" && exam.phase === "NOT_STARTED" ? (
-              <Link href={`/admin/ujian/${exam.id}/edit`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
-                Edit ujian
-              </Link>
+            {user.role === "ADMIN" ? (
+              <div className="flex gap-2">
+                <Link href={`/admin/ujian/${exam.id}/edit`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                  Edit ujian
+                </Link>
+                <DeleteExamButton examId={exam.id} />
+              </div>
             ) : null}
           </div>
         </header>
@@ -128,6 +142,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                       Preview
                     </span>
                   </Link>
+                  <DeletePackageButton packageId={pack.questionPackage.id} usedInExams={packageUsageMap.get(pack.questionPackage.id) ?? 0} />
                 </div>
                 <p className="mt-1 text-xs text-ink-muted">{pack.questions.length} soal (snapshot)</p>
                 <ol className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

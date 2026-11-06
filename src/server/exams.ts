@@ -332,11 +332,8 @@ export async function getExamParticipantCounts(examId: number) {
 export async function deleteExam(id: number, actorId: number, ipAddress?: string) {
   const exam = await prisma.exam.findUnique({ where: { id } });
   if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
-  if (exam.phase === "RUNNING" || exam.phase === "ENDED") {
-    throw new AppError("Ujian yang sedang/sudah berjalan tidak dapat dihapus.", 409);
-  }
-  if (exam.status === "PUBLISHED") {
-    throw new AppError("Ujian yang sudah diterbitkan tidak dapat dihapus. Arsipkan saja.", 409);
+  if (exam.phase === "RUNNING") {
+    throw new AppError("Ujian yang sedang berjalan tidak dapat dihapus.", 409);
   }
   await prisma.exam.update({ where: { id }, data: { deletedAt: new Date() } });
   await writeAudit({ userId: actorId, action: "DELETE_EXAM", entityType: "exam", entityId: id, ipAddress });
