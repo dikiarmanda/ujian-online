@@ -13,7 +13,7 @@ export default async function UjianPesertaPage({ params }: { params: Promise<{ e
   const examId = Number(raw);
   if (!Number.isFinite(examId)) notFound();
 
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam || exam.status !== "PUBLISHED") notFound();
   if (user.competitionId && exam.competitionId !== user.competitionId) notFound();
 

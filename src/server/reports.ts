@@ -3,7 +3,7 @@ import { AppError } from "./errors";
 
 export async function examReport(examId: number) {
   const exam = await prisma.exam.findUnique({
-    where: { id: examId },
+    where: { id: examId, deletedAt: null },
     include: {
       packages: {
         include: { questions: { include: { question: true }, orderBy: { sortOrder: "asc" } } },

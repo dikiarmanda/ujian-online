@@ -61,7 +61,7 @@ export default async function PesertaHome() {
   }
 
   const exams = await prisma.exam.findMany({
-    where: { competitionId: user.competitionId, phase: { not: ExamPhase.ENDED } },
+    where: { competitionId: user.competitionId, phase: { not: ExamPhase.ENDED }, deletedAt: null },
     orderBy: { startsAt: "asc" },
     include: {
       attempts: { where: { userId: user.userId }, take: 1 },

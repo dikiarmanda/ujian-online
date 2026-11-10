@@ -102,6 +102,7 @@ export default async function AdminHome() {
       include: {
         _count: { select: { attempts: true, packages: true } },
       },
+      where: { deletedAt: null },
       orderBy: [{ startsAt: "desc" }],
       take: 8,
     }),

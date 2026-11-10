@@ -56,6 +56,7 @@ export default async function PaketPreviewPage() {
   const exams = await prisma.exam.findMany({
     where: {
       status: "PUBLISHED",
+      deletedAt: null,
       ...(aksesLomba.length > 0 ? { competitionId: { in: aksesLomba } } : {}),
     },
     orderBy: { startsAt: "desc" },

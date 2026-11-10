@@ -115,7 +115,7 @@ export async function attend(
   ipAddress: string,
   userAgent: string | null,
 ) {
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
   if (exam.phase === "ENDED") throw new AppError("Ujian sudah ditutup.", 409);
   const now = new Date();
@@ -144,7 +144,7 @@ export async function attend(
 
 /** Peserta pertama kali mengambil soal: set startedAt/expiresAt atomik & idempoten. */
 export async function startAttempt(examId: number, userId: number, jenjangGroup: JenjangGroup, ipAddress?: string) {
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
 
   const state = await readExamState(examId);

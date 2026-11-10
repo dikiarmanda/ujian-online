@@ -83,7 +83,7 @@ export default async function PackagePreviewPage({ params }: { params: Promise<{
   }
 
   const pack = await prisma.questionPackage.findUnique({
-    where: { id: packageId },
+    where: { id: packageId, deletedAt: null },
     include: {
       items: {
         orderBy: { sortOrder: "asc" },

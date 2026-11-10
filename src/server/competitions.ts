@@ -76,7 +76,7 @@ export async function getCompetitionById(id: number): Promise<{ id: number; name
 }
 
 export async function syncExamNameFromCompetition(examId: number): Promise<string> {
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
   const competition = await getCompetitionById(exam.competitionId);
   await prisma.exam.update({ where: { id: examId }, data: { name: competition.name } });

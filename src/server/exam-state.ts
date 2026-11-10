@@ -23,7 +23,7 @@ export async function readExamState(examId: number): Promise<ExamStateCache | nu
   const cached = await redis.get(stateKey(examId));
   if (cached) return JSON.parse(cached) as ExamStateCache;
   const exam = await prisma.exam.findUnique({
-    where: { id: examId },
+    where: { id: examId, deletedAt: null },
     select: { phase: true, startedAt: true },
   });
   if (!exam) return null;

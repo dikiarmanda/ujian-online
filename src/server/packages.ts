@@ -62,7 +62,7 @@ export async function createQuestionPackage(input: unknown, actorId: number, ipA
 }
 
 export async function updateQuestionPackage(id: number, input: unknown, actorId: number, ipAddress?: string) {
-  const existing = await prisma.questionPackage.findUnique({ where: { id } });
+  const existing = await prisma.questionPackage.findUnique({ where: { id, deletedAt: null } });
   if (!existing) throw new AppError("Paket tidak ditemukan.", 404);
   const parsed = packageSchema.safeParse(input);
   if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Paket tidak valid.", 400);

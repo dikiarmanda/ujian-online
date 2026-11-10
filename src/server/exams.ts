@@ -156,7 +156,7 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
   const parsed = updateExamSchema.safeParse(input);
   if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Ujian tidak valid.", 400);
   const existing = await prisma.exam.findUnique({
-    where: { id },
+    where: { id, deletedAt: null },
     include: { packages: true },
   });
   if (!existing) throw new AppError("Ujian tidak ditemukan.", 404);
@@ -241,7 +241,7 @@ function formatJakartaInput(value: Date): string {
 
 export async function startExam(examId: number, actorId: number, ipAddress?: string) {
   const exam = await prisma.exam.findUnique({
-    where: { id: examId },
+    where: { id: examId, deletedAt: null },
     include: { packages: true },
   });
   if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
@@ -275,7 +275,7 @@ export async function startExam(examId: number, actorId: number, ipAddress?: str
 }
 
 export async function endExam(examId: number, actorId: number, ipAddress?: string) {
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
   if (exam.status !== "PUBLISHED") throw new AppError("Hanya ujian terbit yang dapat diakhiri.", 409);
   if (exam.phase !== "RUNNING") throw new AppError("Ujian tidak sedang berjalan.", 409);
@@ -330,7 +330,7 @@ export async function getExamParticipantCounts(examId: number) {
 }
 
 export async function deleteExam(id: number, actorId: number, ipAddress?: string) {
-  const exam = await prisma.exam.findUnique({ where: { id } });
+  const exam = await prisma.exam.findUnique({ where: { id, deletedAt: null } });
   if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
   if (exam.phase === "RUNNING") {
     throw new AppError("Ujian yang sedang berjalan tidak dapat dihapus.", 409);

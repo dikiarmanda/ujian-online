@@ -30,6 +30,7 @@ export default async function LaporanIndexPage() {
 
   const [exams, submittedCount] = await Promise.all([
     prisma.exam.findMany({
+      where: { deletedAt: null },
       include: {
         _count: { select: { attempts: true } },
       },
