@@ -1,9 +1,18 @@
 "use server";
 
-import { z } from "zod";
-import { requireApiUser, requestIp, withErrors } from "@/server/http";
+import { cookies } from "next/headers";
 import { deleteQuestion, toggleQuestionStatus } from "@/server/questions";
 import { AppError } from "@/server/errors";
+import { readSession, type SessionRecord } from "@/server/session";
+
+async function requireActionUser(): Promise<SessionRecord> {
+  const jar = await cookies();
+  const sid = jar.get("sid")?.value;
+  if (!sid) throw new AppError("Sesi tidak ditemukan. Masuk kembali.", 401);
+  const session = await readSession(sid);
+  if (!session) throw new AppError("Sesi berakhir. Masuk kembali.", 401);
+  return session;
+}
 
 /**
  * Server Action untuk menonaktifkan soal
@@ -17,10 +26,9 @@ import { AppError } from "@/server/errors";
  * ```
  */
 async function handleDeactivate(formData: FormData) {
-  return withErrors(async () => {
-    const user = await requireApiUser();
+  try {
+    const user = await requireActionUser();
     const questionId = Number(formData.get("questionId"));
-    const ip = requestIp();
 
     if (!questionId || isNaN(questionId)) {
       throw new AppError("ID soal tidak valid.", 400);
@@ -28,10 +36,16 @@ async function handleDeactivate(formData: FormData) {
 
     // toggleQuestionStatus akan memanggil validateDeleteOrDeactivateQuestion
     // secara otomatis jika newStatus = false
-    await toggleQuestionStatus(questionId, user.userId, ip);
+    await toggleQuestionStatus(questionId, user.userId);
 
     return { success: true, message: "Soal berhasil dinonaktifkan." };
-  });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { success: false, error: error.message };
+    }
+    console.error(error);
+    return { success: false, error: "Terjadi kesalahan di server. Coba lagi." };
+  }
 }
 
 /**
@@ -50,10 +64,9 @@ async function handleDeactivate(formData: FormData) {
  * ```
  */
 async function handleDelete(formData: FormData) {
-  return withErrors(async () => {
-    const user = await requireApiUser();
+  try {
+    const user = await requireActionUser();
     const questionId = Number(formData.get("questionId"));
-    const ip = requestIp();
 
     if (!questionId || isNaN(questionId)) {
       throw new AppError("ID soal tidak valid.", 400);
@@ -61,10 +74,16 @@ async function handleDelete(formData: FormData) {
 
     // deleteQuestion akan memanggil validateDeleteOrDeactivateQuestion
     // untuk mencegah penghapusan soal yang sedang dipakai ujian aktif
-    await deleteQuestion(questionId, user.userId, ip);
+    await deleteQuestion(questionId, user.userId);
 
     return { success: true, message: "Soal berhasil dihapus." };
-  });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return { success: false, error: error.message };
+    }
+    console.error(error);
+    return { success: false, error: "Terjadi kesalahan di server. Coba lagi." };
+  }
 }
 
 /**

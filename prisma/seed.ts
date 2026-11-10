@@ -116,7 +116,7 @@ async function main() {
         data: { examId: exam.id, jenjang, packageId: pack.id },
       });
       await prisma.$transaction(async (tx) => {
-        await applyPackageSnapshot(tx, examPack.id, pack!.id);
+        await applyPackageSnapshot(tx, examPack.id, pack!.id, jenjang);
       });
     }
   }
