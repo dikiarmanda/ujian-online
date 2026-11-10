@@ -2,6 +2,7 @@ import { z } from "zod";
 import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
+import { validateScheduleExam, validateUpdatePackage } from "./validation";
 
 const itemSchema = z.object({
   questionId: z.number().int().positive(),
@@ -66,6 +67,10 @@ export async function updateQuestionPackage(id: number, input: unknown, actorId:
   if (!existing) throw new AppError("Paket tidak ditemukan.", 404);
   const parsed = packageSchema.safeParse(input);
   if (!parsed.success) throw new AppError(parsed.error.issues[0]?.message ?? "Paket tidak valid.", 400);
+
+  // Validasi paket tidak sedang dipakai ujian aktif
+  await validateUpdatePackage(id);
+
   await assertActiveQuestions(parsed.data.items.map((item) => item.questionId));
   try {
     await prisma.$transaction(async (tx) => {
@@ -117,7 +122,7 @@ export async function deleteQuestionPackage(id: number, actorId: number, ipAddre
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 /** Salin isi template paket ke exam_package_questions (snapshot bobot). */
-export async function applyPackageSnapshot(tx: Tx, examPackageId: number, packageId: number) {
+export async function applyPackageSnapshot(tx: Tx, examPackageId: number, packageId: number, jenjang: string) {
   const pack = await tx.questionPackage.findUnique({
     where: { id: packageId, deletedAt: null },
     include: {
@@ -126,9 +131,18 @@ export async function applyPackageSnapshot(tx: Tx, examPackageId: number, packag
   });
   if (!pack || !pack.isActive) throw new AppError("Paket soal tidak ditemukan atau tidak aktif.", 404);
   if (pack.items.length === 0) throw new AppError("Paket soal masih kosong.", 400);
+
+  // Validasi soal nonaktif/dihapus menggunakan fungsi validasi terpusat
+  // Catatan: validateScheduleExam tidak bisa dipanggil di dalam transaction karena menggunakan prisma utama
+  // Jadi kita validasi manual di sini untuk kompatibilitas transaction
   if (pack.items.some((item) => !item.question.isActive || item.question.deletedAt !== null)) {
-    throw new AppError("Paket berisi soal yang sudah nonaktif atau dihapus. Perbarui paket dulu.", 409);
+    const invalidCount = pack.items.filter((item) => !item.question.isActive || item.question.deletedAt !== null).length;
+    throw new AppError(
+      `Gagal. Paket soal memiliki ${invalidCount} soal yang sudah dinonaktifkan/dihapus. Harap perbaiki isi paket atau buat paket baru.`,
+      400,
+    );
   }
+
   await tx.examPackageQuestion.deleteMany({ where: { examPackageId } });
   await tx.examPackageQuestion.createMany({
     data: pack.items.map((item) => ({

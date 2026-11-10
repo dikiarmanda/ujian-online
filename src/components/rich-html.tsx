@@ -19,6 +19,12 @@ export default function RichHtml({ html, className, as = "div" }: RichHtmlProps)
     if (!el) return;
     el.innerHTML = html || "";
     hydrateMathInElement(el);
+
+    // Apply max-h 50% to all img tags within the HTML
+    const images = el.querySelectorAll("img");
+    images.forEach((img) => {
+      img.style.setProperty("max-width", "75%", "important");
+    });
   }, [html, as]);
 
   if (as === "span") {

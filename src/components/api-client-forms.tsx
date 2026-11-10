@@ -5,7 +5,11 @@ import { api } from "@/lib/api";
 
 function ErrorText({ error }: { error: string | null }) {
   if (!error) return null;
-  return <p className="text-sm text-alert">{error}</p>;
+  return (
+    <div className="rounded-lg border border-alert-edge bg-alert/10 px-4 py-3">
+      <p className="text-sm font-semibold text-alert">{error}</p>
+    </div>
+  );
 }
 
 export function CreateClientForm({ exams }: { exams: { id: number; name: string }[] }) {

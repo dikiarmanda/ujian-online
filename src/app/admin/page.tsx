@@ -65,7 +65,7 @@ function StatCard({
         </span>
       </div>
       <div className="mt-5">
-        <p className="font-digits text-3xl font-semibold tracking-tight text-ink tabular-nums">{value}</p>
+        <p className="font-digits text-3xl font-semibold tracking-tight text-ink tabular-nums">{value.toLocaleString('id-ID')}</p>
         <p className="mt-1.5 text-sm leading-snug text-ink-muted group-hover:text-ink">{hint}</p>
       </div>
     </Link>
@@ -89,11 +89,11 @@ export default async function AdminHome() {
     pendingGrading,
     sessions,
   ] = await Promise.all([
-    prisma.exam.count(),
-    prisma.exam.count({ where: { status: "PUBLISHED" } }),
-    prisma.exam.count(),
-    prisma.exam.count({ where: { phase: "RUNNING" } }),
-    prisma.exam.count({ where: { phase: "NOT_STARTED", startsAt: { gt: now } } }),
+    prisma.exam.count({ where: { deletedAt: null } }),
+    prisma.exam.count({ where: { status: "PUBLISHED", deletedAt: null } }),
+    prisma.exam.count({ where: { deletedAt: null } }),
+    prisma.exam.count({ where: { phase: "RUNNING", deletedAt: null } }),
+    prisma.exam.count({ where: { phase: "NOT_STARTED", startsAt: { gt: now }, deletedAt: null } }),
     prisma.user.count({ where: { role: "PARTICIPANT" } }),
     prisma.examAttempt.count(),
     prisma.examAttempt.count({ where: { status: { in: ["SUBMITTED", "TIME_EXPIRED"] } } }),
@@ -107,7 +107,7 @@ export default async function AdminHome() {
       take: 8,
     }),
   ]);
-
+  
   const liveSessions = sessions.filter((session) => session.phase === "RUNNING");
   const nextSessions = sessions
     .filter((session) => session.phase === "NOT_STARTED" && session.startsAt > now)

@@ -30,7 +30,11 @@ function previewQuestionText(html: string, max = 50): string {
 
 function ErrorText({ error }: { error: string | null }) {
   if (!error) return null;
-  return <p className="text-sm text-alert">{error}</p>;
+  return (
+    <div className="rounded-lg border border-alert-edge bg-alert/10 px-4 py-3">
+      <p className="text-sm font-semibold text-alert">{error}</p>
+    </div>
+  );
 }
 
 export function SyncButton() {
@@ -114,40 +118,90 @@ export function ToggleQuestionStatusButton({ questionId, isActive, onToggle }: {
   );
 }
 
-export function CategoryForm() {
+type Category = {
+  id: number;
+  name: string;
+  description?: string | null;
+};
+
+export function CategoryForm({ categories }: { categories?: Category[] }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [cleanupPending, setCleanupPending] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+
+  const handleCleanup = async () => {
+    setCleanupPending(true);
+    setCleanupMessage(null);
+    try {
+      const res = await fetch("/api/admin/cleanup-kategori", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-ujian-request": "1" },
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error || "Gagal membersihkan kategori");
+      }
+      if (result.deleted === 0) {
+        setCleanupMessage("Tidak ada kategori yang perlu dibersihkan.");
+      } else {
+        setCleanupMessage(`Berhasil menghapus ${result.deleted} kategori: ${result.names.join(", ")}`);
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    } catch (err) {
+      setCleanupMessage(err instanceof Error ? err.message : "Gagal membersihkan kategori");
+    } finally {
+      setCleanupPending(false);
+    }
+  };
+
   return (
-    <form
-      className="grid gap-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        setPending(true);
-        setError(null);
-        void api("/api/admin/kategori", { body: { name: form.get("name"), description: form.get("description") || undefined } })
-          .then(() => window.location.reload())
-          .catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : "Gagal menyimpan kategori.");
-            setPending(false);
-          });
-      }}>
-      <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        Nama kategori
-        <input name="name" required placeholder="Mis. Matematika · Aljabar" className="rounded-xl border border-line px-3 py-2.5 font-normal" />
-      </label>
-      <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-        Deskripsi <span className="font-normal text-ink-muted">(opsional)</span>
-        <input name="description" placeholder="Catatan singkat kategori" className="rounded-xl border border-line px-3 py-2.5 font-normal" />
-      </label>
-      <ErrorText error={error} />
-      <button
-        className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60"
-        type="submit"
-        disabled={pending}>
-        {pending ? "Menyimpan…" : "Simpan kategori"}
-      </button>
-    </form>
+    <div className="grid gap-4">
+      <form
+        className="grid gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          setPending(true);
+          setError(null);
+          void api("/api/admin/kategori", { body: { name: form.get("name"), description: form.get("description") || undefined } })
+            .then(() => window.location.reload())
+            .catch((cause: unknown) => {
+              setError(cause instanceof Error ? cause.message : "Gagal menyimpan kategori.");
+              setPending(false);
+            });
+        }}>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+          Nama kategori
+          <input name="name" required placeholder="Mis. Matematika · Aljabar" className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+          Deskripsi <span className="font-normal text-ink-muted">(opsional)</span>
+          <input name="description" placeholder="Catatan singkat kategori" className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+        </label>
+        <ErrorText error={error} />
+        <button
+          className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60"
+          type="submit"
+          disabled={pending}>
+          {pending ? "Menyimpan…" : "Simpan kategori"}
+        </button>
+      </form>
+      <div className="flex items-center justify-between border-t border-line/70 pt-4">
+        <button
+          onClick={handleCleanup}
+          disabled={cleanupPending}
+          className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-page px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
+          {cleanupPending ? "Membersihkan…" : "Bersihkan kategori kosong"}
+        </button>
+        {cleanupMessage && (
+          <p className={`mt-2 text-sm ${cleanupMessage.includes("Berhasil") ? "text-brand" : "text-alert"}`}>{cleanupMessage}</p>
+        )}
+        {categories && categories.length > 0 && (
+          <div className="text-sm text-ink-muted">{categories.length} kategori</div>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -86,8 +86,8 @@ export function PackagePreview({ questions }: { questions: PackageQuestion[] }) 
           <h1 className="text-xs font-semibold tracking-wide text-brand uppercase">
             Soal {index + 1} dari {questions.length}
           </h1>
-          <RichHtml html={question.body} className="mt-3 text-question" />
           {question.imagePath ? <img src={question.imagePath} alt="" className="mt-4 max-h-80 rounded-sm" /> : null}
+          <RichHtml html={question.body} className="mt-3 text-question" />
           {question.type === "MULTIPLE_CHOICE" ? (
             <div className="mt-6 flex flex-col gap-2">
               {question.options.map((option) => (

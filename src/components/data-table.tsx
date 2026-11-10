@@ -11,6 +11,8 @@ export type DataTableProps = {
   pageSizeOptions?: number[];
   searchable?: boolean;
   searchPlaceholder?: string;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 };
 
 function nodeText(node: ReactNode): string {
@@ -54,6 +56,8 @@ export function DataTable({
   pageSizeOptions = DEFAULT_PAGE_SIZES,
   searchable = true,
   searchPlaceholder = "Cari...",
+  onPageChange,
+  onPageSizeChange,
 }: DataTableProps) {
   const [query, setQuery] = useState("");
   const [pageSize, setPageSize] = useState(itemsPerPage);
@@ -85,6 +89,17 @@ export function DataTable({
   const from = filtered.length === 0 ? 0 : startIndex + 1;
   const to = Math.min(startIndex + pageSize, filtered.length);
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    onPageChange?.(newPage);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+    onPageSizeChange?.(newSize);
+  };
+
   return (
     <div className="flex flex-col px-4 py-4 sm:px-5 gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -93,8 +108,7 @@ export function DataTable({
           <select
             value={pageSize}
             onChange={(event) => {
-              setPageSize(Number(event.target.value));
-              setPage(1);
+              handlePageSizeChange(Number(event.target.value));
             }}
             className="rounded-lg border border-line bg-paper px-2.5 py-1.5 text-sm font-medium text-ink">
             {sizes.map((size) => (
@@ -121,7 +135,7 @@ export function DataTable({
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                setPage(1);
+                handlePageChange(1);
               }}
               placeholder={searchPlaceholder}
               className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal text-ink placeholder:text-ink-muted focus:border-brand focus:bg-paper"
@@ -172,7 +186,7 @@ export function DataTable({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setPage(Math.max(1, currentPage - 1))}
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink disabled:text-ink-muted disabled:opacity-50 hover:border-brand hover:text-brand disabled:hover:border-line disabled:hover:text-ink">
               ← Sebelumnya
@@ -181,7 +195,7 @@ export function DataTable({
               <button
                 key={`${item}-${index}`}
                 type="button"
-                onClick={() => typeof item === "number" && setPage(item)}
+                onClick={() => typeof item === "number" && handlePageChange(item)}
                 disabled={item === "..."}
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                   item === currentPage
@@ -193,7 +207,7 @@ export function DataTable({
             ))}
             <button
               type="button"
-              onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink disabled:text-ink-muted disabled:opacity-50 hover:border-brand hover:text-brand disabled:hover:border-line disabled:hover:text-ink">
               Selanjutnya →

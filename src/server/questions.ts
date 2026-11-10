@@ -7,6 +7,7 @@ import { assertSingleCorrectOption } from "./exam-rules";
 import { inspectImportTable, parseImportSource, type ImportPreviewRow, type StoredImportItem } from "./import-rows";
 import { redis } from "./redis";
 import { assertUploadPath, sanitizeRichText } from "./rich-text";
+import { validateDeleteOrDeactivateQuestion, validateUpdatePackage } from "./validation";
 
 const optionSchema = z.object({
   label: z.string().trim().min(1).max(5),
@@ -192,8 +193,7 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
 }
 
 export async function deleteQuestion(id: number, actorId: number, ipAddress?: string) {
-  const used = await prisma.examPackageQuestion.count({ where: { questionId: id } });
-  if (used) throw new AppError("Soal sudah dipakai ujian. Nonaktifkan soal ini.", 409);
+  await validateDeleteOrDeactivateQuestion(id);
   await prisma.question.update({ where: { id }, data: { deletedAt: new Date() } });
   await writeAudit({ userId: actorId, action: "DELETE_QUESTION", entityType: "question", entityId: id, ipAddress });
 }
@@ -202,6 +202,12 @@ export async function toggleQuestionStatus(id: number, actorId: number, ipAddres
   const question = await prisma.question.findUnique({ where: { id }, select: { isActive: true } });
   if (!question) throw new AppError("Soal tidak ditemukan.", 404);
   const newStatus = !question.isActive;
+
+  // Hanya validasi jika ingin menonaktifkan soal
+  if (!newStatus) {
+    await validateDeleteOrDeactivateQuestion(id);
+  }
+
   await prisma.question.update({ where: { id }, data: { isActive: newStatus } });
   await writeAudit({
     userId: actorId,
@@ -211,6 +217,53 @@ export async function toggleQuestionStatus(id: number, actorId: number, ipAddres
     ipAddress,
   });
   return newStatus;
+}
+
+export async function bulkToggleQuestionStatus(ids: number[], activate: boolean, actorId: number, ipAddress?: string) {
+  if (ids.length === 0) throw new AppError("Pilih minimal satu soal.", 400);
+
+  // Hanya validasi jika ingin menonaktifkan soal
+  if (!activate) {
+    for (const id of ids) {
+      await validateDeleteOrDeactivateQuestion(id);
+    }
+  }
+
+  await prisma.question.updateMany({
+    where: { id: { in: ids } },
+    data: { isActive: activate },
+  });
+  for (const id of ids) {
+    await writeAudit({
+      userId: actorId,
+      action: activate ? "ACTIVATE_QUESTION" : "DEACTIVATE_QUESTION",
+      entityType: "question",
+      entityId: id,
+      ipAddress,
+    });
+  }
+}
+
+export async function bulkDeleteQuestions(ids: number[], actorId: number, ipAddress?: string) {
+  if (ids.length === 0) throw new AppError("Pilih minimal satu soal.", 400);
+
+  // Validasi setiap soal sebelum dihapus
+  for (const id of ids) {
+    await validateDeleteOrDeactivateQuestion(id);
+  }
+  await prisma.question.updateMany({
+    where: { id: { in: ids } },
+    data: { deletedAt: new Date() },
+  });
+  for (const id of ids) {
+    await writeAudit({
+      userId: actorId,
+      action: "DELETE_QUESTION",
+      entityType: "question",
+      entityId: id,
+      ipAddress,
+    });
+  }
 }
 
 const categorySchema = z.object({
@@ -235,6 +288,48 @@ export async function createCategory(input: unknown, actorId: number) {
   } catch {
     throw new AppError("Nama kategori sudah dipakai.", 409);
   }
+}
+
+export async function cleanupOrphanedCategories(actorId: number, ipAddress?: string) {
+  // Cari kategori yang tidak punya relasi dengan question manapun
+  const orphanedCategories = await prisma.questionCategory.findMany({
+    where: {
+      questions: {
+        none: {},
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+
+  if (orphanedCategories.length === 0) {
+    return { deleted: 0, names: [] };
+  }
+
+  // Hapus kategori-kategori tersebut
+  await prisma.questionCategory.deleteMany({
+    where: {
+      id: { in: orphanedCategories.map((c) => c.id) },
+    },
+  });
+
+  // Audit log untuk setiap kategori yang dihapus
+  for (const category of orphanedCategories) {
+    await writeAudit({
+      userId: actorId,
+      action: "DELETE_CATEGORY",
+      entityType: "question_category",
+      entityId: category.id,
+      ipAddress,
+    });
+  }
+
+  return {
+    deleted: orphanedCategories.length,
+    names: orphanedCategories.map((c) => c.name),
+  };
 }
 
 const IMPORT_TTL_SECONDS = 60 * 30;

@@ -11,7 +11,7 @@ import {
   deleteQuestionPackage,
   updateQuestionPackage,
 } from "@/server/packages";
-import { commitQuestionImport, createCategory, createQuestion, deleteQuestion, stageQuestionImport, toggleQuestionStatus, updateQuestion } from "@/server/questions";
+import { bulkDeleteQuestions, bulkToggleQuestionStatus, cleanupOrphanedCategories, commitQuestionImport, createCategory, createQuestion, deleteQuestion, stageQuestionImport, toggleQuestionStatus, updateQuestion } from "@/server/questions";
 import { syncParticipants, syncExamResultsToOmbn } from "@/server/sync";
 import { addExtraTime } from "@/server/attempts";
 
@@ -43,6 +43,10 @@ export async function POST(req: Request, ctx: Ctx) {
       const category = await createCategory(await req.json(), user.userId);
       return json({ id: category.id });
     }
+    if (action === "cleanup-kategori") {
+      const result = await cleanupOrphanedCategories(user.userId, ip);
+      return json(result);
+    }
     if (action === "soal") {
       const body: { id?: number } = await req.json();
       if (body.id) {
@@ -61,6 +65,16 @@ export async function POST(req: Request, ctx: Ctx) {
       const body = await readBody(req, z.object({ id: z.number().int().positive() }));
       const newStatus = await toggleQuestionStatus(body.id, user.userId, ip);
       return json({ isActive: newStatus });
+    }
+    if (action === "bulk-toggle-soal") {
+      const body = await readBody(req, z.object({ ids: z.array(z.number().int().positive()), activate: z.boolean() }));
+      await bulkToggleQuestionStatus(body.ids, body.activate, user.userId, ip);
+      return json({ ok: true });
+    }
+    if (action === "bulk-hapus-soal") {
+      const body = await readBody(req, z.object({ ids: z.array(z.number().int().positive()) }));
+      await bulkDeleteQuestions(body.ids, user.userId, ip);
+      return json({ ok: true });
     }
     if (action === "impor") {
       const body = await readBody(req, z.object({ data: z.string().min(1) }));

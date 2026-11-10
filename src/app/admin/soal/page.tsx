@@ -68,9 +68,20 @@ export default async function SoalPage({
         imagePath: imageFilter,
         deletedAt: null,
       },
-      include: { category: true },
-      orderBy: { isActive: "desc" },
-      take: 300,
+      include: {
+        category: true,
+        packageItems: {
+          include: {
+            package: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
     }),
     prisma.questionCategory.findMany({ orderBy: { name: "asc" } }),
     prisma.questionPackage.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -86,6 +97,10 @@ export default async function SoalPage({
     ...q,
     defaultWeight: Number(q.defaultWeight),
     defaultWrongWeight: Number(q.defaultWrongWeight),
+    packageItems: q.packageItems.map((item) => ({
+      packageId: item.packageId,
+      packageName: item.package.name,
+    })),
   }));
 
   const hasFilter = Boolean(query.kode || query.kategori || query.jenis || query.paket || query.gambar);
@@ -170,20 +185,7 @@ export default async function SoalPage({
               <h2 className="text-lg font-semibold tracking-tight text-ink">Kategori baru</h2>
               <p className="mt-0.5 text-sm text-ink-muted">Kelompokkan soal agar mudah dicari saat menyusun paket.</p>
             </div>
-            <CategoryForm />
-            {categories.length > 0 ? (
-              <ul className="mt-5 flex flex-wrap gap-2 border-t border-line/70 pt-4">
-                {categories.map((category) => (
-                  <li key={category.id}>
-                    <Link
-                      href={`/admin/soal?kategori=${category.id}`}
-                      className="inline-flex rounded-lg bg-page px-2.5 py-1.5 text-xs font-semibold text-ink-muted transition hover:bg-brand-soft hover:text-brand">
-                      {category.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <CategoryForm categories={categories} />
           </section>
 
           <section id="impor" className="scroll-mt-24 rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">

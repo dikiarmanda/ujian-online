@@ -134,7 +134,7 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
         const pack = await tx.examPackage.create({
           data: { examId: created.id, jenjang: row.jenjang, packageId: row.packageId },
         });
-        await applyPackageSnapshot(tx, pack.id, row.packageId);
+        await applyPackageSnapshot(tx, pack.id, row.packageId, row.jenjang);
       }
       return created;
     });
@@ -195,7 +195,7 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
         const pack = await tx.examPackage.create({
           data: { examId: id, jenjang: row.jenjang, packageId: row.packageId },
         });
-        await applyPackageSnapshot(tx, pack.id, row.packageId);
+        await applyPackageSnapshot(tx, pack.id, row.packageId, row.jenjang);
       }
     }
 
