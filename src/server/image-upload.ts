@@ -7,7 +7,8 @@ const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 /**
  * Validasi dan simpan berkas gambar langsung ke server FTP pada folder soal
  * (default: <FTP_ROOT>/soal). Tidak menyentuh disk lokal.
- * Mengembalikan path logis /uploads/<nama> yang disajikan lewat /api/media.
+ * Mengembalikan path /api/media/uploads/<nama> yang disajikan route media
+ * (lokal → FTP_PUBLIC_URL → unduhan FTP).
  */
 export async function storeQuestionImage(
   file: File,
@@ -31,5 +32,7 @@ export async function storeQuestionImage(
     await ftp.uploadBuffer(data, `${remoteDir}/${name}`);
   });
 
-  return { path: `/uploads/${name}`, name };
+  // Path kanonis: langsung URL route media agar editor summernote bisa
+  // menampilkan gambar tanpa menunggu render ulang.
+  return { path: `/api/media/uploads/${name}`, name };
 }

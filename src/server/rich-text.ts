@@ -4,7 +4,7 @@ import sanitizeHtml from "sanitize-html";
 // (http(s)://host/uploads/...), dan gambar placeholder impor (dummyimage.com).
 function isAllowedImageSrc(src: string): boolean {
   if (src.includes("..")) return false;
-  if (src.startsWith("/uploads/")) return true;
+  if (src.startsWith("/uploads/") || src.startsWith("/api/media/uploads/")) return true;
   if (src.startsWith("https://dummyimage.com/")) return true;
   return /^https?:\/\/[^/\s]+\/uploads\/[^?\s"']+$/.test(src);
 }
