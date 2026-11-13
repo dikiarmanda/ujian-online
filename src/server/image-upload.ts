@@ -1,8 +1,38 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+import sharp from "sharp";
 import { ftpUploadDir, getFtpHelper } from "./ftp";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
+const MAX_DIMENSION = 1920;
+
+/**
+ * Kompres gambar soal: resize maksimal 1920px, luruskan EXIF orientation,
+ * dan encode ulang per format. Hanya dipakai bila hasilnya lebih kecil;
+ * GIF dan gambar animasi (webp multi-frame) dibiarkan apa adanya.
+ */
+async function compressImage(data: Buffer, ext: string): Promise<Buffer> {
+  if (ext === ".gif") return data;
+  const meta = await sharp(data).metadata();
+  if ((meta.pages ?? 1) > 1) return data;
+
+  const image = sharp(data).rotate().resize({
+    width: MAX_DIMENSION,
+    height: MAX_DIMENSION,
+    fit: "inside",
+    withoutEnlargement: true,
+  });
+
+  let output: Buffer;
+  if (ext === ".png") {
+    output = await image.png({ compressionLevel: 9, palette: true, quality: 90 }).toBuffer();
+  } else if (ext === ".webp") {
+    output = await image.webp({ quality: 82 }).toBuffer();
+  } else {
+    output = await image.jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  }
+  return output.length < data.length ? output : data;
+}
 
 /**
  * Validasi dan simpan berkas gambar langsung ke server FTP pada folder soal
@@ -19,7 +49,8 @@ export async function storeQuestionImage(
   }
 
   const name = `${randomBytes(16).toString("hex")}${ext}`;
-  const data = Buffer.from(await file.arrayBuffer());
+  const original = Buffer.from(await file.arrayBuffer());
+  const data = await compressImage(original, ext);
 
   const ftp = getFtpHelper();
   const remoteDir = ftpUploadDir();

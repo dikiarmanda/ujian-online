@@ -23,7 +23,12 @@ export default function RichHtml({ html, className, as = "div" }: RichHtmlProps)
     // Apply max-h 50% to all img tags within the HTML
     const images = el.querySelectorAll("img");
     images.forEach((img) => {
-      img.style.setProperty("max-width", "75%", "important");
+      img.style.setProperty("max-width", "100%", "important");
+      img.style.setProperty("max-height", "50dvh", "important");
+      img.style.setProperty("width", "auto", "important");
+      img.style.setProperty("height", "auto", "important");
+      img.style.setProperty("object-fit", "contain", "important");
+
       const src = img.getAttribute("src") ?? "";
       if (src.startsWith("/uploads/") && !src.includes("..")) {
         img.setAttribute("src", `/api/media${src}`);
