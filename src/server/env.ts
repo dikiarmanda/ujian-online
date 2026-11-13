@@ -15,6 +15,15 @@ export type AppEnv = {
   loginLockSeconds: number;
   readonlyDatabaseUrl: string;
   integrationBlockDuringExam: boolean;
+  ftp: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    secure: boolean;
+    publicUrl: string;
+    root: string;
+  };
 };
 
 function positiveInt(name: string, value: string | undefined, fallback: number): number {
@@ -66,6 +75,15 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     loginLockSeconds: positiveInt("LOGIN_LOCK_SECONDS", source.LOGIN_LOCK_SECONDS, 300),
     readonlyDatabaseUrl: required("DATABASE_READONLY_URL", source.DATABASE_READONLY_URL),
     integrationBlockDuringExam: source.INTEGRATION_BLOCK_DURING_EXAM !== "false",
+    ftp: {
+      host: required("FTP_HOST", source.FTP_HOST),
+      port: Number(source.FTP_PORT || 21),
+      user: required("FTP_USER", source.FTP_USER),
+      password: required("FTP_PASSWORD", source.FTP_PASSWORD),
+      secure: source.FTP_SECURE === "true",
+      publicUrl: source.FTP_PUBLIC_URL || "",
+      root: (source.FTP_ROOT || "").replace(/\/+$/, ""),
+    },
   };
 }
 

@@ -24,6 +24,10 @@ export default function RichHtml({ html, className, as = "div" }: RichHtmlProps)
     const images = el.querySelectorAll("img");
     images.forEach((img) => {
       img.style.setProperty("max-width", "75%", "important");
+      const src = img.getAttribute("src") ?? "";
+      if (src.startsWith("/uploads/") && !src.includes("..")) {
+        img.setAttribute("src", `/api/media${src}`);
+      }
     });
   }, [html, as]);
 

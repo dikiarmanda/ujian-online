@@ -1,11 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { resetParticipantSession } from "@/server/auth/service";
 import { createExam, deleteExam, updateExam } from "@/server/exams";
 import { releaseLock } from "@/server/grading";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
+import { storeQuestionImage } from "@/server/image-upload";
 import {
   createQuestionPackage,
   deleteQuestionPackage,
@@ -97,15 +95,8 @@ export async function POST(req: Request, ctx: Ctx) {
       if (!file.type.startsWith("image/") || file.size > 2_000_000) {
         return json({ error: "Unggah gambar maksimal 2 MB." }, 400);
       }
-      const ext = path.extname(file.name).toLowerCase();
-      if (![".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(ext)) {
-        return json({ error: "Jenis gambar tidak didukung." }, 400);
-      }
-      const name = `${randomBytes(16).toString("hex")}${ext}`;
-      const dir = path.join(process.cwd(), "public", "uploads");
-      await mkdir(dir, { recursive: true });
-      await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
-      return json({ path: `/uploads/${name}` });
+      const result = await storeQuestionImage(file);
+      return json({ path: result.path });
     }
     if (action === "ujian") {
       const body = await req.json();

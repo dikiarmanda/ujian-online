@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { SubmittedNotice } from "@/components/chrome";
 import RichHtml from "@/components/rich-html";
 import { api } from "@/lib/api";
+import { mediaUrl } from "@/lib/media";
 import { countAnswerStats, type AnswerSnapshot } from "@/server/exam-rules";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
@@ -282,7 +283,7 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
             Soal {index + 1} dari {initial.questions.length}
           </h1>
           <RichHtml html={question.body} className="mt-3 text-question" />
-          {question.imagePath ? <img src={question.imagePath} alt="" className="mt-4 max-h-80 rounded-sm" /> : null}
+          {question.imagePath ? <img src={mediaUrl(question.imagePath) ?? ""} alt="" className="mt-4 max-h-80 rounded-sm" /> : null}
           {question.type === "MULTIPLE_CHOICE" ? (
             <div className="mt-6 flex flex-col gap-2" role="radiogroup" aria-label="Pilihan jawaban">
               {question.options.map((option) => {

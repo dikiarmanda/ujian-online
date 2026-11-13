@@ -14,7 +14,7 @@ type SummernoteEditorProps = {
 /**
  * Wrapper Summernote (lite, tanpa Bootstrap) untuk Next.js App Router.
  * - Dimuat dinamis (client-only) agar aman dari SSR.
- * - Mendukung unggah gambar ke /api/admin/unggah lalu disisipkan sebagai /uploads/...
+ * - Mendukung unggah gambar ke /api/admin/ftp-upload (server FTP) lalu disisipkan sebagai /uploads/...
  * - Tombol formula LaTeX (KaTeX) untuk soal matematika.
  */
 export default function SummernoteEditor({ value, onChange, placeholder, height = 180 }: SummernoteEditorProps) {
@@ -114,7 +114,7 @@ export default function SummernoteEditor({ value, onChange, placeholder, height 
               try {
                 // Header wajib untuk assertMutationOrigin di requireApiUser.
                 // Jangan set Content-Type: browser mengisi boundary multipart sendiri.
-                const res = await fetch("/api/admin/unggah", {
+                const res = await fetch("/api/admin/ftp-upload", {
                   method: "POST",
                   headers: { "x-ujian-request": "1" },
                   body: form,

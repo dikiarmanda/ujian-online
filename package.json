@@ -32,6 +32,7 @@
     "bullmq": "^6.3.11",
     "dotenv": "^18.0.5",
     "flatpickr": "^4.6.13",
+    "ftp": "^0.3.10",
     "ioredis": "^6.0.0",
     "jquery": "^4.0.0",
     "katex": "^0.19.0",
@@ -50,6 +51,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^6.0.0",
+    "@types/ftp": "^0.3.36",
     "@types/jquery": "^4.0.1",
     "@types/node": "^20",
     "@types/pdfkit": "^0.17.6",

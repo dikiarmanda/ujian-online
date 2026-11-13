@@ -1,5 +1,14 @@
 import sanitizeHtml from "sanitize-html";
 
+// Sumber gambar yang diizinkan: unggahan lokal (/uploads/...), URL publik FTP
+// (http(s)://host/uploads/...), dan gambar placeholder impor (dummyimage.com).
+function isAllowedImageSrc(src: string): boolean {
+  if (src.includes("..")) return false;
+  if (src.startsWith("/uploads/")) return true;
+  if (src.startsWith("https://dummyimage.com/")) return true;
+  return /^https?:\/\/[^/\s]+\/uploads\/[^?\s"']+$/.test(src);
+}
+
 export function sanitizeRichText(input: string): string {
   return sanitizeHtml(input, {
     // Tag yang dihasilkan Summernote (teks, heading, tabel, kutipan, tautan, gambar).
@@ -71,9 +80,7 @@ export function sanitizeRichText(input: string): string {
     transformTags: {
       img: (_tagName, attribs) => {
         const src = attribs.src ?? "";
-        const isLocalUpload = src.startsWith("/uploads/") && !src.includes("..");
-        const isDummyImage = src.startsWith("https://dummyimage.com/");
-        const safe = isLocalUpload || isDummyImage;
+        const safe = isAllowedImageSrc(src);
         if (!safe) return { tagName: "span", attribs: {} };
         const keep: Record<string, string> = { src, alt: attribs.alt ?? "" };
         for (const key of ["title", "width", "height", "style"] as const) {
@@ -105,10 +112,7 @@ export function sanitizeRichText(input: string): string {
 
 export function assertUploadPath(path: string | null | undefined): string | null {
   if (!path) return null;
-  // Allow local upload paths and dummyimage.com URLs for imported questions
-  const isLocalUpload = path.startsWith("/uploads/") && !path.includes("..");
-  const isDummyImage = path.startsWith("https://dummyimage.com/");
-  if (!isLocalUpload && !isDummyImage) {
+  if (!isAllowedImageSrc(path)) {
     throw new Error("Berkas gambar tidak valid.");
   }
   return path;
