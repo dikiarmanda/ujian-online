@@ -191,11 +191,12 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
           updateData.urut_kabupaten = attempt.rank;
           updateData.waktu_akhir_ujian_kabupaten = attempt.submittedAt || new Date();
         } else if (attempt.exam.competitionLevel === "PROVINSI") {
-          updateData.nilai_akhir = attempt.totalScore;
+          updateData.nilai_provinsi = attempt.totalScore;
           updateData.urut_provinsi = attempt.rank;
           updateData.waktu_akhir_ujian = attempt.submittedAt || new Date();
         } else if (attempt.exam.competitionLevel === "NASIONAL") {
           updateData.peringkat = attempt.rank;
+          updateData.nilai_nasional = attempt.totalScore;
         }
 
         await ombn.lomba_peserta.update({

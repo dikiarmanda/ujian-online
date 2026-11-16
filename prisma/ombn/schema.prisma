@@ -128,6 +128,7 @@ model lomba_peserta {
   nilai_akhir              Decimal                      @default(0.00) @db.Decimal(8, 2)
   waktu_akhir_ujian_kabupaten DateTime?                 @db.Timestamp(0)
   urut_provinsi            Int?                         @db.UnsignedSmallInt
+  nilai_provinsi           Decimal                      @default(0.00) @db.Decimal(8, 2)
   nilai_nasional           Decimal                      @default(0.00) @db.Decimal(8, 2)
   waktu_akhir_ujian        DateTime?                    @db.Timestamp(0)
   babak                    Json?
