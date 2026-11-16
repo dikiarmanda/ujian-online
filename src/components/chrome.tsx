@@ -108,7 +108,7 @@ export function StatusChip({ label, tone }: { label: string; tone: "idle" | "liv
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs font-semibold ${toneClass}`}>
       <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
-      {label}
+      {label == 'Draf' ? 'NOT STARTED' : label}
     </span>
   );
 }
