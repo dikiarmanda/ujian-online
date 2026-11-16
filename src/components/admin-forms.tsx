@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -631,7 +631,7 @@ export function ImportForm() {
 }
 
 type PackageOption = { id: number; name: string; itemCount: number };
-type CompetitionOption = { id: number; name: string; jenjangGroups: ("SD" | "SMP" | "SMA" | "SMK")[] };
+type CompetitionOption = { id: number; name: string; tingkat: string; jenjangGroups: ("SD" | "SMP" | "SMA" | "SMK")[] };
 
 type JQuerySelect2 = JQuery & {
   select2: (opts?: object | string) => JQuery;
@@ -673,7 +673,10 @@ export function ExamForm({
   const [competitionLevel, setCompetitionLevel] = useState<string>(initialData?.competitionLevel ?? "KABUPATEN");
   const formRef = useRef<HTMLFormElement>(null);
   const selected = competitions.find((row) => row.id === competitionId);
-  const groups = selected?.jenjangGroups?.length ? selected.jenjangGroups : [];
+  const groups = useMemo(
+    () => (selected?.jenjangGroups?.length ? selected.jenjangGroups : []),
+    [selected],
+  );
   const isEdit = Boolean(examId);
 
   useEffect(() => {
@@ -705,6 +708,7 @@ export function ExamForm({
       const selects = formRef.current.querySelectorAll<HTMLSelectElement>("select.js-select2");
       selects.forEach((el) => {
         const $el = $(el) as unknown as JQuerySelect2;
+        if ($el.data("select2")) return;
         $el.select2({
           width: "100%",
           allowClear: true,
@@ -740,7 +744,9 @@ export function ExamForm({
       cancelled = true;
       for (const cleanup of cleanups) cleanup();
     };
-  }, []);
+    // Select paket per jenjang baru muncul setelah lomba dipilih (groups berubah),
+    // jadi init select2 harus diulang setiap groups berubah.
+  }, [groups]);
 
   // Update select2 value when competitionId changes
   useEffect(() => {
@@ -896,7 +902,7 @@ export function ExamForm({
             </option>
             {competitions.map((row) => (
               <option key={row.id} value={row.id}>
-                {row.name} (#{row.id})
+                {row.name} ({row.tingkat})
               </option>
             ))}
           </select>
@@ -972,7 +978,8 @@ export function ExamForm({
                 name={`package_${group}`}
                 required
                 defaultValue={initialData?.packages[group] ?? ""}
-                className="rounded-xl border border-line px-3 py-2.5 font-normal">
+                className="js-select2"
+                data-placeholder="Pilih paket…">
                 <option value="" disabled>
                   Pilih paket…
                 </option>

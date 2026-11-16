@@ -3,6 +3,7 @@ import { assertJenjangPackagesComplete, parseCompetitionJenjang, type JenjangGro
 import { writeAudit } from "./audit";
 import { getCompetitionById, invalidateCompetitionCache } from "./competitions";
 import { prisma } from "./db";
+import { ombn } from "./ombn-db";
 import { AppError } from "./errors";
 import { parseExamDate, parseJakartaDateTime } from "./exam-rules";
 import { writeExamState } from "./exam-state";
@@ -309,6 +310,34 @@ export async function endExam(examId: number, actorId: number, ipAddress?: strin
     ipAddress,
   });
   return updated;
+}
+
+/**
+ * Jumlah total peserta terdaftar di ombn.lomba_peserta untuk competition
+ * milik exam, difilter jenjang lomba:
+ * - KABUPATEN: semua peserta competition
+ * - PROVINSI: hanya yang sudah punya urut_kabupaten (lolos kabupaten)
+ * - NASIONAL: hanya yang sudah punya urut_provinsi (lolos provinsi)
+ */
+export async function getOmbnPesertaCount(examId: number): Promise<number> {
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { competitionId: true, competitionLevel: true },
+  });
+  if (!exam?.competitionId) return 0;
+
+  const where: {
+    competition_id: bigint;
+    urut_kabupaten?: { not: null };
+    urut_provinsi?: { not: null };
+  } = { competition_id: BigInt(exam.competitionId) };
+  if (exam.competitionLevel === "PROVINSI") {
+    where.urut_kabupaten = { not: null };
+  } else if (exam.competitionLevel === "NASIONAL") {
+    where.urut_provinsi = { not: null };
+  }
+
+  return ombn.lomba_peserta.count({ where });
 }
 
 export async function getExamParticipantCounts(examId: number) {

@@ -1,52 +1,11 @@
 import Link from "next/link";
 import { PetugasShell } from "@/components/petugas-shell";
 import { formatJakarta } from "@/lib/format";
+import { getAksesLomba } from "@/server/akses-lomba";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
-import { ombn } from "@/server/ombn-db";
 
 export const dynamic = "force-dynamic";
-
-async function getAksesLomba(userId: number): Promise<number[]> {
-  const sessionUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { externalId: true },
-  });
-
-  if (!sessionUser) {
-    return [];
-  }
-
-  if (!sessionUser.externalId) {
-    return [];
-  }
-
-  const adminIdMatch = sessionUser.externalId.match(/ombn-admin:(\d+)/);
-  if (!adminIdMatch) {
-    return [];
-  }
-
-  try {
-    const adminId = BigInt(adminIdMatch[1]);
-    const admin = await ombn.admins.findUnique({
-      where: { id: adminId },
-      select: { akses_lomba: true },
-    });
-
-    if (!admin?.akses_lomba) {
-      return [];
-    }
-
-    const parsed = Array.isArray(admin.akses_lomba) ? admin.akses_lomba : JSON.parse(JSON.stringify(admin.akses_lomba));
-    return parsed.map((id: bigint | number | string) => {
-      const num = typeof id === 'bigint' ? Number(id) : Number(id);
-      return Number.isInteger(num) ? num : null;
-    }).filter((id: number | null): id is number => id !== null);
-  } catch (error) {
-    console.error("Failed to get akses_lomba:", error);
-    return [];
-  }
-}
 
 export default async function PetugasUjianPage() {
   const user = await requirePageUser(["GRADER"]);
@@ -92,7 +51,7 @@ export default async function PetugasUjianPage() {
                     </span>
                   </div>
                   <Link
-                    href={`/admin/ujian/${exam.id}`}
+                    href={`/petugas/ujian/${exam.id}`}
                     className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
                     Buka
                   </Link>

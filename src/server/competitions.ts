@@ -11,13 +11,14 @@ const LIST_TTL = 60;
 export type CompetitionOption = {
   id: number;
   name: string;
+  tingkat: string;
   jenjangGroups: JenjangGroup[];
   jenjangRaw: unknown;
 };
 
 async function loadCompetitionsFromOmbn(): Promise<CompetitionOption[]> {
   const rows = await ombn.competitions.findMany({
-    select: { id: true, nama_lomba: true, jenjang: true },
+    select: { id: true, nama_lomba: true, jenjang: true, tingkat: true },
     orderBy: { id: "desc" },
   });
   const options: CompetitionOption[] = [];
@@ -32,6 +33,7 @@ async function loadCompetitionsFromOmbn(): Promise<CompetitionOption[]> {
     options.push({
       id,
       name: row.nama_lomba,
+      tingkat: row.tingkat || "",
       jenjangGroups,
       jenjangRaw: row.jenjang,
     });
@@ -56,16 +58,17 @@ export async function invalidateCompetitionCache(): Promise<void> {
   await redis.del(LIST_CACHE_KEY);
 }
 
-export async function getCompetitionById(id: number): Promise<{ id: number; name: string; jenjangGroups: JenjangGroup[] }> {
+export async function getCompetitionById(id: number): Promise<{ id: number; name: string; tingkat: string; jenjangGroups: JenjangGroup[] }> {
   try {
     const row = await ombn.competitions.findUnique({
       where: { id: BigInt(id) },
-      select: { id: true, nama_lomba: true, jenjang: true },
+      select: { id: true, nama_lomba: true, jenjang: true, tingkat: true },
     });
     if (!row) throw new AppError("Lomba tidak ditemukan di OMBN.", 404);
     return {
       id: Number(row.id),
       name: row.nama_lomba,
+      tingkat: row.tingkat || "",
       jenjangGroups: parseCompetitionJenjang(row.jenjang),
     };
   } catch (error) {
