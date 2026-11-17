@@ -1,6 +1,12 @@
 import ftp from "ftp";
 import * as fs from "fs";
 import { env } from "./env";
+import { logError } from "./logger";
+
+function ftpFail(msg: string): Error {
+  logError("ftp_gagal", { msg });
+  return new Error(msg);
+}
 
 type FtpClient = ftp & {
   ready?: boolean;
@@ -44,7 +50,7 @@ export class FtpHelper {
 
       this.client.on("error", (err) => {
         this.connected = false;
-        reject(new Error(`FTP connection failed: ${err.message}`));
+        reject(ftpFail(`FTP connection failed: ${err.message}`));
       });
 
       this.client.connect(this.config);
@@ -83,7 +89,7 @@ export class FtpHelper {
     return new Promise((resolve, reject) => {
       this.client.put(localPath, remotePath, (err) => {
         if (err) {
-          reject(new Error(`FTP upload failed: ${err.message}`));
+          reject(ftpFail(`FTP upload failed: ${err.message}`));
         } else {
           resolve();
         }
@@ -102,7 +108,7 @@ export class FtpHelper {
     return new Promise((resolve, reject) => {
       this.client.put(data, remotePath, (err) => {
         if (err) {
-          reject(new Error(`FTP upload failed: ${err.message}`));
+          reject(ftpFail(`FTP upload failed: ${err.message}`));
         } else {
           resolve();
         }
@@ -121,7 +127,7 @@ export class FtpHelper {
     return new Promise((resolve, reject) => {
       this.client.get(remotePath, (err, stream) => {
         if (err) {
-          reject(new Error(`FTP download failed: ${err.message}`));
+          reject(ftpFail(`FTP download failed: ${err.message}`));
           return;
         }
 
@@ -174,7 +180,7 @@ export class FtpHelper {
     return new Promise((resolve, reject) => {
       this.client.mkdir(remotePath, recursive, (err) => {
         if (err) {
-          reject(new Error(`FTP mkdir failed: ${err.message}`));
+          reject(ftpFail(`FTP mkdir failed: ${err.message}`));
         } else {
           resolve();
         }

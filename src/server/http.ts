@@ -1,5 +1,6 @@
 import { type ZodType } from "zod";
 import { AppError, isRedisUnavailable, RedisDownError } from "./errors";
+import { getLogRequestId, logServerError, logWarn, runWithLogContext, setLogContext } from "./logger";
 import type { AppRole } from "./exam-rules";
 import { clientIp, readCookie, readSession, type SessionRecord } from "./session";
 
@@ -8,16 +9,21 @@ export function json(data: unknown, status = 200, headers?: HeadersInit): Respon
 }
 
 export async function withErrors(fn: () => Promise<Response>): Promise<Response> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (error instanceof AppError) return json({ error: error.message }, error.status);
-    if (isRedisUnavailable(error)) {
-      return json({ error: new RedisDownError().message }, 503);
+  return runWithLogContext(async () => {
+    try {
+      const res = await fn();
+      const requestId = getLogRequestId();
+      if (requestId) res.headers.set("x-request-id", requestId);
+      return res;
+    } catch (error) {
+      if (error instanceof AppError) return json({ error: error.message }, error.status);
+      if (isRedisUnavailable(error)) {
+        return json({ error: new RedisDownError().message }, 503);
+      }
+      logServerError(error);
+      return json({ error: "Terjadi kesalahan di server. Coba lagi." }, 500);
     }
-    console.error(error);
-    return json({ error: "Terjadi kesalahan di server. Coba lagi." }, 500);
-  }
+  });
 }
 
 export function assertMutationOrigin(req: Request): void {
@@ -42,10 +48,18 @@ export async function requireApiUser(req: Request, roles?: AppRole[]): Promise<S
   const sid = readCookie(req, "sid");
   if (!sid) throw new AppError("Sesi tidak ditemukan. Masuk kembali.", 401);
   const session = await readSession(sid);
-  if (!session) throw new AppError("Sesi berakhir. Masuk kembali.", 401);
+  if (!session) {
+    logWarn("sesi_kedaluwarsa", { ip: clientIp(req), msg: "Permintaan dengan sesi tidak valid/kedaluwarsa" });
+    throw new AppError("Sesi berakhir. Masuk kembali.", 401);
+  }
   if (roles && !roles.includes(session.role)) {
     throw new AppError("Anda tidak memiliki akses ke tindakan ini.", 403);
   }
+  setLogContext({
+    userId: session.userId,
+    role: session.role === "PARTICIPANT" ? "peserta" : "admin",
+    ip: clientIp(req),
+  });
   return session;
 }
 

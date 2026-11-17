@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { finalizeAttempt, getAttemptState, logViolation, saveAnswer } from "@/server/attempts";
+import { logWarn } from "@/server/logger";
 import { hitRateLimit } from "@/server/rate-limit";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 
@@ -42,7 +43,18 @@ export async function POST(req: Request, ctx: Ctx) {
           lastQuestionIndex: z.number().int().min(0),
         }),
       );
-      await saveAnswer(attemptId, user.userId, body);
+      try {
+        await saveAnswer(attemptId, user.userId, body);
+      } catch (error) {
+        logWarn("jawaban_gagal_simpan", {
+          userId: user.userId,
+          role: "peserta",
+          ip,
+          sesiId: attemptId,
+          msg: error instanceof Error ? error.message : "gagal menyimpan jawaban",
+        });
+        throw error;
+      }
       return json({ ok: true, savedAt: new Date().toISOString() });
     }
     if (op === "selesai") {

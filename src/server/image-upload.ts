@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import sharp from "sharp";
 import { ftpUploadDir, getFtpHelper } from "./ftp";
+import { logError } from "./logger";
 
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 const MAX_DIMENSION = 1920;
@@ -61,6 +62,14 @@ export async function storeQuestionImage(
       // Direktori mungkin sudah ada, abaikan error
     }
     await ftp.uploadBuffer(data, `${remoteDir}/${name}`);
+  }).catch((error) => {
+    logError("upload_gagal", {
+      msg: error instanceof Error ? error.message : "gagal mengunggah gambar",
+      fileName: name,
+      ukuranAsli: original.length,
+      ukuranFinal: data.length,
+    });
+    throw error;
   });
 
   // Path kanonis: langsung URL route media agar editor summernote bisa

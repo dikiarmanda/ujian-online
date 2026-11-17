@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { JenjangGroup } from "@/lib/jenjang";
 import type { AppRole } from "./exam-rules";
 import { redis } from "./redis";
+import { logWarn } from "./logger";
 
 // 3 hours TTL untuk sesi
 const TTL_SECONDS = 60 * 60 * 3;
@@ -28,7 +29,14 @@ function userKey(userId: number): string {
 
 export async function createSession(record: SessionRecord): Promise<string> {
   const previous = await redis.get(userKey(record.userId));
-  if (previous) await redis.del(sessionKey(previous));
+  if (previous) {
+    await redis.del(sessionKey(previous));
+    logWarn("login_ganda_terdeteksi", {
+      userId: record.userId,
+      role: record.role === "PARTICIPANT" ? "peserta" : "admin",
+      msg: "Sesi lama dimatikan karena login baru",
+    });
+  }
   const sid = randomBytes(32).toString("hex");
   await redis.set(sessionKey(sid), JSON.stringify(record), "EX", TTL_SECONDS);
   await redis.set(userKey(record.userId), sid, "EX", TTL_SECONDS);

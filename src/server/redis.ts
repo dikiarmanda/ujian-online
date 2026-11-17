@@ -1,11 +1,12 @@
 import Redis from "ioredis";
 import { env } from "./env";
+import { logError } from "./logger";
 
 const globalForRedis = globalThis as unknown as { redis?: Redis };
 
 function attachRedisHandlers(client: Redis): Redis {
   client.on("error", (error) => {
-    console.error("[redis]", error.message);
+    logError("redis_gagal", { msg: error.message });
   });
   return client;
 }

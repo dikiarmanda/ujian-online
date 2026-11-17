@@ -5,6 +5,7 @@ import { prisma } from "./db";
 import { AppError } from "./errors";
 import { computeDeadline, scoreObjectiveAnswer, type AnswerSnapshot } from "./exam-rules";
 import { readAttemptExpires, readExamState, writeAttemptExpires } from "./exam-state";
+import { logEvent, logWarn } from "./logger";
 import { packageCacheKey } from "./packages";
 import { redis } from "./redis";
 import { sanitizeRichText } from "./rich-text";
@@ -140,15 +141,20 @@ export async function attend(
     },
   });
   await writeAudit({ userId, action: "ATTEND", entityType: "exam", entityId: examId, ipAddress, meta: { userAgent } });
+  logEvent("absensi", { userId, ujianId: examId, ip: ipAddress });
 }
 
 /** Peserta pertama kali mengambil soal: set startedAt/expiresAt atomik & idempoten. */
 export async function startAttempt(examId: number, userId: number, jenjangGroup: JenjangGroup, ipAddress?: string) {
   const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
-  if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
+  if (!exam || exam.status !== "PUBLISHED") {
+    logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "ujian tidak ditemukan" });
+    throw new AppError("Ujian tidak ditemukan.", 404);
+  }
 
   const state = await readExamState(examId);
   if (!state || state.phase !== "RUNNING") {
+    logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "ujian belum dibuka" });
     throw new AppError("Ujian belum dibuka oleh juri.", 403);
   }
   const now = new Date();
@@ -157,12 +163,24 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
   if (!existing?.attendedAt) throw new AppError("Absensi diperlukan sebelum mulai ujian.", 409);
 
   if (existing.startedAt && existing.expiresAt) {
-    if (existing.status !== "IN_PROGRESS") throw new AppError("Ujian ini sudah dikirim.", 409);
+    if (existing.status !== "IN_PROGRESS") {
+      logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "sudah dikirim", sesiId: existing.id });
+      throw new AppError("Ujian ini sudah dikirim.", 409);
+    }
     if (existing.expiresAt <= now) {
       await finalizeAttempt(existing.id, "TIME_EXPIRED", userId, ipAddress);
+      logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "waktu habis", sesiId: existing.id });
       throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
     }
     await writeAttemptExpires(examId, userId, existing.expiresAt);
+    logEvent("ujian_lanjut", {
+      userId,
+      ujianId: examId,
+      sesiId: existing.id,
+      ip: ipAddress,
+      sisaWaktuDetik: Math.max(0, Math.floor((existing.expiresAt.getTime() - now.getTime()) / 1000)),
+      penyebab: "resume",
+    });
     return existing.id;
   }
 
@@ -200,6 +218,15 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
   await writeAttemptExpires(examId, userId, expiresAt);
   await redis.hset(metaKey(existing.id), "lastQuestionIndex", "0", "expiresAt", expiresAt.toISOString());
   await writeAudit({ userId, action: "START_ATTEMPT", entityType: "exam_attempt", entityId: existing.id, ipAddress });
+  logEvent("ujian_mulai", {
+    userId,
+    ujianId: examId,
+    sesiId: existing.id,
+    ip: ipAddress,
+    mulai: now.toISOString(),
+    berakhir: expiresAt.toISOString(),
+    jumlahSoal: questionIds.length,
+  });
   return existing.id;
 }
 
@@ -525,6 +552,23 @@ export async function finalizeAttempt(
     entityId: attemptId,
     ipAddress,
   });
+  if (actual === "TIME_EXPIRED") {
+    logEvent("ujian_waktu_habis", {
+      userId: attempt.userId,
+      ujianId: attempt.examId,
+      sesiId: attemptId,
+      ip: ipAddress,
+      msg: "Waktu ujian habis, jawaban otomatis dikirim",
+    });
+  } else {
+    logEvent("ujian_selesai", {
+      userId: attempt.userId,
+      ujianId: attempt.examId,
+      sesiId: attemptId,
+      ip: ipAddress,
+      msg: "Ujian dikirim peserta",
+    });
+  }
 }
 
 export async function logViolation(
@@ -535,10 +579,27 @@ export async function logViolation(
     questionNumber?: number;
   },
 ) {
-  const attempt = await prisma.examAttempt.findFirst({ where: { id: attemptId, userId, status: "IN_PROGRESS" } });
+  const attempt = await prisma.examAttempt.findFirst({
+    where: { id: attemptId, userId, status: "IN_PROGRESS" },
+    select: { id: true, examId: true },
+  });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   await prisma.violationLog.create({
     data: { attemptId, type: input.type, questionNumber: input.questionNumber ?? null },
+  });
+  const eventByType = {
+    TAB_SWITCH: "tab_berpindah",
+    FULLSCREEN_EXIT: "fullscreen_keluar",
+    WINDOW_BLUR: "window_blur",
+    COPY_PASTE: "copy_paste",
+    RIGHT_CLICK: "right_click",
+  } as const;
+  logWarn(eventByType[input.type], {
+    userId,
+    sesiId: attemptId,
+    ujianId: attempt.examId,
+    msg: `Pelanggaran ${input.type}`,
+    questionNumber: input.questionNumber ?? undefined,
   });
 }
 

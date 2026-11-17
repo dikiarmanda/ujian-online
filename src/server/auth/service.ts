@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { z } from "zod";
 import { mapJenjang, type JenjangGroup } from "@/lib/jenjang";
 import { writeAudit } from "../audit";
+import { logEvent, logWarn } from "../logger";
 import { prisma } from "../db";
 import { env } from "../env";
 import { AppError, OriginDownError } from "../errors";
@@ -305,6 +306,7 @@ export async function loginUser(input: unknown, ipAddress: string) {
         meta: { identity },
         ipAddress,
       });
+      logWarn("login_gagal", { ip: ipAddress, msg: `Identitas: ${identity}` });
       throw error;
     }
     if (error instanceof AppError) {
@@ -335,6 +337,12 @@ export async function loginUser(input: unknown, ipAddress: string) {
     entityType: "user",
     entityId: user.id,
     ipAddress,
+  });
+  logEvent("login_berhasil", {
+    userId: user.id,
+    role: user.role === "PARTICIPANT" ? "peserta" : "admin",
+    ip: ipAddress,
+    msg: `Masuk sebagai ${user.name}`,
   });
   console.log("[LOGIN] Login successful - User:", user.name, "Role:", user.role);
   return { sid, role: user.role, name: user.name };

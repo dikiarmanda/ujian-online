@@ -1,5 +1,6 @@
 import { writeAudit } from "@/server/audit";
-import { assertMutationOrigin, json, requestIp, withErrors } from "@/server/http";
+import { logEvent } from "@/server/logger";
+import { assertMutationOrigin, requestIp, withErrors } from "@/server/http";
 import { destroySession, readCookie, readSession } from "@/server/session";
 import { NextResponse } from "next/server";
 
@@ -20,6 +21,11 @@ export async function POST(req: Request) {
           entityType: "user",
           entityId: session.userId,
           ipAddress: requestIp(req),
+        });
+        logEvent("logout", {
+          userId: session.userId,
+          role: session.role === "PARTICIPANT" ? "peserta" : "admin",
+          ip: requestIp(req),
         });
       }
     }
