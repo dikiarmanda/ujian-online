@@ -22,7 +22,6 @@ export default async function PackagePreviewPage({ params }: { params: Promise<{
     where: {
       packageId,
       exam: {
-        status: "PUBLISHED",
         ...(aksesLomba.length > 0 ? { competitionId: { in: aksesLomba } } : {}),
       },
     },

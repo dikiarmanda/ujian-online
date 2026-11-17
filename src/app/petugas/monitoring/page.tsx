@@ -42,7 +42,7 @@ export default async function MonitoringPage({
   const aksesFilter = aksesLomba.length > 0 ? { competitionId: { in: aksesLomba } } : {};
 
   const exams = await prisma.exam.findMany({
-    where: { status: "PUBLISHED", deletedAt: null, ...aksesFilter },
+    where: { deletedAt: null, ...aksesFilter },
     orderBy: { startsAt: "desc" },
     select: { id: true, name: true, phase: true, startsAt: true, durationMinutes: true },
   });
