@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { SubmittedNotice } from "@/components/chrome";
 import RichHtml from "@/components/rich-html";
+import { ScientificCalculator } from "@/components/scientific-calculator";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { countAnswerStats, type AnswerSnapshot } from "@/server/exam-rules";
@@ -23,6 +24,7 @@ export type ExamInitial = {
   attemptId: number;
   examName: string;
   sessionName?: string;
+  calculatorMode?: "TIDAK" | "DASAR" | "SCIENTIFIC";
   serverNow: string;
   deadlineAt: string;
   lastQuestionIndex: number;
@@ -391,6 +393,20 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
           </div>
         </div>
       ) : null}
+      <ScientificCalculator
+        mode={initial.calculatorMode ?? "TIDAK"}
+        attemptId={initial.attemptId}
+        onOpen={() => {
+          void api(`/api/peserta/attempt/${initial.attemptId}/kalkulator`, {
+            body: { action: "buka" },
+          }).catch(() => undefined);
+        }}
+        onUse={() => {
+          void api(`/api/peserta/attempt/${initial.attemptId}/kalkulator`, {
+            body: { action: "gunakan" },
+          }).catch(() => undefined);
+        }}
+      />
     </div>
   );
 }

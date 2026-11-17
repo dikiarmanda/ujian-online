@@ -19,6 +19,7 @@ const createExamSchema = z.object({
   durationMinutes: z.number().int().positive().max(600),
   shuffleQuestions: z.boolean().default(true),
   shuffleOptions: z.boolean().default(true),
+  calculatorMode: z.enum(["TIDAK", "DASAR", "SCIENTIFIC"]).default("TIDAK"),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).default("DRAFT"),
   packages: packageByJenjangSchema,
 });
@@ -30,6 +31,7 @@ const updateExamSchema = z.object({
   durationMinutes: z.number().int().positive().max(600).optional(),
   shuffleQuestions: z.boolean().optional(),
   shuffleOptions: z.boolean().optional(),
+  calculatorMode: z.enum(["TIDAK", "DASAR", "SCIENTIFIC"]).optional(),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
   packages: packageByJenjangSchema.optional(),
 });
@@ -127,6 +129,7 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
           durationMinutes: parsed.data.durationMinutes,
           shuffleQuestions: parsed.data.shuffleQuestions,
           shuffleOptions: parsed.data.shuffleOptions,
+          calculatorMode: parsed.data.calculatorMode,
           status: parsed.data.status,
           createdById: actorId,
         },
@@ -214,6 +217,7 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
         durationMinutes: parsed.data.durationMinutes ?? existing.durationMinutes,
         shuffleQuestions: parsed.data.shuffleQuestions ?? existing.shuffleQuestions,
         shuffleOptions: parsed.data.shuffleOptions ?? existing.shuffleOptions,
+        calculatorMode: parsed.data.calculatorMode ?? existing.calculatorMode,
         status: nextStatus,
       },
     });
@@ -223,6 +227,22 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
     phase: existing.phase,
     startedAt: existing.startedAt?.toISOString() ?? null,
   });
+
+  // Log calculator mode change separately if changed
+  if (parsed.data.calculatorMode && parsed.data.calculatorMode !== existing.calculatorMode) {
+    await writeAudit({
+      userId: actorId,
+      action: "KALKULATOR_MODE_DIUBAH",
+      entityType: "exam",
+      entityId: id,
+      ipAddress,
+      meta: {
+        before: existing.calculatorMode,
+        after: parsed.data.calculatorMode,
+      },
+    });
+  }
+
   await writeAudit({ userId: actorId, action: "UPDATE_EXAM", entityType: "exam", entityId: id, ipAddress });
 }
 

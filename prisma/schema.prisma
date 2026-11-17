@@ -280,6 +280,12 @@ model QuestionPackageItem {
 // Jadwal ujian, paket per jenjang, dan pengerjaan peserta
 // -----------------------------------------------------------------------------
 
+enum CalculatorMode {
+  TIDAK
+  DASAR
+  SCIENTIFIC
+}
+
 model Exam {
   id                Int              @id @default(autoincrement())
   name              String           @db.VarChar(200) // snapshot dari competitions.nama_lomba
@@ -290,6 +296,7 @@ model Exam {
   durationMinutes   Int
   shuffleQuestions  Boolean          @default(true)
   shuffleOptions    Boolean          @default(true)
+  calculatorMode    CalculatorMode   @default(TIDAK)
   status            ExamStatus       @default(DRAFT)
   phase             ExamPhase        @default(NOT_STARTED)
   startedAt         DateTime?

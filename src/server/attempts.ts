@@ -288,6 +288,7 @@ export async function getAttemptState(attemptId: number, userId: number) {
   return {
     attemptId: attempt.id,
     examName: attempt.exam.name,
+    calculatorMode: attempt.exam.calculatorMode,
     status: attempt.status,
     serverNow: new Date().toISOString(),
     serverTime: new Date().toISOString(),

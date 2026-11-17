@@ -663,6 +663,7 @@ export function ExamForm({
     durationMinutes: number;
     shuffleQuestions: boolean;
     shuffleOptions: boolean;
+    calculatorMode: "TIDAK" | "DASAR" | "SCIENTIFIC";
     status: string;
     packages: Record<string, number>;
   };
@@ -866,6 +867,7 @@ export function ExamForm({
           durationMinutes: Number(form.get("durationMinutes")),
           shuffleQuestions: form.get("shuffleQuestions") === "on",
           shuffleOptions: form.get("shuffleOptions") === "on",
+          calculatorMode: form.get("calculatorMode"),
           status: form.get("status"),
           packages: packageMap,
         };
@@ -1022,6 +1024,54 @@ export function ExamForm({
           </label>
         </div>
       </fieldset>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-semibold text-ink">
+          Mode Kalkulator
+        </label>
+        <p className="text-xs text-ink-muted">Kalkulator yang tersedia untuk peserta saat mengerjakan ujian.</p>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-start gap-2.5 text-sm text-ink">
+            <input
+              type="radio"
+              name="calculatorMode"
+              value="TIDAK"
+              defaultChecked={isEdit ? initialData?.calculatorMode === "TIDAK" : true}
+              className="mt-0.5 size-4 accent-[var(--color-brand)]"
+            />
+            <div>
+              <span className="font-semibold">Tidak ada</span>
+              <span className="ml-2 text-xs text-ink-muted">(default)</span>
+            </div>
+          </label>
+          <label className="flex items-start gap-2.5 text-sm text-ink">
+            <input
+              type="radio"
+              name="calculatorMode"
+              value="DASAR"
+              defaultChecked={isEdit ? initialData?.calculatorMode === "DASAR" : false}
+              className="mt-0.5 size-4 accent-[var(--color-brand)]"
+            />
+            <div>
+              <span className="font-semibold">Dasar</span>
+              <span className="ml-2 text-xs text-ink-muted">angka, +, -, ×, ÷, %, √, x², 1/x</span>
+            </div>
+          </label>
+          <label className="flex items-start gap-2.5 text-sm text-ink">
+            <input
+              type="radio"
+              name="calculatorMode"
+              value="SCIENTIFIC"
+              defaultChecked={isEdit ? initialData?.calculatorMode === "SCIENTIFIC" : false}
+              className="mt-0.5 size-4 accent-[var(--color-brand)]"
+            />
+            <div>
+              <span className="font-semibold">Scientific</span>
+              <span className="ml-2 text-xs text-ink-muted">semua dasar + trigonometri, logaritma, pangkat, faktorial, konstanta</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
       <ErrorText error={error} />
       <button

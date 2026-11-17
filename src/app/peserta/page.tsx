@@ -170,7 +170,7 @@ export default async function PesertaHome() {
                         <div className="flex-1">
                           <h3 className="font-semibold text-ink">{exam.name}</h3>
                           <p className="mt-1 text-sm text-ink-muted">
-                            {formatJakarta(exam.startsAt)} · status <span className="font-semibold">{exam.status === "DRAFT" ? "Draf" : exam.status === "ARCHIVED" ? "Arsip" : exam.status}</span>
+                            {formatJakarta(exam.startsAt)} · status <span className="font-semibold">{exam.status === "DRAFT" ? "NOT STARTED" : exam.status}</span>
                           </p>
                         </div>
                       </div>

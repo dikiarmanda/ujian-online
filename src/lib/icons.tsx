@@ -45,6 +45,7 @@ import {
   faCog,
   faRefresh,
   faSignOut,
+  faCalculator,
 } from "@fortawesome/free-solid-svg-icons";
 
 export { FontAwesomeIcon };
@@ -95,4 +96,5 @@ export const Icon = {
   Cog: faCog,
   Refresh: faRefresh,
   Logout: faSignOut,
+  Calculator: faCalculator,
 };

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TABLE `exams` MODIFY COLUMN `calculatorMode` ENUM('TIDAK', 'DASAR', 'SCIENTIFIC') NOT NULL DEFAULT 'TIDAK';

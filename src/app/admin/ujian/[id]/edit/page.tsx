@@ -113,6 +113,7 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
               durationMinutes: exam.durationMinutes,
               shuffleQuestions: exam.shuffleQuestions,
               shuffleOptions: exam.shuffleOptions,
+              calculatorMode: exam.calculatorMode,
               status: exam.status,
               packages: packageMap,
             }}

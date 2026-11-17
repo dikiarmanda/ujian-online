@@ -29,6 +29,7 @@ export default async function UjianPesertaPage({ params }: { params: Promise<{ e
           attemptId: state.attemptId,
           examName: state.examName,
           sessionName: "",
+          calculatorMode: state.calculatorMode,
           deadlineAt: state.expiresAt,
           serverNow: state.serverNow,
           lastQuestionIndex: state.lastQuestionIndex,
