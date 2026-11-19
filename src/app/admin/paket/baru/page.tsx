@@ -21,6 +21,7 @@ export default async function PaketBaruPage() {
       defaultWrongWeight: true,
       type: true,
       category: { select: { name: true } },
+      updatedAt: true,
     },
   });
 
@@ -50,6 +51,7 @@ export default async function PaketBaruPage() {
             defaultWrongWeight: question.defaultWrongWeight.toString(),
             type: question.type,
             categoryName: question.category.name,
+            updatedAt: question.updatedAt,
           }))}
         />
       </div>
