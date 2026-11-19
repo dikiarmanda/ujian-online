@@ -107,7 +107,7 @@ export default async function AdminHome() {
       take: 8,
     }),
   ]);
-  
+  console.log(sessions);
   const liveSessions = sessions.filter((session) => session.phase === "RUNNING");
   const nextSessions = sessions
     .filter((session) => session.phase === "NOT_STARTED" && session.startsAt > now)
@@ -243,6 +243,7 @@ export default async function AdminHome() {
                   session._count.attempts > 0
                     ? Math.round((session._count.packages / session._count.attempts) * 100)
                     : 0;
+                const jenjangGroups = session.jenjangGroups ? JSON.parse(session.jenjangGroups) : [];
                 return (
                   <Link
                     key={session.id}
@@ -251,8 +252,11 @@ export default async function AdminHome() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <StatusChip label="Berlangsung" tone="live" />
-                        <p className="mt-2.5 truncate font-semibold text-ink">{session.name}</p>
-                        <p className="text-sm text-ink-muted">{session.name}</p>
+                        <p className="mt-2.5 truncate font-semibold text-ink">
+                          {session.name}
+                          {jenjangGroups.length > 0 && ` (${jenjangGroups.join(", ")})`}
+                        </p>
+                        <p className="text-sm text-ink-muted">{formatJakarta(session.startsAt)}</p>
                       </div>
 
                     </div>
@@ -329,6 +333,7 @@ export default async function AdminHome() {
                     session._count.attempts > 0
                       ? Math.round((session._count.packages / session._count.attempts) * 100)
                       : 0;
+                  const jenjangGroups = session.jenjangGroups ? JSON.parse(session.jenjangGroups) : [];
                   return (
                     <li key={session.id} className="rounded-xl border border-line/80 bg-paper p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
@@ -337,8 +342,8 @@ export default async function AdminHome() {
                       </div>
                       <Link href={`/admin/ujian/${session.id}`} className="mt-2 block font-semibold text-ink hover:text-brand">
                         {session.name}
+                        {jenjangGroups.length > 0 && ` (${jenjangGroups.join(", ")})`}
                       </Link>
-                      <p className="text-sm text-ink-muted">{session.name}</p>
                       <p className="mt-2 text-xs text-ink-muted">{formatJakarta(session.startsAt)}</p>
                       <div className="mt-3 flex items-end justify-between gap-3">
                         <ProgressBar value={attendancePct} label={`${session._count.packages}/${session._count.attempts} hadir`} />
@@ -375,6 +380,7 @@ export default async function AdminHome() {
                         session._count.attempts > 0
                           ? Math.round((session._count.packages / session._count.attempts) * 100)
                           : 0;
+                      const jenjangGroups = session.jenjangGroups ? JSON.parse(session.jenjangGroups) : [];
                       return (
                         <tr key={session.id} className="transition-colors hover:bg-brand-soft/25">
                           <td className="px-4 py-3.5">
@@ -383,8 +389,9 @@ export default async function AdminHome() {
                           <td className="px-4 py-3.5">
                             <Link href={`/admin/ujian/${session.id}`} className="font-semibold text-ink hover:text-brand">
                               {session.name}
+                              {jenjangGroups.length > 0 && ` (${jenjangGroups.join(", ")})`}
                             </Link>
-                            <span className="block text-xs text-ink-muted">{session.name}</span>
+                            <span className="block text-xs text-ink-muted">{session.competitionLevel}</span>
                           </td>
                           <td className="px-4 py-3.5">
                             <span className="text-ink">{formatJakarta(session.startsAt)}</span>
