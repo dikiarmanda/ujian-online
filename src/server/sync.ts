@@ -12,6 +12,9 @@ export async function syncParticipants(triggeredById: number | null, ipAddress?:
   const seenNisn = new Set<string>();
   try {
     const rows = await ombn.lomba_peserta.findMany({
+      where: {
+        lomba_tagihan: { is: { status: "LUNAS" } },
+      },
       select: {
         id: true,
         nomor_peserta: true,

@@ -12,7 +12,7 @@ function StatCard({ label, value, hint }: { label: string; value: string | numbe
   return (
     <div className="rounded-xl border border-line/80 bg-paper p-4 shadow-sm">
       <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-muted uppercase">{label}</p>
-      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</p>
+      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value.toLocaleString('id-ID')}</p>
       <p className="mt-1 text-xs leading-snug text-ink-muted">{hint}</p>
     </div>
   );
