@@ -7,7 +7,7 @@ export function assertAuthDriver(_nodeEnv: string | undefined, _driver: string |
 
 export function mapOmbnAdminRole(role: string): AppRole | null {
   if (role === "SUPERADMIN" || role === "ADMIN") return "ADMIN";
-  if (role === "PJ JURI" || role === "JURI") return "GRADER";
+  if (role === "PJ_JURI" || role === "PJ JURI" || role === "JURI") return "GRADER";
   return null;
 }
 

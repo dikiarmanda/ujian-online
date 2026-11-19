@@ -81,6 +81,7 @@ export default async function UjianPage() {
             sessionCount: exam._count.attempts,
             status: exam.status,
             phase: exam.phase,
+            jenjangGroups: exam.jenjangGroups ? JSON.parse(exam.jenjangGroups) : [],
           }))}
         />
 

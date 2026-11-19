@@ -291,6 +291,7 @@ model Exam {
   name              String           @db.VarChar(200) // snapshot dari competitions.nama_lomba
   competitionId     Int // referensi ke ombn.competitions.id (tanpa FK); satu lomba boleh beberapa ujian
   competitionLevel  CompetitionLevel @default(KABUPATEN)
+  jenjangGroups     String?          @db.Text // JSON array: ["SD","SMP","SMA","SMK"] dari ombn.competitions.tingkat
   attendanceOpensAt DateTime
   startsAt          DateTime // jadwal rencana (informasi)
   durationMinutes   Int

@@ -102,10 +102,9 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
 
   const competition = await getCompetitionById(parsed.data.competitionId);
   const schedule = parseSchedule(parsed.data);
-  const requiredGroups =
-    competition.jenjangGroups.length > 0
-      ? competition.jenjangGroups
-      : (Object.keys(parsed.data.packages) as JenjangGroup[]);
+  const requiredGroups = competition.jenjangGroups.length > 0
+    ? competition.jenjangGroups
+    : (Object.keys(parsed.data.packages) as JenjangGroup[]);
   const packageRows = normalizePackages(parsed.data.packages, requiredGroups);
   await assertPackagesExist(packageRows.map((row) => row.packageId));
 
@@ -124,6 +123,7 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
           name: competition.name,
           competitionId: competition.id,
           competitionLevel: parsed.data.competitionLevel,
+          jenjangGroups: JSON.stringify(requiredGroups),
           attendanceOpensAt: schedule.attendanceOpensAt,
           startsAt: schedule.startsAt,
           durationMinutes: parsed.data.durationMinutes,
@@ -179,12 +179,22 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
     });
   }
 
-  let requiredGroups: JenjangGroup[] = existing.packages.map((p) => p.jenjang as JenjangGroup);
+  let requiredGroups: JenjangGroup[] = [];
+  // Coba ambil dari OMBN dulu (sumber kebenaran)
   try {
     const competition = await getCompetitionById(existing.competitionId);
     if (competition.jenjangGroups.length) requiredGroups = competition.jenjangGroups;
   } catch {
-    // OMBN down: pakai kelompok yang sudah tersimpan
+    // OMBN down: fallback ke jenjangGroups yang sudah tersimpan di exam, lalu ke packages
+    try {
+      requiredGroups = existing.jenjangGroups ? parseCompetitionJenjang(existing.jenjangGroups) : [];
+    } catch {
+      requiredGroups = existing.packages.map((p) => p.jenjang as JenjangGroup);
+    }
+  }
+  // Jika masih kosong, fallback ke packages
+  if (requiredGroups.length === 0) {
+    requiredGroups = existing.packages.map((p) => p.jenjang as JenjangGroup);
   }
 
   await prisma.$transaction(async (tx) => {
@@ -212,6 +222,7 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
       where: { id },
       data: {
         competitionLevel: parsed.data.competitionLevel ?? existing.competitionLevel,
+        jenjangGroups: JSON.stringify(requiredGroups),
         attendanceOpensAt: schedule.attendanceOpensAt,
         startsAt: schedule.startsAt,
         durationMinutes: parsed.data.durationMinutes ?? existing.durationMinutes,
@@ -361,6 +372,7 @@ export async function getOmbnPesertaCount(examId: number): Promise<number> {
 }
 
 export async function getExamParticipantCounts(examId: number) {
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null }, select: { jenjangGroups: true } });
   const attempts = await prisma.examAttempt.findMany({
     where: { examId },
     select: { attendedAt: true, startedAt: true, submittedAt: true, status: true },

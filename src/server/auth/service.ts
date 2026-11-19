@@ -147,9 +147,9 @@ async function findAdmin(identity: string, password: string): Promise<Account> {
       akses_lomba: true,
     },
   });
-  console.log("[LOGIN] Admin found:", !!row, "Status:", row?.status);
+  console.log("[LOGIN] Admin found:", !!row, "Status:", row?.status, "Original role:", row?.role);
   const role = row ? mapOmbnAdminRole(row.role) : null;
-  console.log("[LOGIN] Mapped role:", role, "Original role:", row?.role);
+  console.log("[LOGIN] Mapped role:", role);
   const hash = row?.password_hash?.replace(/^\$2y\$/, "$2b$") || DUMMY_PASSWORD_HASH;
   let matched = false;
   try {
@@ -158,8 +158,20 @@ async function findAdmin(identity: string, password: string): Promise<Account> {
     matched = false;
   }
   console.log("[LOGIN] Password matched:", matched);
-  if (!row || row.status !== "ACTIVE" || !role || !matched) {
-    console.log("[LOGIN] Admin login failed - Row exists:", !!row, "Status:", row?.status, "Role:", role, "Matched:", matched);
+  if (!row) {
+    console.log("[LOGIN] Admin login failed - Admin not found in OMBN");
+    throw genericLoginError();
+  }
+  if (row.status !== "ACTIVE") {
+    console.log("[LOGIN] Admin login failed - Status is not ACTIVE:", row.status);
+    throw genericLoginError();
+  }
+  if (!role) {
+    console.log("[LOGIN] Admin login failed - Role mapping returned null for:", row.role);
+    throw genericLoginError();
+  }
+  if (!matched) {
+    console.log("[LOGIN] Admin login failed - Password mismatch");
     throw genericLoginError();
   }
 

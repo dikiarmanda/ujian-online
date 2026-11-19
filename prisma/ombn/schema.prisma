@@ -340,6 +340,7 @@ enum admins_role {
   ADMIN
   SUPERADMIN
   JURI
+  PJ_JURI @map("PJ JURI")
 }
 
 enum competitions_tingkat {

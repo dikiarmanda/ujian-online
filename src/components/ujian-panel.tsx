@@ -14,6 +14,7 @@ export type UjianRow = {
   sessionCount: number;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   phase?: "NOT_STARTED" | "RUNNING" | "ENDED";
+  jenjangGroups?: string[];
 };
 
 type StatusFilter = "ALL" | UjianRow["status"];
@@ -124,7 +125,7 @@ export function UjianPanel({ exams }: { exams: UjianRow[] }) {
           headers={["Ujian", "Tingkat", "Tanggal", "Durasi", "Soal", "Sesi", "Status", "Aksi"]}
           rows={filtered.map((exam) => [
             <Link href={`/admin/ujian/${exam.id}`} className="font-semibold text-ink hover:text-brand">
-              {exam.name}
+              {exam.name} {exam.jenjangGroups && exam.jenjangGroups.length > 0 ? `(${exam.jenjangGroups.join(", ")})` : ""}
             </Link>,
             <span className="text-ink">{exam.competitionLevel}</span>,
             <span className="text-ink">{exam.examDateLabel}</span>,

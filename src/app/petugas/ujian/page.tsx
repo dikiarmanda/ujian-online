@@ -17,7 +17,7 @@ export default async function PetugasUjianPage() {
       ...(aksesLomba.length > 0 ? { competitionId: { in: aksesLomba } } : {}),
     },
     orderBy: { startsAt: "desc" },
-    select: { id: true, name: true, phase: true, startsAt: true, durationMinutes: true },
+    select: { id: true, name: true, phase: true, startsAt: true, durationMinutes: true, jenjangGroups: true },
   });
 
   return (
@@ -44,7 +44,7 @@ export default async function PetugasUjianPage() {
               {exams.map((exam) => (
                 <li key={exam.id} className="flex min-h-14 items-center justify-between gap-4 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <span className="font-semibold text-ink">{exam.name}</span>
+                    <span className="font-semibold text-ink">{exam.name} {exam.jenjangGroups && exam.jenjangGroups.length > 0 ? `(${JSON.parse(exam.jenjangGroups).join(", ")})` : ""}</span>
                     <span className="mt-0.5 block text-sm text-ink-muted">
                       {exam.phase} · {formatJakarta(exam.startsAt)} · {exam.durationMinutes} menit
                     </span>
