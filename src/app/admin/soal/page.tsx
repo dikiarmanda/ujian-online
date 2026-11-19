@@ -14,7 +14,7 @@ function StatCard({ label, value, hint }: { label: string; value: number; hint: 
   return (
     <div className="rounded-xl border border-line/80 bg-paper p-4 shadow-sm">
       <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-muted uppercase">{label}</p>
-      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</p>
+      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value.toLocaleString("id-ID")}</p>
       <p className="mt-1 text-xs leading-snug text-ink-muted">{hint}</p>
     </div>
   );
@@ -119,6 +119,7 @@ export default async function SoalPage({
           <Link
             href="/admin/soal/baru"
             className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
+            <FontAwesomeIcon icon={Icon.Plus} className="size-4 mr-2" />
             Soal baru
           </Link>
         </header>
@@ -143,6 +144,7 @@ export default async function SoalPage({
               </div>
               {hasFilter ? (
                 <Link href="/admin/soal" className="text-sm font-semibold text-brand hover:underline">
+                  <FontAwesomeIcon icon={Icon.Xmark} className="size-4 mr-2" />
                   Hapus filter
                 </Link>
               ) : null}
@@ -170,6 +172,7 @@ export default async function SoalPage({
                 <Link
                   href="/admin/soal/baru"
                   className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
+                  <FontAwesomeIcon icon={Icon.Plus} className="size-4 mr-2" />
                   Buat soal pertama
                 </Link>
               ) : null}

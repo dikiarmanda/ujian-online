@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { patchJqueryCompat } from "@/lib/jquery-compat";
 import "select2/dist/css/select2.min.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 type Option = { value: string; label: string };
 
@@ -142,6 +144,7 @@ export function SoalFilterForm({ paket, kategori, jenis, gambar, packages, categ
       <button
         type="submit"
         className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+        <FontAwesomeIcon icon={Icon.MagnifyingGlass} className="size-4 mr-2" />
         Cari
       </button>
     </form>

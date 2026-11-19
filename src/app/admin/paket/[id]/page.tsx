@@ -31,6 +31,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
         defaultWrongWeight: true,
         type: true,
         category: { select: { name: true } },
+        updatedAt: true,
       },
     }),
     prisma.examPackage.count({ where: { packageId } }),
@@ -52,6 +53,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
       defaultWrongWeight: true,
       type: true,
       category: { select: { name: true } },
+      updatedAt: true,
     },
   });
   const questionMap = new Map(
@@ -65,6 +67,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
         defaultWrongWeight: question.defaultWrongWeight.toString(),
         type: question.type,
         categoryName: question.category.name,
+        updatedAt: question.updatedAt,
       },
     ]),
   );
@@ -101,6 +104,7 @@ export default async function PaketEditPage({ params }: { params: Promise<{ id: 
                 <Link
                   href={`/admin/paket/${pack.id}/preview`}
                   className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-paper px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
+                  <FontAwesomeIcon icon={Icon.Eye} className="size-4 mr-2" />
                   Preview
                 </Link>
               ) : null}

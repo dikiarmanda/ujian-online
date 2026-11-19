@@ -21,11 +21,13 @@ function getClient(): PrismaClient {
   if (globalForPrisma.prisma && globalForPrisma.prismaClientKey === PRISMA_CLIENT_KEY) {
     return globalForPrisma.prisma;
   }
+
+  // Client lama (kunci berbeda, biasanya setelah hot-reload di dev): tutup poolnya
+  globalForPrisma.prisma?.$disconnect().catch(() => {});
+
   const client = createClient();
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-    globalForPrisma.prismaClientKey = PRISMA_CLIENT_KEY;
-  }
+  globalForPrisma.prisma = client;
+  globalForPrisma.prismaClientKey = PRISMA_CLIENT_KEY;
   return client;
 }
 

@@ -1,4 +1,13 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { fas } from "@fortawesome/free-solid-svg-icons";
+
+// Add all solid icons to the library
+library.add(fas);
+
+export { FontAwesomeIcon };
+
+// Keep backward compatibility with Icon object
 import {
   faHome,
   faUsers,
@@ -46,9 +55,14 @@ import {
   faRefresh,
   faSignOut,
   faCalculator,
+  faList,
+  faFloppyDisk,
+  faMagnifyingGlass,
+  faFileExcel,
+  faFilePdf,
+  faFileWord,
+  faBroom,
 } from "@fortawesome/free-solid-svg-icons";
-
-export { FontAwesomeIcon };
 
 export const Icon = {
   Home: faHome,
@@ -97,4 +111,11 @@ export const Icon = {
   Refresh: faRefresh,
   Logout: faSignOut,
   Calculator: faCalculator,
+  List: faList,
+  FloppyDisk: faFloppyDisk,
+  MagnifyingGlass: faMagnifyingGlass,
+  FileExcel: faFileExcel,
+  FilePdf: faFilePdf,
+  FileWord: faFileWord,
+  Broom: faBroom,
 };

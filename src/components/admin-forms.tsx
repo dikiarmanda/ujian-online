@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { patchJqueryCompat } from "@/lib/jquery-compat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
+import { DataTable } from "@/components/data-table";
 import "select2/dist/css/select2.min.css";
 
 const SummernoteEditor = dynamic(() => import("./summernote-editor"), {
@@ -184,6 +185,7 @@ export function CategoryForm({ categories }: { categories?: Category[] }) {
           className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60"
           type="submit"
           disabled={pending}>
+          <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
           {pending ? "Menyimpan…" : "Simpan kategori"}
         </button>
       </form>
@@ -192,6 +194,7 @@ export function CategoryForm({ categories }: { categories?: Category[] }) {
           onClick={handleCleanup}
           disabled={cleanupPending}
           className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-page px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
+          <FontAwesomeIcon icon={Icon.Broom} className="size-4 mr-2" />
           {cleanupPending ? "Membersihkan…" : "Bersihkan kategori kosong"}
         </button>
         {cleanupMessage && (
@@ -554,6 +557,7 @@ export function QuestionForm({
             type="submit"
             disabled={pending || categories.length === 0}
             className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+            <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
             {pending ? "Menyimpan…" : editing ? "Simpan perubahan" : "Simpan soal"}
           </button>
         </div>
@@ -624,6 +628,7 @@ export function ImportForm() {
         type="submit"
         disabled={pending}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
+        <FontAwesomeIcon icon={Icon.FileExcel} className="size-4 mr-2" />
         {pending ? "Memeriksa berkas…" : "Periksa berkas"}
       </button>
     </form>
@@ -1078,6 +1083,7 @@ export function ExamForm({
         type="submit"
         disabled={pending || packages.length === 0 || (!competitionId && !isEdit) || (groups.length === 0 && !isEdit) || Boolean(competitionsError)}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+        <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
         {pending ? "Menyimpan…" : isEdit ? "Simpan perubahan" : "Buat ujian"}
       </button>
     </form>
@@ -1092,6 +1098,7 @@ type QuestionPick = {
   defaultWrongWeight: string;
   type?: string;
   categoryName?: string;
+  updatedAt: Date;
 };
 
 export function ExamControlButtons({
@@ -1185,11 +1192,20 @@ export function QuestionPackageForm({
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [showPlotting, setShowPlotting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const deferred = query.trim().toLowerCase();
 
   // Get unique categories
   const categories = Array.from(new Set(questions.map((q) => q.categoryName).filter(Boolean))).sort();
+
+  const editing = Boolean(initial?.id);
+
+  // Get questions in the package
+  const packageQuestions = useMemo(() => {
+    if (!editing) return [];
+    return questions.filter((q) => picked.includes(q.id));
+  }, [editing, picked, questions]);
 
   const filtered = questions.filter((question) => {
     const matchesQuery = !deferred || [question.code, stripHtml(question.body), question.categoryName ?? "", question.type ?? ""]
@@ -1202,15 +1218,17 @@ export function QuestionPackageForm({
     const matchesType = !typeFilter || question.type === typeFilter;
 
     return matchesQuery && matchesCategory && matchesType;
+  }).sort((a, b) => {
+    // Sort by updatedAt descending (most recent first)
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
-
-  const editing = Boolean(initial?.id);
 
   const allSelected = filtered.length > 0 && filtered.every((q) => picked.includes(q.id));
   const someSelected = filtered.some((q) => picked.includes(q.id));
 
-  // Initialize Select2
+  // Initialize Select2 (only for non-editing mode)
   useEffect(() => {
+    if (editing) return;
     let cancelled = false;
     const cleanups: Array<() => void> = [];
 
@@ -1273,11 +1291,11 @@ export function QuestionPackageForm({
       cancelled = true;
       for (const cleanup of cleanups) cleanup();
     };
-  }, []);
+  }, [editing]);
 
-  // Update Select2 when filter values change from React state
+  // Update Select2 when filter values change from React state (only for non-editing mode)
   useEffect(() => {
-    if (!formRef.current) return;
+    if (editing || !formRef.current) return;
     void (async () => {
       const jqueryMod = await import("jquery");
       const $ = patchJqueryCompat((jqueryMod.default ?? jqueryMod) as unknown as JQueryStatic);
@@ -1296,47 +1314,170 @@ export function QuestionPackageForm({
         }
       }
     })();
-  }, [categoryFilter, typeFilter]);
+  }, [categoryFilter, typeFilter, editing]);
 
-  return (
-    <form
-      ref={formRef}
-      className="flex flex-col gap-5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (picked.length < 1) {
-          setError("Pilih minimal satu soal.");
-          return;
+  // Initialize Select2 (for non-editing mode or editing mode with plotting view)
+  useEffect(() => {
+    if (editing && !showPlotting) return;
+    let cancelled = false;
+    const cleanups: Array<() => void> = [];
+
+    void (async () => {
+      const jqueryMod = await import("jquery");
+      const $ = patchJqueryCompat((jqueryMod.default ?? jqueryMod) as unknown as JQueryStatic);
+      const win = window as Window & { jQuery?: JQueryStatic; $?: JQueryStatic };
+      win.jQuery = $;
+      win.$ = $;
+
+      // @ts-expect-error select2 full build belum punya deklarasi modul
+      const select2Mod = await import("select2/dist/js/select2.full.min.js");
+      bindSelect2($, (select2Mod as { default?: unknown }).default ?? select2Mod);
+
+      if (typeof ($.fn as { select2?: unknown }).select2 !== "function") {
+        const fallback = await import("select2");
+        bindSelect2($, (fallback as { default?: unknown }).default ?? fallback);
+      }
+
+      if (cancelled || !formRef.current) return;
+      if (typeof ($.fn as { select2?: unknown }).select2 !== "function") {
+        console.error("Select2 gagal terpasang ke jQuery.");
+        return;
+      }
+
+      const selects = formRef.current.querySelectorAll<HTMLSelectElement>("select.js-select2");
+      selects.forEach((el) => {
+        const $el = $(el) as unknown as JQuerySelect2;
+        $el.select2({
+          width: "100%",
+          allowClear: true,
+          placeholder: el.dataset.placeholder || "Pilih…",
+          language: {
+            noResults: () => "Tidak ada hasil",
+            searching: () => "Mencari…",
+          },
+        });
+
+        // Sync Select2 changes with React state
+        $el.on("change", function() {
+          const value = $(this).val() as string;
+          if (el.name === "categoryFilter") {
+            setCategoryFilter(value);
+          } else if (el.name === "typeFilter") {
+            setTypeFilter(value);
+          }
+        });
+
+        cleanups.push(() => {
+          try {
+            if ($el.data("select2")) $el.select2("destroy");
+          } catch {
+            /* sudah di-unmount */
+          }
+        });
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const cleanup of cleanups) cleanup();
+    };
+  }, [editing, showPlotting]);
+
+  // Update Select2 when filter values change from React state (for non-editing mode or editing mode with plotting view)
+  useEffect(() => {
+    if ((editing && !showPlotting) || !formRef.current) return;
+    void (async () => {
+      const jqueryMod = await import("jquery");
+      const $ = patchJqueryCompat((jqueryMod.default ?? jqueryMod) as unknown as JQueryStatic);
+      const categorySelect = formRef.current?.querySelector<HTMLSelectElement>('select[name="categoryFilter"]');
+      const typeSelect = formRef.current?.querySelector<HTMLSelectElement>('select[name="typeFilter"]');
+      if (categorySelect) {
+        const $el = $(categorySelect) as unknown as JQuerySelect2;
+        if ($el.data("select2")) {
+          $el.val(categoryFilter).trigger("change");
         }
-        const form = new FormData(event.currentTarget);
-        const items = picked.map((questionId) => {
+      }
+      if (typeSelect) {
+        const $el = $(typeSelect) as unknown as JQuerySelect2;
+        if ($el.data("select2")) {
+          $el.val(typeFilter).trigger("change");
+        }
+      }
+    })();
+  }, [categoryFilter, typeFilter, editing, showPlotting]);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (picked.length < 1) {
+      setError("Pilih minimal satu soal.");
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    const items = picked.map((questionId) => {
+      const question = questions.find((item) => item.id === questionId);
+      return {
+        questionId,
+        weight: Number(question?.defaultWeight ?? 1),
+        wrongWeight: Number(question?.defaultWrongWeight ?? 0),
+      };
+    });
+    setPending(true);
+    setError(null);
+    void api<{ id: number }>("/api/admin/paket-soal", {
+      body: {
+        id: initial?.id,
+        name: String(form.get("name") ?? ""),
+        description: String(form.get("description") ?? "") || null,
+        isActive: form.get("isActive") === "on",
+        items,
+      },
+    })
+      .then(() => {
+        window.location.href = "/admin/paket";
+      })
+      .catch((cause: unknown) => {
+        setError(cause instanceof Error ? cause.message : "Gagal menyimpan paket.");
+        setPending(false);
+      });
+  };
+
+  const handleIdentitySubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setPending(true);
+    setError(null);
+    void api<{ id: number }>("/api/admin/paket-soal", {
+      body: {
+        id: initial?.id,
+        name: String(form.get("name") ?? ""),
+        description: String(form.get("description") ?? "") || null,
+        isActive: form.get("isActive") === "on",
+        items: picked.map((questionId) => {
           const question = questions.find((item) => item.id === questionId);
           return {
             questionId,
             weight: Number(question?.defaultWeight ?? 1),
             wrongWeight: Number(question?.defaultWrongWeight ?? 0),
           };
-        });
-        setPending(true);
-        setError(null);
-        void api<{ id: number }>("/api/admin/paket-soal", {
-          body: {
-            id: initial?.id,
-            name: String(form.get("name") ?? ""),
-            description: String(form.get("description") ?? "") || null,
-            isActive: form.get("isActive") === "on",
-            items,
-          },
-        })
-          .then(() => {
-            window.location.href = "/admin/paket";
-          })
-          .catch((cause: unknown) => {
-            setError(cause instanceof Error ? cause.message : "Gagal menyimpan paket.");
-            setPending(false);
-          });
-      }}>
-      <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
+        }),
+      },
+    })
+      .then(() => {
+        window.location.href = "/admin/paket";
+      })
+      .catch((cause: unknown) => {
+        setError(cause instanceof Error ? cause.message : "Gagal menyimpan paket.");
+        setPending(false);
+      });
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <form
+        ref={formRef}
+        className="flex flex-col gap-5"
+        onSubmit={editing ? handleIdentitySubmit : handleSubmit}>
+        <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
         <div className="mb-4">
           <h2 className="text-base font-semibold tracking-tight text-ink">Identitas paket</h2>
           <p className="mt-0.5 text-sm text-ink-muted">Nama paket dipakai saat memilih di form ujian.</p>
@@ -1368,154 +1509,325 @@ export function QuestionPackageForm({
         </div>
       </section>
 
-      <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold tracking-tight text-ink">Isi soal</h2>
-            <p className="mt-0.5 text-sm text-ink-muted">
-              <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
-            </p>
-          </div>
-          <label className="relative block w-full sm:max-w-xs">
-            <span className="sr-only">Cari soal</span>
-            <svg
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true">
-              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-              <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari teks, kode, atau kategori"
-              className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
-            />
-          </label>
-        </div>
+      <section className="rounded-xl border border-line/80 bg-paper shadow-sm">
+        {editing ? (
+          <>
+            <div className="flex flex-col gap-3 px-4 pt-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-ink">
+                  {showPlotting ? "Plotting soal ke paket" : "Soal dalam paket ini"}
+                </h2>
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  {showPlotting ? (
+                    <>
+                      <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-digits font-semibold text-ink tabular-nums">{packageQuestions.length}</span> soal
+                    </>
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPlotting(!showPlotting)}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
+                <FontAwesomeIcon icon={showPlotting ? Icon.List : Icon.Plus} className="w-4 h-4" />
+                {showPlotting ? "Lihat daftar" : "Plotting soal"}
+              </button>
+            </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          <select
-            name="categoryFilter"
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value)}
-            className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
-            data-placeholder="Semua kategori">
-            <option value="" />
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <select
-            name="typeFilter"
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
-            className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
-            data-placeholder="Semua jenis">
-            <option value="" />
-            <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
-            <option value="SHORT_ANSWER">Jawaban singkat</option>
-            <option value="ESSAY">Uraian</option>
-          </select>
-          {(categoryFilter || typeFilter) && (
-            <button
-              type="button"
-              onClick={() => {
-                setCategoryFilter("");
-                setTypeFilter("");
-              }}
-              className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
-              Reset filter
-            </button>
-          )}
-        </div>
+            {showPlotting ? (
+              <>
+                <div className="flex flex-row gap-2 py-4 px-4 sm:px-5">
+                  <select
+                    name="categoryFilter"
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                    className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
+                    data-placeholder="Semua kategori">
+                    <option value="" />
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="typeFilter"
+                    value={typeFilter}
+                    onChange={(event) => setTypeFilter(event.target.value)}
+                    className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
+                    data-placeholder="Semua jenis">
+                    <option value="" />
+                    <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
+                    <option value="SHORT_ANSWER">Jawaban singkat</option>
+                    <option value="ESSAY">Uraian</option>
+                  </select>
+                  {(categoryFilter || typeFilter) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCategoryFilter("");
+                        setTypeFilter("");
+                      }}
+                      className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
+                      Reset filter
+                    </button>
+                  )}
+                </div>
 
-        {questions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
-            <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
-            <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
-              Tambah soal
-            </Link>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
-        ) : (
-          <div className="max-h-96 overflow-auto rounded-xl border border-line/80">
-            <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 bg-page/80 border-b border-line">
-                <tr className="text-left text-ink-muted">
-                  <th className="px-3 py-2 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = someSelected && !allSelected;
-                      }}
-                      className="size-4 accent-[var(--color-brand)]"
-                      onChange={(event) => {
-                        if (event.target.checked) {
-                          setPicked([...new Set([...picked, ...filtered.map((q) => q.id)])]);
-                        } else {
-                          setPicked(picked.filter((id) => !filtered.some((q) => q.id === id)));
-                        }
-                      }}
+                {questions.length === 0 ? (
+                  <div className="mx-4 mb-4 rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center sm:mx-5">
+                    <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
+                    <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
+                      Tambah soal
+                    </Link>
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="mx-4 mb-4 rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted sm:mx-5">
+                    Tidak ada soal yang cocok.
+                  </div>
+                ) : (
+                  <DataTable
+                      headers={["", "Kategori", "Jenis", "Soal", "Bobot", "Aksi"]}
+                      rows={filtered.map((question) => {
+                        const checked = picked.includes(question.id);
+                        return [
+                          <input
+                            key="check"
+                            type="checkbox"
+                            checked={checked}
+                            className="size-4 accent-[var(--color-brand)]"
+                            onChange={(event) => {
+                              setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
+                            }}
+                          />,
+                          <span key="cat" className="text-ink-muted">{question.categoryName || "—"}</span>,
+                          question.type === "ESSAY" ? (
+                            <span key="type" className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
+                          ) : question.type === "SHORT_ANSWER" ? (
+                            <span key="type" className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
+                          ) : (
+                            <span key="type" className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand" title={question.code}>Pilihan ganda</span>
+                          ),
+                          <span key="body" className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>,
+                          <span key="weight" className="text-xs text-ink-muted">
+                            {[
+                              `benar ${question.defaultWeight}`,
+                              Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>,
+                          <Link
+                            key="action"
+                            href={`/admin/soal/${question.id}`}
+                            className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+                            <FontAwesomeIcon icon={Icon.Pencil} className="w-3 h-3" />
+                            Edit
+                          </Link>,
+                        ];
+                      })}
+                      itemsPerPage={10}
+                      searchPlaceholder="Cari soal..."
                     />
-                  </th>
-                  <th className="px-3 py-2 font-semibold">Kategori</th>
-                  <th className="px-3 py-2 font-semibold">Jenis</th>
-                  <th className="px-3 py-2 font-semibold">Soal</th>
-                  <th className="px-3 py-2 font-semibold">Bobot</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line/70">
-                {filtered.map((question) => {
-                  const checked = picked.includes(question.id);
-                  const typeLabel =
-                    question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
-                  return (
-                    <tr
-                      key={question.id}
-                      className={`transition-colors hover:bg-brand-soft/30 ${checked ? "bg-brand-soft/40" : "bg-paper"}`}>
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          className="size-4 accent-[var(--color-brand)]"
-                          onChange={(event) => {
-                            setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
-                          }}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-ink-muted">{question.categoryName || "—"}</td>
-                      <td className="px-3 py-2">
-                        {question.type === "ESSAY" ? (
-                          <span className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
-                        ) : question.type === "SHORT_ANSWER" ? (
-                          <span className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
-                        ) : (
-                          <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-ink-muted">
+                )}
+              </>
+            ) : (
+              <>
+                {packageQuestions.length === 0 ? (
+                  <div className="mx-4 mb-4 rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center sm:mx-5">
+                    <p className="text-sm font-semibold text-ink">Paket ini belum memiliki soal</p>
+                  </div>
+                ) : (
+                  <DataTable
+                    headers={["Kategori", "Jenis", "Soal", "Bobot", "Aksi"]}
+                    rows={packageQuestions.map((question) => [
+                      <span key="cat" className="text-ink-muted">{question.categoryName || "—"}</span>,
+                      question.type === "ESSAY" ? (
+                        <span key="type" className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
+                      ) : question.type === "SHORT_ANSWER" ? (
+                        <span key="type" className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
+                      ) : (
+                        <span key="type" className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand" title={question.code}>Pilihan ganda</span>
+                      ),
+                      <span key="body" className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>,
+                      <span key="weight" className="text-xs text-ink-muted">
                         {[
                           `benar ${question.defaultWeight}`,
                           Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")}
-                      </td>
+                      </span>,
+                      <Link
+                        key="action"
+                        href={`/admin/soal/${question.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+                        <FontAwesomeIcon icon={Icon.Pencil} className="w-3 h-3" />
+                        Edit
+                      </Link>,
+                    ])}
+                    itemsPerPage={10}
+                    searchPlaceholder="Cari soal..."
+                  />
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-ink">Isi soal</h2>
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
+                </p>
+              </div>
+              <label className="relative block w-full sm:max-w-xs">
+                <span className="sr-only">Cari soal</span>
+                <svg
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true">
+                  <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
+                  <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Cari teks, kode, atau kategori"
+                  className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
+                />
+              </label>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-2">
+              <select
+                name="categoryFilter"
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
+                data-placeholder="Semua kategori">
+                <option value="" />
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="typeFilter"
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value)}
+                className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
+                data-placeholder="Semua jenis">
+                <option value="" />
+                <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
+                <option value="SHORT_ANSWER">Jawaban singkat</option>
+                <option value="ESSAY">Uraian</option>
+              </select>
+              {(categoryFilter || typeFilter) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryFilter("");
+                    setTypeFilter("");
+                  }}
+                  className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
+                  Reset filter
+                </button>
+              )}
+            </div>
+
+            {questions.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
+                <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
+                <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
+                  Tambah soal
+                </Link>
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
+            ) : (
+              <div className="max-h-96 overflow-auto rounded-xl border border-line/80">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="sticky top-0 bg-page/80 border-b border-line">
+                    <tr className="text-left text-ink-muted">
+                      <th className="px-3 py-2 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someSelected && !allSelected;
+                          }}
+                          className="size-4 accent-[var(--color-brand)]"
+                          onChange={(event) => {
+                            if (event.target.checked) {
+                              setPicked([...new Set([...picked, ...filtered.map((q) => q.id)])]);
+                            } else {
+                              setPicked(picked.filter((id) => !filtered.some((q) => q.id === id)));
+                            }
+                          }}
+                        />
+                      </th>
+                      <th className="px-3 py-2 font-semibold">Kategori</th>
+                      <th className="px-3 py-2 font-semibold">Jenis</th>
+                      <th className="px-3 py-2 font-semibold">Soal</th>
+                      <th className="px-3 py-2 font-semibold">Bobot</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-line/70">
+                    {filtered.map((question) => {
+                      const checked = picked.includes(question.id);
+                      const typeLabel =
+                        question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
+                      return (
+                        <tr
+                          key={question.id}
+                          className={`transition-colors hover:bg-brand-soft/30 ${checked ? "bg-brand-soft/40" : "bg-paper"}`}>
+                          <td className="px-3 py-2">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              className="size-4 accent-[var(--color-brand)]"
+                              onChange={(event) => {
+                                setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-ink-muted">{question.categoryName || "—"}</td>
+                          <td className="px-3 py-2">
+                            {question.type === "ESSAY" ? (
+                              <span className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
+                            ) : question.type === "SHORT_ANSWER" ? (
+                              <span className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
+                            ) : (
+                              <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-ink-muted">
+                            {[
+                              `benar ${question.defaultWeight}`,
+                              Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -1524,9 +1836,11 @@ export function QuestionPackageForm({
         type="submit"
         disabled={pending}
         className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+        <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
         {pending ? "Menyimpan…" : editing ? "Simpan perubahan" : "Buat paket"}
       </button>
-    </form>
+      </form>
+    </div>
   );
 }
 
@@ -1556,6 +1870,7 @@ export function DeletePackageButton({ packageId, usedInExams }: { packageId: num
               setPending(false);
             });
         }}>
+        <FontAwesomeIcon icon={Icon.Trash} className="size-4 mr-2" />
         {pending ? "Menghapus…" : "Hapus paket"}
       </button>
       <ErrorText error={error} />
