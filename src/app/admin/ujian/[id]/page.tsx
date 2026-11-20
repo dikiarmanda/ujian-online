@@ -7,7 +7,7 @@ import { getExamParticipantCounts } from "@/server/exams";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faEye, faPenToSquare } from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "@/lib/icons";
 
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
@@ -78,7 +78,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
         <header className="flex flex-col gap-5">
           {user.role === "ADMIN" ? (
             <Link href="/admin/ujian" className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
-              <FontAwesomeIcon icon={faArrowLeft} className="size-3.5" />
+              <FontAwesomeIcon icon={Icon.ArrowLeft} className="size-3.5" />
               Kembali ke daftar ujian
             </Link>
           ) : null}
@@ -89,7 +89,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                 <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${status.className}`}>{status.label}</span>
                 <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ${phase.className}`}>{phase.label}</span>
               </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{exam.name}</h1>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{exam.name} {exam.jenjangGroups && exam.jenjangGroups.length > 0 ? `(${JSON.parse(exam.jenjangGroups).join(", ")})` : ""}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">
                 Tingkat {exam.competitionLevel} · {exam.durationMinutes} menit · absensi {formatJakarta(exam.attendanceOpensAt)}
               </p>
@@ -98,6 +98,7 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
             {user.role === "ADMIN" ? (
               <div className="flex gap-2">
                 <Link href={`/admin/ujian/${exam.id}/edit`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                  <FontAwesomeIcon icon={Icon.PenToSquare} className="size-4 mr-2" />
                   Edit ujian
                 </Link>
                 <DeleteExamButton examId={exam.id} />
@@ -132,13 +133,13 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
                   </span>
                   <Link href={`/admin/paket/${pack.questionPackage.id}`} className="inline-flex items-center rounded-lg border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-brand hover:border-brand hover:text-brand transition">
                     <span className="inline-flex items-center gap-1">
-                      <FontAwesomeIcon icon={faPenToSquare} className="text-[15px]" />
+                      <FontAwesomeIcon icon={Icon.PenToSquare} className="text-[15px]" />
                       Edit
                     </span>
                   </Link>
                   <Link href={`/admin/paket/${pack.questionPackage.id}/preview`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line-strong bg-paper px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
                     <span className="inline-flex items-center gap-1">
-                      <FontAwesomeIcon icon={faEye} className="text-[15px]" />
+                      <FontAwesomeIcon icon={Icon.Eye} className="text-[15px]" />
                       Preview
                     </span>
                   </Link>

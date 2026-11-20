@@ -99,6 +99,7 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
               Ubah jadwal, paket soal, atau pengaturan ujian. Ujian yang sudah berjalan tidak dapat diedit.
             </p>
+            <h1 className="text-lg font-semibold tracking-tight text-ink">{exam.name} {exam.jenjangGroups && exam.jenjangGroups.length > 0 ? `(${JSON.parse(exam.jenjangGroups).join(", ")})` : ""}</h1>
           </div>
         </header>
 

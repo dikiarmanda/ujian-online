@@ -1132,6 +1132,7 @@ export function ExamControlButtons({
                 setPending(null);
               });
           }}>
+          <FontAwesomeIcon icon={Icon.Play} className="size-4 mr-2" />
           {pending === "start" ? "Memulai…" : "MULAI"}
         </button>
         <button
@@ -1149,6 +1150,7 @@ export function ExamControlButtons({
                 setPending(null);
               });
           }}>
+          <FontAwesomeIcon icon={Icon.Stop} className="size-4 mr-2" />
           {pending === "end" ? "Menutup…" : "SELESAI"}
         </button>
         <button
@@ -1165,6 +1167,7 @@ export function ExamControlButtons({
                 setPending(null);
               });
           }}>
+          <FontAwesomeIcon icon={Icon.ArrowsRotate} className="size-4 mr-2" />
           {pending === "sync" ? "Menyinkron…" : "Sinkron ulang nama"}
         </button>
       </div>
@@ -1901,6 +1904,7 @@ export function DeleteExamButton({ examId }: { examId: number }) {
               setPending(false);
             });
         }}>
+        <FontAwesomeIcon icon={Icon.Trash} className="size-4 mr-2" />
         {pending ? "Menghapus…" : "Hapus ujian"}
       </button>
       <ErrorText error={error} />

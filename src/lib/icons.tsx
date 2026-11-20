@@ -62,6 +62,8 @@ import {
   faFilePdf,
   faFileWord,
   faBroom,
+  faPenToSquare,
+  faArrowsRotate,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const Icon = {
@@ -118,4 +120,6 @@ export const Icon = {
   FilePdf: faFilePdf,
   FileWord: faFileWord,
   Broom: faBroom,
+  PenToSquare: faPenToSquare,
+  ArrowsRotate: faArrowsRotate,
 };
