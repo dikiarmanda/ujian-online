@@ -65,7 +65,6 @@ export function WaitingRoom({
   }, [examId, phase]);
 
   const clock = new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(startsAt));

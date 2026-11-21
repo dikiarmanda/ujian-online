@@ -65,7 +65,7 @@ export default async function PesertaHome() {
   }
 
   const exam = await prisma.exam.findFirst({
-    where: { competitionId: user.competitionId, phase: { not: ExamPhase.ENDED }, deletedAt: null },
+    where: { competitionId: user.competitionId, status: "PUBLISHED", phase: { not: ExamPhase.ENDED }, deletedAt: null },
     orderBy: { startsAt: "asc" },
     include: {
       attempts: { where: { userId: user.userId }, take: 1 },

@@ -5,6 +5,7 @@ import { ExamForm } from "@/components/admin-forms";
 import { listAvailableCompetitions } from "@/server/competitions";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
+import { formatJakartaDateTimeLocal } from "@/lib/format";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
@@ -109,8 +110,8 @@ export default async function EditUjianPage({ params }: { params: Promise<{ id: 
             initialData={{
               competitionId: exam.competitionId,
               competitionLevel: exam.competitionLevel,
-              attendanceOpensAt: exam.attendanceOpensAt.toISOString().slice(0, 16),
-              startsAt: exam.startsAt.toISOString().slice(0, 16),
+              attendanceOpensAt: formatJakartaDateTimeLocal(exam.attendanceOpensAt),
+              startsAt: formatJakartaDateTimeLocal(exam.startsAt),
               durationMinutes: exam.durationMinutes,
               shuffleQuestions: exam.shuffleQuestions,
               shuffleOptions: exam.shuffleOptions,

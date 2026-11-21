@@ -5,7 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 const DEFAULT_PAGE_SIZES = [10, 25, 50, 100];
 
 export type DataTableProps = {
-  headers: string[];
+  headers: (string | ReactNode)[];
   rows: ReactNode[][];
   itemsPerPage?: number;
   pageSizeOptions?: number[];
@@ -148,8 +148,8 @@ export function DataTable({
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-line bg-page/80 text-left text-ink-muted">
-              {headers.map((header) => (
-                <th key={header} className="px-3 font-semibold">
+              {headers.map((header, index) => (
+                <th key={index} className="px-3 font-semibold">
                   <span className="flex h-11 items-center">{header}</span>
                 </th>
               ))}

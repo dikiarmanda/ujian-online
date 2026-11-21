@@ -164,8 +164,8 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
     include: { packages: true },
   });
   if (!existing) throw new AppError("Ujian tidak ditemukan.", 404);
-  if (existing.phase === "RUNNING" || existing.phase === "ENDED") {
-    throw new AppError("Ujian yang sedang/sudah berjalan tidak dapat diubah jadwalnya.", 409);
+  if (existing.phase === "RUNNING") {
+    throw new AppError("Ujian yang sedang berjalan tidak dapat diubah jadwalnya.", 409);
   }
 
   let schedule = {
@@ -259,7 +259,6 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
 
 function formatJakartaInput(value: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jakarta",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

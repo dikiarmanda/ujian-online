@@ -42,7 +42,7 @@ export function GradeDesk({ answerId }: { answerId: number }) {
         <p className="mt-2 border-l-4 border-brand bg-page p-4 whitespace-pre-wrap">{view.essayText || "Peserta tidak menulis jawaban."}</p>
       </section>
       <section className="rounded-md border border-line bg-paper p-5 shadow-paper">
-        <p className="rounded-sm bg-mark px-3 py-2 text-sm text-mark-ink">Kunci Anda berlaku sampai {new Date(view.lockExpiresAt).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta" })}</p>
+        <p className="rounded-sm bg-mark px-3 py-2 text-sm text-mark-ink">Kunci Anda berlaku sampai {new Date(view.lockExpiresAt).toLocaleTimeString("id-ID")}</p>
         <h2 className="mt-4 text-sm font-semibold">Pedoman</h2>
         <RichHtml html={view.answerKey} className="mt-2 text-sm" />
         {view.rubric ? (

@@ -5,6 +5,8 @@ import { formatJakarta } from "@/lib/format";
 import { listAvailableCompetitions } from "@/server/competitions";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +61,7 @@ export default async function UjianPage() {
           <a
             href="#buat-ujian"
             className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
+            <FontAwesomeIcon icon={Icon.Plus} className="size-4 mr-2" />
             Buat ujian
           </a>
         </header>
@@ -75,6 +78,7 @@ export default async function UjianPage() {
             id: exam.id,
             name: exam.name,
             examDateLabel: formatJakarta(exam.startsAt),
+            examDate: exam.startsAt,
             competitionLevel: exam.competitionLevel,
             durationMinutes: exam.durationMinutes,
             questionCount: exam._count.packages,

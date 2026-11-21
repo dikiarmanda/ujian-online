@@ -69,7 +69,7 @@ export function parseJakartaDateTime(value: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
     throw new Error("Waktu tidak valid.");
   }
-  // Parse sebagai WIB (UTC+7)
+  // Parse sebagai WIB (UTC+7) - data di database dianggap WIB
   return new Date(`${value}:00+07:00`);
 }
 

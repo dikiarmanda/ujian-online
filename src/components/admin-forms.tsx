@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -9,6 +9,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
 import { DataTable } from "@/components/data-table";
 import "select2/dist/css/select2.min.css";
+import { formatJakarta } from "@/lib/format";
 
 const SummernoteEditor = dynamic(() => import("./summernote-editor"), {
   ssr: false,
@@ -1105,21 +1106,29 @@ export function ExamControlButtons({
   examId,
   phase,
   status,
+  startsAt,
 }: {
   examId: number;
   phase: "NOT_STARTED" | "RUNNING" | "ENDED";
   status: string;
+  startsAt: Date;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"start" | "end" | "sync" | null>(null);
   const canControl = status === "PUBLISHED";
+  const canStart = phase === "NOT_STARTED" && new Date() >= startsAt;
 
   return (
     <div className="flex flex-col gap-3">
+      {phase === "NOT_STARTED" && !canStart && (
+        <p className="text-xs text-ink-muted" suppressHydrationWarning>
+          Tombol MULAI akan aktif pada {formatJakarta(startsAt)}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={!canControl || phase !== "NOT_STARTED" || pending !== null}
+          disabled={!canControl || !canStart || pending !== null}
           className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50"
           onClick={() => {
             if (!window.confirm("Mulai ujian sekarang? Peserta di ruang tunggu akan diarahkan mengerjakan.")) return;

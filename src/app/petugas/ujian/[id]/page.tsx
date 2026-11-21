@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ExamControlButtons } from "@/components/admin-forms";
 import { PetugasShell } from "@/components/petugas-shell";
 import { formatJakarta } from "@/lib/format";
 import { getAksesLomba } from "@/server/akses-lomba";
@@ -95,14 +94,6 @@ export default async function PetugasUjianDetailPage({ params }: { params: Promi
           <StatCard label="Ruang tunggu" value={counts.waiting} hint="Absen, belum mulai soal" />
           <StatCard label="Mengerjakan" value={counts.working} hint="Timer peserta berjalan" />
           <StatCard label="Selesai" value={counts.finished} hint="Sudah kirim / waktu habis" />
-        </section>
-
-        <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold tracking-tight text-ink">Kontrol juri</h2>
-          <p className="mt-0.5 text-sm text-ink-muted">MULAI membuka gerbang soal. SELESAI menutup semua pengerjaan terbuka.</p>
-          <div className="mt-4">
-            <ExamControlButtons examId={exam.id} phase={exam.phase} status={exam.status} />
-          </div>
         </section>
 
         <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">

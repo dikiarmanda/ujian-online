@@ -115,10 +115,10 @@ export default async function UjianDetailPage({ params }: { params: Promise<{ id
         </section>
 
         <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
-          <h2 className="text-lg font-semibold tracking-tight text-ink">Kontrol juri</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-ink">Kontrol Ujian</h2>
           <p className="mt-0.5 text-sm text-ink-muted">MULAI membuka gerbang soal. SELESAI menutup semua pengerjaan terbuka.</p>
           <div className="mt-4">
-            <ExamControlButtons examId={exam.id} phase={exam.phase} status={exam.status} />
+            <ExamControlButtons examId={exam.id} phase={exam.phase} status={exam.status} startsAt={exam.startsAt} />
           </div>
         </section>
 

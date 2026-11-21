@@ -126,6 +126,23 @@ export async function POST(req: Request, ctx: Ctx) {
       await deleteExam(body.id, user.userId, ip);
       return json({ ok: true });
     }
+    if (action === "bulk-ujian") {
+      const body = await readBody(
+        req,
+        z.object({
+          ids: z.array(z.number().int().positive()),
+          status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+          phase: z.enum(["NOT_STARTED", "RUNNING", "ENDED"]).optional(),
+        }),
+      );
+      if (!body.status && !body.phase) {
+        return json({ error: "Pilih status atau phase untuk diupdate." }, 400);
+      }
+      for (const id of body.ids) {
+        await updateExam(id, { status: body.status, phase: body.phase }, user.userId, ip);
+      }
+      return json({ ok: true, count: body.ids.length });
+    }
     if (action === "waktu") {
       const body = await readBody(
         req,
