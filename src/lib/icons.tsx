@@ -64,6 +64,7 @@ import {
   faBroom,
   faPenToSquare,
   faArrowsRotate,
+  faRankingStar,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const Icon = {
@@ -122,4 +123,5 @@ export const Icon = {
   Broom: faBroom,
   PenToSquare: faPenToSquare,
   ArrowsRotate: faArrowsRotate,
+  RankingStar: faRankingStar,
 };

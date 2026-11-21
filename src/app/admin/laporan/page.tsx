@@ -4,6 +4,8 @@ import { LaporanPanel } from "@/components/laporan-panel";
 import { formatJakarta } from "@/lib/format";
 import { requirePageUser } from "@/server/current-user";
 import { prisma } from "@/server/db";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ function StatCard({ label, value, hint }: { label: string; value: number; hint: 
   return (
     <div className="rounded-xl border border-line/80 bg-paper p-4 shadow-sm">
       <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-muted uppercase">{label}</p>
-      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</p>
+      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value.toLocaleString("id-ID")}</p>
       <p className="mt-1 text-xs leading-snug text-ink-muted">{hint}</p>
     </div>
   );
@@ -64,6 +66,7 @@ export default async function LaporanIndexPage() {
           <Link
             href="/admin/ujian"
             className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+            <FontAwesomeIcon icon={Icon.List} className="size-4 mr-2" />
             Kelola ujian
           </Link>
         </header>
@@ -80,6 +83,8 @@ export default async function LaporanIndexPage() {
             id: exam.id,
             examName: exam.name,
             sessionName: exam.phase,
+            jenjangGroups: exam.jenjangGroups || "",
+            startsAt: exam.startsAt,
             startsAtLabel: formatJakarta(exam.startsAt),
             endsAtLabel: "",
             durationMinutes: exam.durationMinutes,

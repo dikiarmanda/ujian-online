@@ -10,6 +10,7 @@ import { requirePageUser } from "@/server/current-user";
 import { sessionReport } from "@/server/reports";
 import { RankButton } from "@/components/rank-button";
 import { SyncButton } from "@/components/sync-button";
+import { getOmbnPesertaCount } from "@/server/exams";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +20,18 @@ const gradingLabel: Record<string, string> = {
   COMPLETED: "Selesai dinilai",
 };
 
+const violationLabel: Record<string, string> = {
+  WINDOW_BLUR: "Jendela browser tidak aktif",
+  RIGHT_CLICK: "Klik kanan pada mouse",
+  COPY_PASTE: "Copy/paste konten",
+  TAB_SWITCH: "Pindah tab browser",
+};
+
 function StatCard({ label, value, hint }: { label: string; value: number | string; hint: string }) {
   return (
     <div className="rounded-xl border border-line/80 bg-paper p-4 shadow-sm">
       <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-muted uppercase">{label}</p>
-      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value}</p>
+      <p className="mt-2 font-digits text-2xl font-semibold tracking-tight text-ink tabular-nums">{value.toLocaleString("id-ID")}</p>
       <p className="mt-1 text-xs leading-snug text-ink-muted">{hint}</p>
     </div>
   );
@@ -47,6 +55,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
     notFound();
   }
 
+  const pesertaTerdaftar = await getOmbnPesertaCount(id);
   const now = new Date();
   const state = getSessionState(report.startsAt, now);
   const attendancePct =
@@ -80,16 +89,19 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
                 <Link
                   href={`/admin/ujian/${report.examId}`}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                  <FontAwesomeIcon icon={Icon.List} className="size-4 mr-2" />
                   Kelola ujian
                 </Link>
                 <a
                   href={`/api/admin/laporan/${sessionId}/excel`}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
+                  <FontAwesomeIcon icon={Icon.FileExcel} className="size-4 mr-2" />
                   Unduh Excel
                 </a>
                 <a
                   href={`/api/admin/laporan/${sessionId}/pdf`}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
+                  <FontAwesomeIcon icon={Icon.FilePdf} className="size-4 mr-2" />
                   Unduh PDF
                 </a>
               </div>
@@ -102,6 +114,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
         </header>
 
         <section aria-label="Ringkasan ujian" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Peserta terdaftar" value={pesertaTerdaftar} hint="Total peserta mendaftar ujian ini" />
           <StatCard
             label="Kehadiran"
             value={`${report.attendance.attended}/${report.attendance.assigned}`}
@@ -112,11 +125,6 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
             label="Belum Dinilai"
             value={pendingGrading}
             hint={pendingGrading ? "Menunggu nilai uraian" : "Tidak ada antrean penilaian"}
-          />
-          <StatCard
-            label="Pelanggaran"
-            value={totalViolations}
-            hint={totalViolations ? "Perlu ditinjau" : "Tidak tercatat"}
           />
         </section>
 
@@ -146,10 +154,11 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
               <p className="mt-0.5 text-sm text-ink-muted">{report.violations.length} kejadian tercatat selama sesi.</p>
             </div>
             <PaginatedDataTable
-              headers={["Nama", "Jenis", "Soal", "Waktu"]}
+              headers={["Nama", "Jenis", "Keterangan", "Soal", "Waktu"]}
               rows={report.violations.map((item) => [
                 <span className="font-semibold text-ink">{item.name}</span>,
                 <span className="text-sm text-ink">{item.type}</span>,
+                <span className="text-sm text-ink">{violationLabel[item.type] || item.type}</span>,
                 <span className="text-sm text-ink-muted">{item.questionNumber != null ? `#${item.questionNumber}` : "—"}</span>,
                 <span className="text-xs text-ink-muted">{formatJakarta(item.occurredAt)}</span>,
               ])}

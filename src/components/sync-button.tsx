@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 export function SyncButton({ examId, hasRank }: { examId: number; hasRank: boolean }) {
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,7 @@ export function SyncButton({ examId, hasRank }: { examId: number; hasRank: boole
         onClick={handleSync}
         disabled={loading}
         className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-50 disabled:cursor-not-allowed">
+        <FontAwesomeIcon icon={Icon.ArrowsRotate} className="size-4 mr-2" />
         {loading ? "Menyinkronkan..." : "Sinkron ke OMBN"}
       </button>
       {message && (

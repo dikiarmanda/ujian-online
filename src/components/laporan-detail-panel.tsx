@@ -47,22 +47,26 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
   const [status, setStatus] = useState<StatusFilter>("ALL");
 
   const groupedItems = useMemo(() => {
-    const grouped = new Map<string, { question: string; correct: number; total: number }>();
+    const grouped = new Map<string, { question: string; correct: number; wrong: number; total: number }>();
     for (const item of items) {
-      const existing = grouped.get(item.code) ?? { question: item.question, correct: 0, total: 0 };
+      const existing = grouped.get(item.code) ?? { question: item.question, correct: 0, wrong: 0, total: 0 };
       grouped.set(item.code, {
         question: existing.question,
         correct: existing.correct + item.correct,
+        wrong: existing.wrong + (item.total - item.correct),
         total: existing.total + item.total,
       });
     }
-    return Array.from(grouped.entries()).map(([code, data]) => ({
-      code,
-      question: data.question,
-      correct: data.correct,
-      total: data.total,
-      percent: data.total > 0 ? Math.round((data.correct / data.total) * 1000) / 10 : 0,
-    }));
+    return Array.from(grouped.entries())
+      .map(([code, data]) => ({
+        code,
+        question: data.question,
+        correct: data.correct,
+        wrong: data.wrong,
+        total: data.total,
+        percent: data.total > 0 ? Math.round((data.correct / data.total) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.correct - a.correct);
   }, [items]);
 
   const filtered = useMemo(() => {
@@ -170,7 +174,7 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
           </div>
         ) : (
           <PaginatedDataTable
-            headers={["Soal", "Persentase", "Benar", "Total"]}
+            headers={["Soal", "Persentase", "Benar", "Salah", "Total"]}
             rows={groupedItems.map((item) => [
               <span className="font-semibold text-ink">{item.question}</span>,
               <div className="flex flex-col gap-1">
@@ -185,6 +189,7 @@ export function LaporanDetailPanel({ rows, items }: { rows: LaporanResultRow[]; 
                 </div>
               </div>,
               <span className="font-digits tabular-nums text-ink">{item.correct}</span>,
+              <span className="font-digits tabular-nums text-ink">{item.wrong}</span>,
               <span className="font-digits tabular-nums text-ink">{item.total}</span>,
             ])}
             searchPlaceholder="Cari kode soal"

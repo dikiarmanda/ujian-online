@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Icon } from "@/lib/icons";
 
 export function RankButton({ examId, pendingGrading, phase }: { examId: number; pendingGrading: number; phase: string }) {
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,7 @@ export function RankButton({ examId, pendingGrading, phase }: { examId: number; 
       <button
         disabled
         className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink-muted opacity-50 cursor-not-allowed">
+        <FontAwesomeIcon icon={Icon.RankingStar} className="size-4 mr-2" />
         Hitung Peringkat
       </button>
     );
@@ -44,6 +47,7 @@ export function RankButton({ examId, pendingGrading, phase }: { examId: number; 
         onClick={handleCalculate}
         disabled={loading}
         className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-paper px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-50 disabled:cursor-not-allowed">
+        <FontAwesomeIcon icon={Icon.RankingStar} className="size-4 mr-2" />
         {loading ? "Menghitung..." : "Hitung Peringkat"}
       </button>
       {message && (

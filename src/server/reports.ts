@@ -3,7 +3,7 @@ import { AppError } from "./errors";
 
 export async function examReport(examId: number) {
   const exam = await prisma.exam.findUnique({
-    where: { id: examId, deletedAt: null },
+    where: { id: examId },
     include: {
       packages: {
         include: { questions: { include: { question: true }, orderBy: { sortOrder: "asc" } } },
@@ -47,26 +47,28 @@ export async function examReport(examId: number) {
       .map((item) => ({ ...item, jenjang: pack.jenjang })),
   );
   const finished = exam.attempts.filter((attempt) => attempt.status !== "IN_PROGRESS");
-  const items = mcQuestions.map((item) => {
-    let correct = 0;
-    let total = 0;
-    for (const attempt of finished) {
-      if (attempt.jenjang !== item.jenjang) continue;
-      total += 1;
-      const answer = attempt.answers.find((row) => row.questionId === item.questionId);
-      if (answer?.isCorrect) correct += 1;
-    }
-    const percent = total ? Math.round((correct / total) * 1000) / 10 : 0;
-    return {
-      code: item.question.code,
-      question: item.question.body,
-      questionId: item.questionId,
-      jenjang: item.jenjang,
-      correct,
-      total,
-      percent,
-    };
-  });
+  const items = mcQuestions
+    .map((item) => {
+      let correct = 0;
+      let total = 0;
+      for (const attempt of finished) {
+        if (attempt.jenjang !== item.jenjang) continue;
+        total += 1;
+        const answer = attempt.answers.find((row) => row.questionId === item.questionId);
+        if (answer?.isCorrect) correct += 1;
+      }
+      const percent = total ? Math.round((correct / total) * 1000) / 10 : 0;
+      return {
+        code: item.question.code,
+        question: item.question.body,
+        questionId: item.questionId,
+        jenjang: item.jenjang,
+        correct,
+        total,
+        percent,
+      };
+    })
+    .sort((a, b) => b.correct - a.correct);
   const violations = exam.attempts.flatMap((attempt) =>
     attempt.violations.map((violation) => ({
       name: attempt.user.name,
@@ -148,24 +150,352 @@ ${nilai}${absensi}${pelanggaran}${butir}
 
 export async function reportPdf(report: Awaited<ReturnType<typeof examReport>>): Promise<Buffer> {
   const PDFDocument = (await import("pdfkit")).default;
-  const doc = new PDFDocument({ margin: 48 });
+  const fs = await import("fs");
+  const path = await import("path");
+
+  const doc = new PDFDocument({ margin: 40, size: "A4", layout: "landscape" });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
   const done = new Promise<Buffer>((resolve) => {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
   });
-  doc.fontSize(16).text(report.examName);
-  doc.moveDown(0.5);
-  doc.fontSize(11).text(`Hadir ${report.attendance.attended} dari ${report.attendance.assigned} peserta.`);
-  doc.moveDown();
+
+  // Helper functions
+  const formatDate = (date: Date | string | null | undefined) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  };
+
+  const formatTime = (date: Date | string | null | undefined) => {
+    if (!date) return "-";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const stripHtml = (html: string) => {
+    if (!html) return "";
+    return html.replace(/<[^>]*>/g, "").substring(0, 40);
+  };
+
+  const getViolationDescription = (type: string) => {
+    const descriptions: Record<string, string> = {
+      WINDOW_BLUR: "Jendela browser tidak aktif",
+      RIGHT_CLICK: "Klik kanan pada mouse",
+      COPY_PASTE: "Copy/paste konten",
+      TAB_SWITCH: "Pindah tab browser",
+    };
+    return descriptions[type] || type;
+  };
+
+  // Colors
+  const colors = {
+    primary: "#2563eb",
+    primaryLight: "#dbeafe",
+    secondary: "#7c3aed",
+    secondaryLight: "#ede9fe",
+    danger: "#dc2626",
+    dangerLight: "#fee2e2",
+    success: "#16a34a",
+    successLight: "#dcfce7",
+    warning: "#ea580c",
+    warningLight: "#ffedd5",
+    gray: "#6b7280",
+    grayLight: "#f3f4f6",
+    border: "#e5e7eb",
+  };
+
+  // Header with logo
+  const logoPath = path.join(process.cwd(), "public", "brand", "logo-dikdas.png");
+  if (fs.existsSync(logoPath)) {
+    doc.image(logoPath, 40, 40, { width: 50 });
+  }
+
+  doc.fontSize(20).font("Helvetica-Bold").fillColor("#1f2937").text("LAPORAN HASIL UJIAN", 110, 45);
+  doc.fontSize(14).font("Helvetica").fillColor("#4b5563").text(report.examName, 110, 70);
+
+  // Blue separator line
+  doc.moveTo(40, 105).lineTo(790, 105).lineWidth(3).strokeColor(colors.primary).stroke();
+
+  // Info box
+  const infoY = 120;
+  doc.rect(40, infoY, 750, 40).fill(colors.grayLight).stroke(colors.border);
+  doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.gray);
+  doc.text("Fase", 50, infoY + 12);
+  doc.text("Tanggal", 200, infoY + 12);
+  doc.text("Waktu", 350, infoY + 12);
+  doc.text("Durasi", 500, infoY + 12);
+
+  doc.font("Helvetica").fillColor("#1f2937");
+  doc.text(report.phase || "-", 50, infoY + 26);
+  doc.text(formatDate(report.startsAt), 200, infoY + 26);
+  doc.text(formatTime(report.startsAt), 350, infoY + 26);
+  doc.text(`${report.durationMinutes} menit`, 500, infoY + 26);
+
+  // Statistics cards
+  const statsY = 175;
+  const cardWidth = 240;
+  const cardGap = 15;
+
+  // Card 1: Terdaftar
+  doc.rect(40, statsY, cardWidth, 60).fill(colors.primaryLight).stroke(colors.primary).lineWidth(1);
+  doc.fontSize(28).font("Helvetica-Bold").fillColor(colors.primary).text(String(report.attendance.assigned), 60, statsY + 20);
+  doc.fontSize(10).font("Helvetica").fillColor(colors.gray).text("Peserta Terdaftar", 60, statsY + 45);
+
+  // Card 2: Hadir
+  doc.rect(40 + cardWidth + cardGap, statsY, cardWidth, 60).fill(colors.successLight).stroke(colors.success);
+  doc.fontSize(28).font("Helvetica-Bold").fillColor(colors.success).text(String(report.attendance.attended), 40 + cardWidth + cardGap + 20, statsY + 20);
+  doc.fontSize(10).font("Helvetica").fillColor(colors.gray).text("Hadir", 40 + cardWidth + cardGap + 20, statsY + 45);
+
+  // Card 3: Tidak Hadir
+  doc.rect(40 + (cardWidth + cardGap) * 2, statsY, cardWidth, 60).fill(colors.warningLight).stroke(colors.warning);
+  const tidakHadir = report.attendance.assigned - report.attendance.attended;
+  doc.fontSize(28).font("Helvetica-Bold").fillColor(colors.warning).text(String(tidakHadir), 40 + (cardWidth + cardGap) * 2 + 20, statsY + 20);
+  doc.fontSize(10).font("Helvetica").fillColor(colors.gray).text("Tidak Hadir", 40 + (cardWidth + cardGap) * 2 + 20, statsY + 45);
+
+  // Table header - Nilai Peserta
+  const tableY = 255;
+  const rowHeight = 22;
+  const colWidths = [35, 160, 100, 70, 70, 50, 60, 50];
+  const headers = ["No", "Nama", "Identitas", "Jenjang", "Status", "Nilai", "Pelang.", "Rank"];
+
+  // Section title
+  doc.fontSize(12).font("Helvetica-Bold").fillColor("#1f2937").text("Hasil Ujian Peserta", 40, tableY - 15);
+
+  // Table header background
+  let x = 40;
+  doc.rect(x, tableY, 750, rowHeight).fill(colors.primary);
+  doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff");
+  for (let i = 0; i < headers.length; i++) {
+    doc.text(headers[i], x + 5, tableY + 6, { width: colWidths[i] - 10, align: "left" });
+    x += colWidths[i];
+  }
+
+  // Table data
+  doc.font("Helvetica").fontSize(8).fillColor("#1f2937");
+  let y = tableY + rowHeight;
+  let rowNum = 0;
+  let isFirstPage = true;
+
   for (const row of report.rows) {
-    doc.text(`${row.name} (${row.identity}) ${row.status} total ${row.totalScore || "-"} pelanggaran ${row.violations}`);
+    x = 40;
+    const isEven = rowNum % 2 === 0;
+    if (isEven) {
+      doc.rect(x, y, 750, rowHeight).fill("#f9fafb");
+    }
+
+    const cells = [
+      String(rowNum + 1),
+      row.name,
+      row.identity,
+      row.jenjang,
+      row.status,
+      row.totalScore || "-",
+      String(row.violations),
+      row.rank ? `#${row.rank}` : "-",
+    ];
+
+    for (let i = 0; i < cells.length; i++) {
+      doc.text(cells[i], x + 5, y + 6, { width: colWidths[i] - 10, align: i === 0 ? "center" : "left" });
+      x += colWidths[i];
+    }
+
+    // Border
+    doc.rect(40, y, 750, rowHeight).stroke(colors.border);
+    y += rowHeight;
+    rowNum++;
+
+    // New page if needed
+    if (y > 520) {
+      doc.addPage({ margin: 40, size: "A4", layout: "landscape" });
+      isFirstPage = false;
+      y = 60; // Start closer to top on continuation pages
+      rowNum = 0;
+
+      // Repeat header (no logo on continuation pages)
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#1f2937").text("Hasil Ujian Peserta (lanjutan)", 40, y - 15);
+      x = 40;
+      doc.rect(x, y, 750, rowHeight).fill(colors.primary);
+      doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff");
+      for (let i = 0; i < headers.length; i++) {
+        doc.text(headers[i], x + 5, y + 6, { width: colWidths[i] - 10, align: "left" });
+        x += colWidths[i];
+      }
+      doc.font("Helvetica").fontSize(8).fillColor("#1f2937");
+      y += rowHeight;
+    }
   }
-  doc.moveDown();
-  doc.text("Persentase benar per soal");
+
+  // New page for question analysis
+  doc.addPage({ margin: 40, size: "A4", layout: "landscape" });
+
+  // Header logo
+  if (fs.existsSync(logoPath)) {
+    doc.image(logoPath, 40, 40, { width: 50 });
+  }
+  doc.fontSize(20).font("Helvetica-Bold").fillColor("#1f2937").text("LAPORAN HASIL UJIAN", 110, 45);
+  doc.fontSize(14).font("Helvetica").fillColor("#4b5563").text(report.examName, 110, 70);
+  doc.moveTo(40, 105).lineTo(790, 105).lineWidth(3).strokeColor(colors.primary).stroke();
+
+  // Question analysis table
+  const questionTableY = 130;
+  const questionColWidths = [35, 70, 70, 280, 50, 50, 50];
+  const questionHeaders = ["No", "Jenjang", "Kode", "Soal", "Benar", "Total", "%"];
+
+  doc.fontSize(12).font("Helvetica-Bold").fillColor("#1f2937").text("Analisis Butir Soal", 40, questionTableY - 15);
+
+  x = 40;
+  doc.rect(x, questionTableY, 750, rowHeight).fill(colors.secondary);
+  doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff");
+  for (let i = 0; i < questionHeaders.length; i++) {
+    doc.text(questionHeaders[i], x + 5, questionTableY + 6, { width: questionColWidths[i] - 10, align: "left" });
+    x += questionColWidths[i];
+  }
+
+  doc.font("Helvetica").fontSize(8).fillColor("#1f2937");
+  y = questionTableY + rowHeight;
+  rowNum = 0;
+  let isFirstQuestionPage = true;
+
   for (const item of report.items) {
-    doc.text(`${item.jenjang} ${item.code}: ${item.percent}% (${item.correct}/${item.total})`);
+    x = 40;
+    const isEven = rowNum % 2 === 0;
+    if (isEven) {
+      doc.rect(x, y, 750, rowHeight).fill("#f9fafb");
+    }
+
+    const questionText = stripHtml(item.question);
+    const percentColor = item.percent >= 70 ? colors.success : item.percent >= 50 ? colors.warning : colors.danger;
+
+    const cells = [
+      String(rowNum + 1),
+      item.jenjang,
+      item.code,
+      questionText,
+      String(item.correct),
+      String(item.total),
+      `${item.percent}%`,
+    ];
+
+    for (let i = 0; i < cells.length; i++) {
+      if (i === 6) {
+        doc.fillColor(percentColor);
+      }
+      doc.text(cells[i], x + 5, y + 6, { width: questionColWidths[i] - 10, align: i === 0 ? "center" : "left" });
+      if (i === 6) {
+        doc.fillColor("#1f2937");
+      }
+      x += questionColWidths[i];
+    }
+
+    doc.rect(40, y, 750, rowHeight).stroke(colors.border);
+    y += rowHeight;
+    rowNum++;
+
+    if (y > 520) {
+      doc.addPage({ margin: 40, size: "A4", layout: "landscape" });
+      isFirstQuestionPage = false;
+      y = 60; // Start closer to top on continuation pages
+      rowNum = 0;
+
+      doc.fontSize(12).font("Helvetica-Bold").fillColor("#1f2937").text("Analisis Butir Soal (lanjutan)", 40, y - 15);
+      x = 40;
+      doc.rect(x, y, 750, rowHeight).fill(colors.secondary);
+      doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff");
+      for (let i = 0; i < questionHeaders.length; i++) {
+        doc.text(questionHeaders[i], x + 5, y + 6, { width: questionColWidths[i] - 10, align: "left" });
+        x += questionColWidths[i];
+      }
+      doc.font("Helvetica").fontSize(8).fillColor("#1f2937");
+      y += rowHeight;
+    }
   }
+
+  // Violations if any
+  if (report.violations.length > 0) {
+    doc.addPage({ margin: 40, size: "A4", layout: "landscape" });
+
+    // Header logo
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 40, 40, { width: 50 });
+    }
+    doc.fontSize(20).font("Helvetica-Bold").fillColor("#1f2937").text("LAPORAN HASIL UJIAN", 110, 45);
+    doc.fontSize(14).font("Helvetica").fillColor("#4b5563").text(report.examName, 110, 70);
+    doc.moveTo(40, 105).lineTo(790, 105).lineWidth(3).strokeColor(colors.primary).stroke();
+
+    const violationTableY = 130;
+    const violationColWidths = [35, 150, 180, 170, 55];
+    const violationHeaders = ["No", "Nama", "Jenis Pelanggaran", "Waktu", "No. Soal"];
+
+    doc.fontSize(12).font("Helvetica-Bold").fillColor("#1f2937").text("Catatan Pelanggaran", 40, violationTableY - 15);
+
+    x = 40;
+    doc.rect(x, violationTableY, 750, rowHeight).fill(colors.danger);
+    doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff");
+    for (let i = 0; i < violationHeaders.length; i++) {
+      doc.text(violationHeaders[i], x + 5, violationTableY + 6, { width: violationColWidths[i] - 10, align: "left" });
+      x += violationColWidths[i];
+    }
+
+    doc.font("Helvetica").fontSize(8).fillColor("#1f2937");
+    y = violationTableY + rowHeight;
+    rowNum = 0;
+    let isFirstViolationPage = true;
+
+    for (const violation of report.violations) {
+      x = 40;
+      const isEven = rowNum % 2 === 0;
+      if (isEven) {
+        doc.rect(x, y, 750, rowHeight).fill("#fef2f2");
+      }
+
+      const cells = [
+        String(rowNum + 1),
+        violation.name,
+        getViolationDescription(violation.type),
+        new Date(violation.occurredAt).toLocaleString("id-ID"),
+        String(violation.questionNumber || "-"),
+      ];
+
+      for (let i = 0; i < cells.length; i++) {
+        doc.text(cells[i], x + 5, y + 6, { width: violationColWidths[i] - 10, align: i === 0 ? "center" : "left" });
+        x += violationColWidths[i];
+      }
+
+      doc.rect(40, y, 750, rowHeight).stroke(colors.border);
+      y += rowHeight;
+      rowNum++;
+
+      if (y > 520) {
+        doc.addPage({ margin: 40, size: "A4", layout: "landscape" });
+        isFirstViolationPage = false;
+        y = 60; // Start closer to top on continuation pages
+        rowNum = 0;
+
+        doc.fontSize(12).font("Helvetica-Bold").fillColor("#1f2937").text("Catatan Pelanggaran (lanjutan)", 40, y - 15);
+        x = 40;
+        doc.rect(x, y, 750, rowHeight).fill(colors.danger);
+        doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff");
+        for (let i = 0; i < violationHeaders.length; i++) {
+          doc.text(violationHeaders[i], x + 5, y + 6, { width: violationColWidths[i] - 10, align: "left" });
+          x += violationColWidths[i];
+        }
+        doc.font("Helvetica").fontSize(8).fillColor("#1f2937");
+        y += rowHeight;
+      }
+    }
+  }
+
+  // Footer
+  doc.fontSize(8).font("Helvetica").fillColor(colors.gray).text(
+    `Laporan dibuat otomatis oleh Sistem Ujian Online • ${new Date().toLocaleString("id-ID")}`,
+    40,
+    560,
+    { align: "center" }
+  );
+
   doc.end();
   return done;
 }
