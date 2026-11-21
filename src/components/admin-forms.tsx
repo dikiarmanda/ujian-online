@@ -663,6 +663,7 @@ export function ExamForm({
   examId?: number;
   initialData?: {
     competitionId: number;
+    name?: string;
     competitionLevel: string;
     attendanceOpensAt: string;
     startsAt: string;
@@ -678,6 +679,7 @@ export function ExamForm({
   const [pending, setPending] = useState(false);
   const [competitionId, setCompetitionId] = useState<number | "">(initialData?.competitionId ?? "");
   const [competitionLevel, setCompetitionLevel] = useState<string>(initialData?.competitionLevel ?? "KABUPATEN");
+  const [isSimulation, setIsSimulation] = useState(initialData?.name?.startsWith("[SIMULASI]") ?? false);
   const formRef = useRef<HTMLFormElement>(null);
   const selected = competitions.find((row) => row.id === competitionId);
   const groups = useMemo(
@@ -864,9 +866,29 @@ export function ExamForm({
         }
         setPending(true);
         setError(null);
+        const selectedCompetition = competitions.find((c) => c.id === compId);
+        const competitionName = selectedCompetition?.name ?? "";
+        const wasSimulation = initialData?.name?.startsWith("[SIMULASI]") ?? false;
+        let finalName: string;
+
+        if (isEdit) {
+          // Edit mode: hanya ubah nama jika status simulasi berubah
+          if (isSimulation === wasSimulation) {
+            finalName = initialData?.name ?? competitionName;
+          } else if (isSimulation) {
+            finalName = `[SIMULASI] ${competitionName}`;
+          } else {
+            finalName = competitionName;
+          }
+        } else {
+          // Create mode
+          finalName = isSimulation ? `[SIMULASI] ${competitionName}` : competitionName;
+        }
+
         const payload = {
           id: examId,
           competitionId: compId,
+          name: finalName,
           competitionLevel: form.get("competitionLevel"),
           attendanceOpensAt: form.get("attendanceOpensAt"),
           startsAt: form.get("startsAt"),
@@ -916,6 +938,16 @@ export function ExamForm({
           </select>
         </div>
       ) : null}
+
+      <label className="flex items-center gap-2.5 rounded-xl bg-page/80 px-3 py-3 text-sm text-ink">
+        <input
+          type="checkbox"
+          checked={isSimulation}
+          onChange={(e) => setIsSimulation(e.target.checked)}
+          className="size-4 accent-[var(--color-brand)]"
+        />
+        Simulasi (tambahkan "[SIMULASI]" di depan nama lomba)
+      </label>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="exam-competition-level" className="text-sm font-semibold text-ink">

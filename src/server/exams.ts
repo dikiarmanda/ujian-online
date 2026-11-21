@@ -12,6 +12,7 @@ import { applyPackageSnapshot, prefetchExamPackages } from "./packages";
 const packageByJenjangSchema = z.record(z.string(), z.number().int().positive());
 
 const createExamSchema = z.object({
+  name: z.string().min(1).max(255),
   competitionId: z.number().int().positive(),
   competitionLevel: z.enum(["KABUPATEN", "PROVINSI", "NASIONAL"]).default("KABUPATEN"),
   attendanceOpensAt: z.string(),
@@ -25,6 +26,7 @@ const createExamSchema = z.object({
 });
 
 const updateExamSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
   competitionLevel: z.enum(["KABUPATEN", "PROVINSI", "NASIONAL"]).optional(),
   attendanceOpensAt: z.string().optional(),
   startsAt: z.string().optional(),
@@ -120,7 +122,7 @@ export async function createExam(input: unknown, actorId: number, ipAddress?: st
     const exam = await prisma.$transaction(async (tx) => {
       const created = await tx.exam.create({
         data: {
-          name: competition.name,
+          name: parsed.data.name,
           competitionId: competition.id,
           competitionLevel: parsed.data.competitionLevel,
           jenjangGroups: JSON.stringify(requiredGroups),
@@ -221,6 +223,7 @@ export async function updateExam(id: number, input: unknown, actorId: number, ip
     await tx.exam.update({
       where: { id },
       data: {
+        name: parsed.data.name ?? existing.name,
         competitionLevel: parsed.data.competitionLevel ?? existing.competitionLevel,
         jenjangGroups: JSON.stringify(requiredGroups),
         attendanceOpensAt: schedule.attendanceOpensAt,
