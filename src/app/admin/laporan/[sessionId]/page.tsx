@@ -109,7 +109,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
             <div className="flex flex-wrap gap-2">
               <RankButton examId={id} pendingGrading={pendingGrading} phase={report.phase} />
               <SyncButton examId={id} hasRank={hasRank} />
-              <CalculateAverageButton examId={id} currentAverage={report.averageScore} />
+              <CalculateAverageButton examId={id} currentAverage={report.averageScore ? Number(report.averageScore) : null} />
             </div>
           </div>
         </header>
@@ -124,7 +124,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
           <StatCard label="Selesai" value={finished} hint={inProgress ? `${inProgress} masih mengerjakan` : "Sudah mengirim jawaban"} />
           <StatCard
             label="Rata-rata Nilai Ujian"
-            value={report.averageScore}
+            value={report.averageScore ? Number(report.averageScore) : "—"}
             hint="Rata-rata nilai ujian"
           />
         </section>
