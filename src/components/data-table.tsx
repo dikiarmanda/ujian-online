@@ -13,6 +13,8 @@ export type DataTableProps = {
   searchPlaceholder?: string;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  sortable?: boolean;
+  sortableColumns?: boolean[];
 };
 
 function nodeText(node: ReactNode): string {
@@ -58,11 +60,15 @@ export function DataTable({
   searchPlaceholder = "Cari...",
   onPageChange,
   onPageSizeChange,
+  sortable = false,
+  sortableColumns = [],
 }: DataTableProps) {
   const [query, setQuery] = useState("");
   const [pageSize, setPageSize] = useState(itemsPerPage);
   const [page, setPage] = useState(1);
   const [pageSizeSource, setPageSizeSource] = useState(itemsPerPage);
+  const [sortColumn, setSortColumn] = useState<number | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   if (itemsPerPage !== pageSizeSource) {
     setPageSizeSource(itemsPerPage);
@@ -76,11 +82,32 @@ export function DataTable({
     return [...values].sort((a, b) => a - b);
   }, [pageSize, pageSizeOptions]);
 
+  const sortedRows = useMemo(() => {
+    if (!sortable || sortColumn === null) return rows;
+    return [...rows].sort((a, b) => {
+      const aVal = nodeText(a[sortColumn]);
+      const bVal = nodeText(b[sortColumn]);
+      const numA = parseFloat(aVal);
+      const numB = parseFloat(bVal);
+      const aIsNum = !isNaN(numA) && aVal !== "";
+      const bIsNum = !isNaN(numB) && bVal !== "";
+
+      if (aIsNum && bIsNum) {
+        return sortDirection === "asc" ? numA - numB : numB - numA;
+      }
+      if (aIsNum) return sortDirection === "asc" ? -1 : 1;
+      if (bIsNum) return sortDirection === "asc" ? 1 : -1;
+
+      const comparison = aVal.localeCompare(bVal, "id-ID", { numeric: true });
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [rows, sortable, sortColumn, sortDirection]);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!searchable || !needle) return rows;
-    return rows.filter((row) => nodeText(row).toLowerCase().includes(needle));
-  }, [query, rows, searchable]);
+    if (!searchable || !needle) return sortedRows;
+    return sortedRows.filter((row) => nodeText(row).toLowerCase().includes(needle));
+  }, [query, sortedRows, searchable]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize) || 1);
   const currentPage = filtered.length === 0 ? 1 : Math.min(page, totalPages);
@@ -98,6 +125,17 @@ export function DataTable({
     setPageSize(newSize);
     setPage(1);
     onPageSizeChange?.(newSize);
+  };
+
+  const handleSort = (columnIndex: number) => {
+    if (!sortable || !sortableColumns[columnIndex]) return;
+    if (sortColumn === columnIndex) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(columnIndex);
+      setSortDirection("asc");
+    }
+    setPage(1);
   };
 
   return (
@@ -150,7 +188,21 @@ export function DataTable({
             <tr className="border-b border-line bg-page/80 text-left text-ink-muted">
               {headers.map((header, index) => (
                 <th key={index} className="px-3 font-semibold">
-                  <span className="flex h-11 items-center">{header}</span>
+                  {sortable && sortableColumns[index] ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(index)}
+                      className="flex h-11 items-center gap-1 hover:text-brand transition-colors">
+                      {header}
+                      {sortColumn === index && (
+                        <span className="text-xs">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <span className="flex h-11 items-center">{header}</span>
+                  )}
                 </th>
               ))}
             </tr>

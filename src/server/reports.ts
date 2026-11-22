@@ -40,7 +40,7 @@ export async function examReport(examId: number) {
       attemptId: attempt.id,
       rank: attempt.rank,
     };
-  });
+  }).sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
 
   const mcQuestions = exam.packages.flatMap((pack) =>
     pack.questions

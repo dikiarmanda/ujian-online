@@ -63,7 +63,6 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
   const finished = report.rows.filter((row) => row.status === "Selesai").length;
   const inProgress = report.rows.filter((row) => row.status === "Mengerjakan").length;
   const pendingGrading = report.rows.filter((row) => row.gradingStatus === "NOT_GRADED" || row.gradingStatus === "PARTIAL").length;
-  const totalViolations = report.rows.reduce((sum, row) => sum + row.violations, 0);
   const hasRank = report.rows.some((row) => row.rank != null);
 
   return (
