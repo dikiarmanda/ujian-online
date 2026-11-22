@@ -5,7 +5,13 @@ import { ombn } from "./ombn-db";
 export async function examReport(examId: number) {
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      startsAt: true,
+      phase: true,
+      durationMinutes: true,
+      averageScore: true,
       packages: {
         include: { questions: { include: { question: true }, orderBy: { sortOrder: "asc" } } },
       },
@@ -85,6 +91,7 @@ export async function examReport(examId: number) {
     startsAt: exam.startsAt,
     phase: exam.phase,
     durationMinutes: exam.durationMinutes,
+    averageScore: exam.averageScore,
     rows,
     items,
     violations,

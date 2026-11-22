@@ -97,11 +97,11 @@ export function LaporanPanel({ sessions }: { sessions: LaporanSessionRow[] }) {
             className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand">
             Excel
           </a>
-          <a
+          {/* <a
             href={`/api/admin/laporan/${session.id}/pdf`}
             className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand hover:text-brand">
             PDF
-          </a>
+          </a> */}
           <Link
             href={`/admin/laporan/${session.id}`}
             className="rounded-lg bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand transition hover:bg-brand hover:text-white">

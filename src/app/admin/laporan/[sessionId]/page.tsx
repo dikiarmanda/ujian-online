@@ -11,6 +11,7 @@ import { sessionReport } from "@/server/reports";
 import { RankButton } from "@/components/rank-button";
 import { SyncButton } from "@/components/sync-button";
 import { getOmbnPesertaCount } from "@/server/exams";
+import { CalculateAverageButton } from "@/components/calculate-average-button";
 
 export const dynamic = "force-dynamic";
 
@@ -97,17 +98,18 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
                   <FontAwesomeIcon icon={Icon.FileExcel} className="size-4 mr-2" />
                   Unduh Excel
                 </a>
-                <a
+                {/* <a
                   href={`/api/admin/laporan/${sessionId}/pdf`}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
                   <FontAwesomeIcon icon={Icon.FilePdf} className="size-4 mr-2" />
                   Unduh PDF
-                </a>
+                </a> */}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <RankButton examId={id} pendingGrading={pendingGrading} phase={report.phase} />
               <SyncButton examId={id} hasRank={hasRank} />
+              <CalculateAverageButton examId={id} currentAverage={report.averageScore} />
             </div>
           </div>
         </header>
@@ -121,9 +123,9 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
           />
           <StatCard label="Selesai" value={finished} hint={inProgress ? `${inProgress} masih mengerjakan` : "Sudah mengirim jawaban"} />
           <StatCard
-            label="Belum Dinilai"
-            value={pendingGrading}
-            hint={pendingGrading ? "Menunggu nilai uraian" : "Tidak ada antrean penilaian"}
+            label="Rata-rata Nilai Ujian"
+            value={report.averageScore}
+            hint="Rata-rata nilai ujian"
           />
         </section>
 

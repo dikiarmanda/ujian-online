@@ -304,6 +304,7 @@ model Exam {
   startedById       Int?
   endedAt           DateTime?
   endedById         Int?
+  averageScore      Decimal?         @db.Decimal(8, 2) // rata-rata nilai semua peserta
   createdById       Int
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt

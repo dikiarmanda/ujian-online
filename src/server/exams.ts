@@ -402,4 +402,53 @@ export async function deleteExam(id: number, actorId: number, ipAddress?: string
   await writeAudit({ userId: actorId, action: "DELETE_EXAM", entityType: "exam", entityId: id, ipAddress });
 }
 
+export async function calculateExamAverage(examId: number, actorId: number, ipAddress?: string) {
+  const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
+  if (!exam) throw new AppError("Ujian tidak ditemukan.", 404);
+
+  // Get all attempts with totalScore
+  const attempts = await prisma.examAttempt.findMany({
+    where: { examId, totalScore: { not: null } },
+    select: { totalScore: true },
+  });
+
+  if (attempts.length === 0) {
+    // No scores yet, set average to null
+    await prisma.exam.update({
+      where: { id: examId },
+      data: { averageScore: null },
+    });
+    await writeAudit({
+      userId: actorId,
+      action: "CALCULATE_AVERAGE_SCORE",
+      entityType: "exam",
+      entityId: examId,
+      ipAddress,
+      meta: { participantCount: 0, averageScore: null },
+    });
+    return { averageScore: null, participantCount: 0 };
+  }
+
+  // Calculate average
+  const sum = attempts.reduce((acc, attempt) => acc + Number(attempt.totalScore), 0);
+  const average = sum / attempts.length;
+
+  // Update exam with average score
+  await prisma.exam.update({
+    where: { id: examId },
+    data: { averageScore: average },
+  });
+
+  await writeAudit({
+    userId: actorId,
+    action: "CALCULATE_AVERAGE_SCORE",
+    entityType: "exam",
+    entityId: examId,
+    ipAddress,
+    meta: { participantCount: attempts.length, averageScore: average },
+  });
+
+  return { averageScore: average, participantCount: attempts.length };
+}
+
 export { assertJenjangPackagesComplete as validatePublishPackages, parseCompetitionJenjang };
