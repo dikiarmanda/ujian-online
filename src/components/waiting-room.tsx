@@ -29,8 +29,9 @@ export function WaitingRoom({
   const [entering, setEntering] = useState(false);
   const [present, setPresent] = useState(attended);
   const [phase, setPhase] = useState<Phase>(initialPhase);
-  const open = phase === "RUNNING";
   const startMs = new Date(startsAt).getTime();
+  const timeReached = (now + offset) >= startMs;
+  const open = phase === "RUNNING" && timeReached;
   const remain = Math.max(0, startMs - (now + offset));
 
   useEffect(() => {
