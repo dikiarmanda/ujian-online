@@ -359,7 +359,11 @@ export async function getOmbnPesertaCount(examId: number): Promise<number> {
     competition_id: bigint;
     urut_kabupaten?: { not: null };
     urut_provinsi?: { not: null };
-  } = { competition_id: BigInt(exam.competitionId) };
+    lomba_tagihan?: { status?: "LUNAS" };
+  } = {
+    competition_id: BigInt(exam.competitionId),
+    lomba_tagihan: { status: "LUNAS" },
+  };
   if (exam.competitionLevel === "PROVINSI") {
     where.urut_kabupaten = { not: null };
   } else if (exam.competitionLevel === "NASIONAL") {
