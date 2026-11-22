@@ -599,6 +599,7 @@ export async function attemptReport(attemptId: number) {
 }
 
 export async function calculateRanks(examId: number) {
+  // Fetch all completed exam attempts with grading done
   const attempts = await prisma.examAttempt.findMany({
     where: {
       examId,
@@ -626,27 +627,32 @@ export async function calculateRanks(examId: number) {
   });
 
   // Get competition level from first attempt (all have same exam)
-  const competitionLevel = attempts[0]?.exam.competitionLevel;
+  // Sementara semua lomba dianggap nasional, jadi competitionLevel tidak digunakan
+  // const competitionLevel = attempts[0]?.exam.competitionLevel;
 
   // Fetch school codes from OMBN for grouping
+  // Extract external IDs to find corresponding participants in OMBN
   const externalIds = attempts.map((a) => a.user.externalId).filter(Boolean) as string[];
   const pesertaIds = externalIds.map((id) => id.replace("ombn-peserta:", "")).map(Number);
 
+  // Get participant data from OMBN to find their school_id
   const pesertas = await ombn.lomba_peserta.findMany({
     where: { id: { in: pesertaIds.map(BigInt) } },
     select: { id: true, school_id: true },
   });
 
+  // Get school data to retrieve kode_kabupaten and kode_provinsi
   const schoolIds = pesertas.map((p) => p.school_id);
   const schools = await ombn.schools.findMany({
     where: { id: { in: schoolIds } },
     select: { id: true, kode_kabupaten: true, kode_provinsi: true },
   });
 
+  // Create maps for quick lookup
   const schoolMap = new Map(schools.map((s) => [s.id.toString(), { kode_kabupaten: s.kode_kabupaten, kode_provinsi: s.kode_provinsi }]));
   const pesertaMap = new Map(pesertas.map((p) => [p.id.toString(), p.school_id.toString()]));
 
-  // Build attempts with region codes
+  // Build attempts with region codes attached
   const attemptsWithRegion = attempts.map((attempt) => {
     const pesertaId = attempt.user.externalId?.replace("ombn-peserta:", "");
     const schoolId = pesertaId ? pesertaMap.get(pesertaId) : null;
@@ -660,28 +666,32 @@ export async function calculateRanks(examId: number) {
 
   // Group attempts based on competition level
   let groups: Map<string, typeof attemptsWithRegion>;
-  if (competitionLevel === "KABUPATEN") {
-    groups = new Map();
-    for (const attempt of attemptsWithRegion) {
-      const key = attempt.kode_kabupaten || "UNKNOWN";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(attempt);
-    }
-  } else if (competitionLevel === "PROVINSI") {
-    groups = new Map();
-    for (const attempt of attemptsWithRegion) {
-      const key = attempt.kode_provinsi || "UNKNOWN";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(attempt);
-    }
-  } else {
-    // NASIONAL: single group
+  // Sementara semua lomba dianggap nasional, jadi semua peserta dihitung dalam 1 grup
+  // if (competitionLevel === "KABUPATEN") {
+  //   groups = new Map();
+  //   for (const attempt of attemptsWithRegion) {
+  //     const key = attempt.kode_kabupaten || "UNKNOWN";
+  //     if (!groups.has(key)) groups.set(key, []);
+  //     groups.get(key)!.push(attempt);
+  //   }
+  // } else if (competitionLevel === "PROVINSI") {
+  //   groups = new Map();
+  //   for (const attempt of attemptsWithRegion) {
+  //     const key = attempt.kode_provinsi || "UNKNOWN";
+  //     if (!groups.has(key)) groups.set(key, []);
+  //     groups.get(key)!.push(attempt);
+  //   }
+  // } else {
+    // NASIONAL: single group - semua peserta dalam satu grup
     groups = new Map([["ALL", attemptsWithRegion]]);
-  }
+  // }
 
   // Calculate ranks within each group
   for (const groupAttempts of groups.values()) {
     // Sort by: totalScore desc, duration asc, submittedAt asc
+    // 1. Total score tertinggi duluan
+    // 2. Jika score sama, durasi lebih pendek duluan (tie-breaker)
+    // 3. Jika score dan durasi sama, submit lebih awal duluan
     groupAttempts.sort((a, b) => {
       const scoreDiff = Number(b.totalScore) - Number(a.totalScore);
       if (scoreDiff !== 0) return scoreDiff;
@@ -701,6 +711,7 @@ export async function calculateRanks(examId: number) {
     for (let i = 0; i < groupAttempts.length; i++) {
       const attempt = groupAttempts[i];
 
+      // Compare with previous attempt to determine if rank should change
       if (i > 0) {
         const prevAttempt = groupAttempts[i - 1];
         const prevDurationMinutes = prevAttempt.startedAt && prevAttempt.submittedAt
@@ -710,7 +721,7 @@ export async function calculateRanks(examId: number) {
           ? Math.floor((attempt.submittedAt.getTime() - attempt.startedAt.getTime()) / 60000)
           : null;
 
-        // Rank changes if any criteria differs
+        // Rank naik jika salah satu kriteria berbeda dengan attempt sebelumnya
         if (Number(attempt.totalScore) !== Number(prevAttempt.totalScore) ||
             currentDurationMinutes !== prevDurationMinutes ||
             attempt.submittedAt?.getTime() !== prevAttempt.submittedAt?.getTime()) {
@@ -718,6 +729,7 @@ export async function calculateRanks(examId: number) {
         }
       }
 
+      // Update rank di database
       await prisma.examAttempt.update({
         where: { id: attempt.id },
         data: { rank },
