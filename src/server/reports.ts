@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { AppError } from "./errors";
+import { ombn } from "./ombn-db";
 
 export async function examReport(examId: number) {
   const exam = await prisma.exam.findUnique({
@@ -605,24 +606,123 @@ export async function calculateRanks(examId: number) {
       totalScore: { not: null },
       status: { in: ["SUBMITTED", "TIME_EXPIRED"] },
     },
+    select: {
+      id: true,
+      totalScore: true,
+      submittedAt: true,
+      startedAt: true,
+      exam: {
+        select: {
+          competitionLevel: true,
+        },
+      },
+      user: {
+        select: {
+          externalId: true,
+        },
+      },
+    },
     orderBy: [{ totalScore: "desc" }, { submittedAt: "asc" }],
   });
 
-  let rank = 1;
-  for (let i = 0; i < attempts.length; i++) {
-    const attempt = attempts[i];
+  // Get competition level from first attempt (all have same exam)
+  const competitionLevel = attempts[0]?.exam.competitionLevel;
 
-    if (i > 0) {
-      const prevAttempt = attempts[i - 1];
-      if (Number(attempt.totalScore) !== Number(prevAttempt.totalScore)) {
-        rank = i + 1;
-      }
+  // Fetch school codes from OMBN for grouping
+  const externalIds = attempts.map((a) => a.user.externalId).filter(Boolean) as string[];
+  const pesertaIds = externalIds.map((id) => id.replace("ombn-peserta:", "")).map(Number);
+
+  const pesertas = await ombn.lomba_peserta.findMany({
+    where: { id: { in: pesertaIds.map(BigInt) } },
+    select: { id: true, school_id: true },
+  });
+
+  const schoolIds = pesertas.map((p) => p.school_id);
+  const schools = await ombn.schools.findMany({
+    where: { id: { in: schoolIds } },
+    select: { id: true, kode_kabupaten: true, kode_provinsi: true },
+  });
+
+  const schoolMap = new Map(schools.map((s) => [s.id.toString(), { kode_kabupaten: s.kode_kabupaten, kode_provinsi: s.kode_provinsi }]));
+  const pesertaMap = new Map(pesertas.map((p) => [p.id.toString(), p.school_id.toString()]));
+
+  // Build attempts with region codes
+  const attemptsWithRegion = attempts.map((attempt) => {
+    const pesertaId = attempt.user.externalId?.replace("ombn-peserta:", "");
+    const schoolId = pesertaId ? pesertaMap.get(pesertaId) : null;
+    const school = schoolId ? schoolMap.get(schoolId) : null;
+    return {
+      ...attempt,
+      kode_kabupaten: school?.kode_kabupaten,
+      kode_provinsi: school?.kode_provinsi,
+    };
+  });
+
+  // Group attempts based on competition level
+  let groups: Map<string, typeof attemptsWithRegion>;
+  if (competitionLevel === "KABUPATEN") {
+    groups = new Map();
+    for (const attempt of attemptsWithRegion) {
+      const key = attempt.kode_kabupaten || "UNKNOWN";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(attempt);
     }
+  } else if (competitionLevel === "PROVINSI") {
+    groups = new Map();
+    for (const attempt of attemptsWithRegion) {
+      const key = attempt.kode_provinsi || "UNKNOWN";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(attempt);
+    }
+  } else {
+    // NASIONAL: single group
+    groups = new Map([["ALL", attemptsWithRegion]]);
+  }
 
-    await prisma.examAttempt.update({
-      where: { id: attempt.id },
-      data: { rank },
+  // Calculate ranks within each group
+  for (const groupAttempts of groups.values()) {
+    // Sort by: totalScore desc, duration asc, submittedAt asc
+    groupAttempts.sort((a, b) => {
+      const scoreDiff = Number(b.totalScore) - Number(a.totalScore);
+      if (scoreDiff !== 0) return scoreDiff;
+
+      const aDuration = a.startedAt && a.submittedAt
+        ? Math.floor((a.submittedAt.getTime() - a.startedAt.getTime()) / 60000)
+        : Infinity;
+      const bDuration = b.startedAt && b.submittedAt
+        ? Math.floor((b.submittedAt.getTime() - b.startedAt.getTime()) / 60000)
+        : Infinity;
+      if (aDuration !== bDuration) return aDuration - bDuration;
+
+      return (a.submittedAt?.getTime() || 0) - (b.submittedAt?.getTime() || 0);
     });
+
+    let rank = 1;
+    for (let i = 0; i < groupAttempts.length; i++) {
+      const attempt = groupAttempts[i];
+
+      if (i > 0) {
+        const prevAttempt = groupAttempts[i - 1];
+        const prevDurationMinutes = prevAttempt.startedAt && prevAttempt.submittedAt
+          ? Math.floor((prevAttempt.submittedAt.getTime() - prevAttempt.startedAt.getTime()) / 60000)
+          : null;
+        const currentDurationMinutes = attempt.startedAt && attempt.submittedAt
+          ? Math.floor((attempt.submittedAt.getTime() - attempt.startedAt.getTime()) / 60000)
+          : null;
+
+        // Rank changes if any criteria differs
+        if (Number(attempt.totalScore) !== Number(prevAttempt.totalScore) ||
+            currentDurationMinutes !== prevDurationMinutes ||
+            attempt.submittedAt?.getTime() !== prevAttempt.submittedAt?.getTime()) {
+          rank = i + 1;
+        }
+      }
+
+      await prisma.examAttempt.update({
+        where: { id: attempt.id },
+        data: { rank },
+      });
+    }
   }
 
   return { updated: attempts.length };
