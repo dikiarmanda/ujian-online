@@ -11,6 +11,7 @@ export function createMariaDbAdapter(databaseUrl: string, poolSize: number) {
     connectionLimit: poolSize,
     charset: "utf8mb4",
     allowPublicKeyRetrieval: true,
-    idleTimeout: 30,    // tutup idle setelah 30 detik
+    idleTimeout: 300,
+    connectTimeout: 5_000,
   });
 }
