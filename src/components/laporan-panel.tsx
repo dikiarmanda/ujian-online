@@ -41,7 +41,6 @@ export function LaporanPanel({ sessions }: { sessions: LaporanSessionRow[] }) {
   const filtered = useMemo(() => {
     return sessions.filter((session) => {
       if (status !== "ALL" && session.status !== status) return false;
-      console.log(session.startsAt, startDate);
       if (startDate) {
         const sessionDate = new Date(session.startsAt);
         sessionDate.setHours(0, 0, 0, 0);

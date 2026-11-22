@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
+import { api } from "@/lib/api";
 
 export function CalculateAverageButton({ examId, currentAverage }: { examId: number; currentAverage?: number | null }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,16 +16,10 @@ export function CalculateAverageButton({ examId, currentAverage }: { examId: num
     setResult(null);
 
     try {
-      const response = await fetch(`/api/admin/exams/${examId}/calculate-average`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Gagal menghitung rata-rata");
-      }
-
-      const data = await response.json();
+      const data = await api<{ examId: number; averageScore: number | null; participantCount: number }>(
+        `/api/admin/exams/${examId}/calculate-average`,
+        { method: "POST" }
+      );
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan");
