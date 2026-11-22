@@ -33,7 +33,7 @@ export function CalculateAverageButton({ examId, currentAverage }: { examId: num
     }
   };
 
-  const displayAverage = result?.averageScore ?? currentAverage;
+  const displayAverage = result?.averageScore ?? currentAverage ?? null;
 
   return (
     <div className="flex flex-col gap-2">
