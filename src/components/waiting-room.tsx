@@ -40,6 +40,12 @@ export function WaitingRoom({
   }, []);
 
   useEffect(() => {
+  console.log('Current phase:', phase);
+  console.log('Present:', present);
+  console.log('Open:', open);
+}, [phase, present, open]);
+
+  useEffect(() => {
     const date = new Date(startsAt);
     const hours = String(date.getUTCHours()).padStart(2, "0");
     const minutes = String(date.getUTCMinutes()).padStart(2, "0");
@@ -123,7 +129,7 @@ export function WaitingRoom({
           ) : null}
           <button
             type="button"
-            disabled={!open || !present || entering}
+            disabled={entering}
             className="min-h-11 rounded-md bg-brand px-4 font-semibold text-white hover:brightness-110 disabled:opacity-50"
             onClick={() => {
               setEntering(true);
