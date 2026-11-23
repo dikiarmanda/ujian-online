@@ -162,8 +162,30 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
   // }
   const now = new Date();
 
-  const existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
-  if (!existing?.attendedAt) throw new AppError("Absensi diperlukan sebelum mulai ujian.", 409);
+  let existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
+  let examPack;
+  if (!existing?.attendedAt) {
+    // Auto-attend if not yet attended
+    examPack = await resolveExamPackage(examId, jenjangGroup);
+    existing = await prisma.examAttempt.upsert({
+      where: { examId_userId: { examId, userId } },
+      create: {
+        examId,
+        userId,
+        jenjang: jenjangGroup,
+        packageId: examPack.packageId,
+        attendedAt: now,
+        status: "IN_PROGRESS",
+        gradingStatus: "NOT_GRADED",
+      },
+      update: {
+        attendedAt: now,
+        jenjang: jenjangGroup,
+        packageId: examPack.packageId,
+      },
+    });
+    await writeAudit({ userId, action: "ATTEND", entityType: "exam", entityId: examId, ipAddress, meta: { auto: true, userAgent: "auto-attend" } });
+  }
 
   if (existing.startedAt && existing.expiresAt) {
     if (existing.status !== "IN_PROGRESS") {
@@ -187,7 +209,9 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
     return existing.id;
   }
 
-  const examPack = await resolveExamPackage(examId, jenjangGroup);
+  if (!examPack) {
+    examPack = await resolveExamPackage(examId, jenjangGroup);
+  }
   const questionIds = examPack.questions.map((item) => item.questionId);
   const questionOrder = exam.shuffleQuestions ? shuffle(questionIds) : questionIds;
   const optionOrder: Record<string, number[]> = {};
