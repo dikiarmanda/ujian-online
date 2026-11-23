@@ -40,7 +40,7 @@ export async function validateDeleteOrDeactivateQuestion(questionId: number) {
       phase: true,
     },
   });
-  console.log("activeExams", activeExams);
+
   if (activeExams.length > 0) {
     const examNames = activeExams.map((e) => e.name).join(", ");
     throw new AppError(

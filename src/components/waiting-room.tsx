@@ -41,12 +41,6 @@ export function WaitingRoom({
   }, []);
 
   useEffect(() => {
-  console.log('Current phase:', phase);
-  console.log('Present:', present);
-  console.log('Open:', open);
-}, [phase, present, open]);
-
-  useEffect(() => {
     const date = new Date(startsAt);
     const hours = String(date.getUTCHours()).padStart(2, "0");
     const minutes = String(date.getUTCMinutes()).padStart(2, "0");

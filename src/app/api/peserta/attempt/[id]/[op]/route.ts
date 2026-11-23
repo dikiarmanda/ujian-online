@@ -6,15 +6,6 @@ import { hitRateLimit } from "@/server/rate-limit";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 import { prisma } from "@/server/db";
 
-function getWIBDate(): Date {
-  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
-  return new Date();
-}
-
-function toIsoString(date: Date): string {
-  return date.toISOString();
-}
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -66,7 +57,7 @@ export async function POST(req: Request, ctx: Ctx) {
         });
         throw error;
       }
-      return json({ ok: true, savedAt: toIsoString(getWIBDate()) });
+      return json({ ok: true, savedAt: new Date().toISOString() });
     }
     if (op === "selesai") {
       await finalizeAttempt(attemptId, "SUBMITTED", user.userId, ip);

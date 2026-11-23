@@ -72,7 +72,7 @@ export default async function PesertaHome() {
       attempts: { where: { userId: user.userId }, take: 1 },
     },
   });
-  console.log(exam);
+
   return (
     <div className="flex min-h-screen flex-col bg-page">
       <AppBar title="Ujian" name={user.name} role={user.role} />
