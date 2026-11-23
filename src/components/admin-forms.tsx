@@ -182,28 +182,18 @@ export function CategoryForm({ categories }: { categories?: Category[] }) {
           <input name="description" placeholder="Catatan singkat kategori" className="rounded-xl border border-line px-3 py-2.5 font-normal" />
         </label>
         <ErrorText error={error} />
-        <button
-          className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60"
-          type="submit"
-          disabled={pending}>
+        <button className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60" type="submit" disabled={pending}>
           <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
           {pending ? "Menyimpan…" : "Simpan kategori"}
         </button>
       </form>
       <div className="flex items-center justify-between border-t border-line/70 pt-4">
-        <button
-          onClick={handleCleanup}
-          disabled={cleanupPending}
-          className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-page px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
+        <button onClick={handleCleanup} disabled={cleanupPending} className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-page px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
           <FontAwesomeIcon icon={Icon.Broom} className="size-4 mr-2" />
           {cleanupPending ? "Membersihkan…" : "Bersihkan kategori kosong"}
         </button>
-        {cleanupMessage && (
-          <p className={`mt-2 text-sm ${cleanupMessage.includes("Berhasil") ? "text-brand" : "text-alert"}`}>{cleanupMessage}</p>
-        )}
-        {categories && categories.length > 0 && (
-          <div className="text-sm text-ink-muted">{categories.length} kategori</div>
-        )}
+        {cleanupMessage && <p className={`mt-2 text-sm ${cleanupMessage.includes("Berhasil") ? "text-brand" : "text-alert"}`}>{cleanupMessage}</p>}
+        {categories && categories.length > 0 && <div className="text-sm text-ink-muted">{categories.length} kategori</div>}
       </div>
     </div>
   );
@@ -347,20 +337,13 @@ export function QuestionForm({
           {editing && initial?.code ? (
             <div className="sm:col-span-2">
               <p className="text-sm font-semibold text-ink">Kode</p>
-              <p className="mt-1 rounded-xl border border-line bg-page/60 px-3 py-2.5 font-digits text-sm text-ink">
-                {initial.code}
-              </p>
+              <p className="mt-1 rounded-xl border border-line bg-page/60 px-3 py-2.5 font-digits text-sm text-ink">{initial.code}</p>
               <p className="mt-1 text-xs font-normal text-ink-muted">Dibuat otomatis dan tidak dapat diubah.</p>
             </div>
           ) : null}
           <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
             Kategori
-            <select
-              name="categoryId"
-              required
-              defaultValue={initial?.categoryId}
-              disabled={categories.length === 0}
-              className="rounded-xl border border-line px-3 py-2.5 font-normal disabled:opacity-60">
+            <select name="categoryId" required defaultValue={initial?.categoryId} disabled={categories.length === 0} className="rounded-xl border border-line px-3 py-2.5 font-normal disabled:opacity-60">
               {categories.length === 0 ? <option value="">Belum ada kategori</option> : null}
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -371,28 +354,13 @@ export function QuestionForm({
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
             Bobot benar
-            <input
-              name="defaultWeight"
-              type="number"
-              min="0.01"
-              step="0.01"
-              defaultValue={initial?.defaultWeight ?? 1}
-              className="rounded-xl border border-line px-3 py-2.5 font-normal"
-            />
+            <input name="defaultWeight" type="number" min="0.01" step="0.01" defaultValue={initial?.defaultWeight ?? 1} className="rounded-xl border border-line px-3 py-2.5 font-normal" />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
             Bobot salah
-            <input
-              name="defaultWrongWeight"
-              type="number"
-              step="0.01"
-              defaultValue={initial ? -Number(initial.defaultWrongWeight) : -1}
-              className="rounded-xl border border-line px-3 py-2.5 font-normal"
-            />
+            <input name="defaultWrongWeight" type="number" step="0.01" defaultValue={initial ? -Number(initial.defaultWrongWeight) : -1} className="rounded-xl border border-line px-3 py-2.5 font-normal" />
           </label>
-          <p className="text-xs font-normal text-ink-muted sm:col-span-2">
-            Bobot salah memakai nilai negatif (default −1). Soal kosong tidak dikurangi.
-          </p>
+          <p className="text-xs font-normal text-ink-muted sm:col-span-2">Bobot salah memakai nilai negatif (default −1). Soal kosong tidak dikurangi.</p>
         </div>
 
         <div className="mt-4">
@@ -407,13 +375,7 @@ export function QuestionForm({
             ).map((item) => {
               const active = type === item.id;
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setType(item.id)}
-                  className={`rounded-xl border px-4 py-2.5 text-left transition ${
-                    active ? "border-brand bg-brand-soft text-brand" : "border-line bg-page/50 text-ink-muted hover:border-brand/40 hover:text-ink"
-                  }`}>
+                <button key={item.id} type="button" onClick={() => setType(item.id)} className={`rounded-xl border px-4 py-2.5 text-left transition ${active ? "border-brand bg-brand-soft text-brand" : "border-line bg-page/50 text-ink-muted hover:border-brand/40 hover:text-ink"}`}>
                   <span className="block text-sm font-semibold">{item.label}</span>
                   <span className={`block text-xs ${active ? "text-brand/80" : "text-ink-muted"}`}>{item.hint}</span>
                 </button>
@@ -444,21 +406,14 @@ export function QuestionForm({
               <p className="mt-0.5 text-sm text-ink-muted">Tandai satu opsi sebagai kunci. Wajib isi minimal 4 dari 5 opsi (A–E).</p>
             </div>
             {options.length < 5 ? (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-line px-3 py-2 text-sm font-semibold text-brand transition hover:border-brand hover:bg-brand-soft"
-                onClick={() => setOptions([...options, { label: String.fromCharCode(65 + options.length), body: "", isCorrect: false }])}>
+              <button type="button" className="inline-flex items-center justify-center rounded-xl border border-line px-3 py-2 text-sm font-semibold text-brand transition hover:border-brand hover:bg-brand-soft" onClick={() => setOptions([...options, { label: String.fromCharCode(65 + options.length), body: "", isCorrect: false }])}>
                 + Tambah opsi
               </button>
             ) : null}
           </div>
           <div className="flex flex-col gap-3">
             {options.map((option, index) => (
-              <div
-                key={`${option.label}-${index}`}
-                className={`rounded-xl border p-4 transition ${
-                  option.isCorrect ? "border-brand/35 bg-brand-soft/30" : "border-line/80 bg-paper"
-                }`}>
+              <div key={`${option.label}-${index}`} className={`rounded-xl border p-4 transition ${option.isCorrect ? "border-brand/35 bg-brand-soft/30" : "border-line/80 bg-paper"}`}>
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <input
                     aria-label={`Label opsi ${index + 1}`}
@@ -471,34 +426,19 @@ export function QuestionForm({
                     className="w-16 rounded-lg border border-line px-2 py-2 text-center text-sm font-semibold"
                   />
                   <label className="inline-flex items-center gap-2 rounded-lg bg-paper px-2.5 py-1.5 text-sm font-semibold text-ink">
-                    <input
-                      type="radio"
-                      name="kunci"
-                      checked={option.isCorrect}
-                      className="accent-[var(--color-brand)]"
-                      onChange={() => setOptions(options.map((item, itemIndex) => ({ ...item, isCorrect: itemIndex === index })))}
-                    />
+                    <input type="radio" name="kunci" checked={option.isCorrect} className="accent-[var(--color-brand)]" onChange={() => setOptions(options.map((item, itemIndex) => ({ ...item, isCorrect: itemIndex === index })))} />
                     Kunci
                   </label>
-                  {index >= 4 ? (
-                    <span className="ml-auto text-xs font-normal text-ink-muted">Opsional</span>
-                  ) : (
-                    <span className="ml-auto text-xs font-normal text-ink-muted">Wajib</span>
-                  )}
+                  {index >= 4 ? <span className="ml-auto text-xs font-normal text-ink-muted">Opsional</span> : <span className="ml-auto text-xs font-normal text-ink-muted">Wajib</span>}
                   {options.length > 4 ? (
-                    <button
-                      type="button"
-                      className="text-sm font-semibold text-alert hover:underline"
-                      onClick={() => setOptions(options.filter((_, itemIndex) => itemIndex !== index))}>
+                    <button type="button" className="text-sm font-semibold text-alert hover:underline" onClick={() => setOptions(options.filter((_, itemIndex) => itemIndex !== index))}>
                       Hapus
                     </button>
                   ) : null}
                 </div>
                 <SummernoteEditor
                   value={option.body}
-                  placeholder={
-                    index >= 4 ? `Jawaban ${option.label} (opsional)…` : `Tulis jawaban ${option.label}…`
-                  }
+                  placeholder={index >= 4 ? `Jawaban ${option.label} (opsional)…` : `Tulis jawaban ${option.label}…`}
                   height={110}
                   onChange={(html) => {
                     const next = [...options];
@@ -518,14 +458,7 @@ export function QuestionForm({
           </div>
           <div>
             <label className="mb-2 block text-sm font-semibold text-ink">Kunci jawaban</label>
-            <input
-              type="text"
-              maxLength={500}
-              value={shortAnswerKey}
-              onChange={(e) => setShortAnswerKey(e.target.value)}
-              placeholder="Contoh: jakarta"
-              className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-            />
+            <input type="text" maxLength={500} value={shortAnswerKey} onChange={(e) => setShortAnswerKey(e.target.value)} placeholder="Contoh: jakarta" className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
             <p className="mt-1 text-xs text-ink-muted">Jakarta, JAKARTA, dan jakarta dianggap sama. Spasi di awal dan akhir diabaikan.</p>
           </div>
         </section>
@@ -554,10 +487,7 @@ export function QuestionForm({
           <Link href="/admin/soal" className="text-sm font-semibold text-ink-muted transition hover:text-brand">
             Batal ke daftar soal
           </Link>
-          <button
-            type="submit"
-            disabled={pending || categories.length === 0}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+          <button type="submit" disabled={pending || categories.length === 0} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
             <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
             {pending ? "Menyimpan…" : editing ? "Simpan perubahan" : "Simpan soal"}
           </button>
@@ -604,31 +534,14 @@ export function ImportForm() {
         }
       }}>
       <p className="rounded-xl bg-page/80 px-3 py-2.5 text-xs leading-relaxed text-ink-muted">
-        Kolom Excel/CSV:{" "}
-        <span className="font-digits text-ink">
-          paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, kunci_jawaban_singkat, pedoman, rubrik, ada_gambar
-        </span>
-        . Kolom <span className="font-digits text-ink">paket</span> menambahkan soal ke
-        paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span>,{" "}
-        <span className="font-semibold text-ink">uraian</span>, atau <span className="font-semibold text-ink">jawaban singkat</span>. PG wajib isi minimal 4 opsi. Jawaban singkat wajib satu kunci di kolom{" "}
-        <span className="font-digits text-ink">kunci_jawaban_singkat</span>. Kolom{" "}
-        <span className="font-digits text-ink">ada_gambar</span> diisi 1/true jika soal memiliki gambar. Berkas dicek dulu di halaman pratinjau. Hanya soal valid yang dicentang yang disimpan.
+        Kolom Excel/CSV: <span className="font-digits text-ink">paket, kategori, jenis, teks, bobot, bobot_salah, opsi_a–e, kunci, kunci_jawaban_singkat, pedoman, rubrik, ada_gambar</span>. Kolom <span className="font-digits text-ink">paket</span> menambahkan soal ke paket (dibuat otomatis bila belum ada). Jenis diisi <span className="font-semibold text-ink">pg</span>, <span className="font-semibold text-ink">uraian</span>, atau <span className="font-semibold text-ink">jawaban singkat</span>. PG wajib isi minimal 4 opsi. Jawaban singkat wajib satu kunci di kolom <span className="font-digits text-ink">kunci_jawaban_singkat</span>. Kolom <span className="font-digits text-ink">ada_gambar</span> diisi 1/true jika soal memiliki gambar. Berkas dicek dulu di halaman pratinjau. Hanya soal valid yang dicentang yang disimpan.
       </p>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
         Berkas Excel atau CSV
-        <input
-          name="file"
-          type="file"
-          accept=".xlsx,.xls,.csv,text/csv"
-          required
-          className="rounded-xl border border-dashed border-line-strong/70 bg-page/40 px-3 py-3 font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand"
-        />
+        <input name="file" type="file" accept=".xlsx,.xls,.csv,text/csv" required className="rounded-xl border border-dashed border-line-strong/70 bg-page/40 px-3 py-3 font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand" />
       </label>
       <ErrorText error={error} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
+      <button type="submit" disabled={pending} className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-line bg-paper px-5 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand disabled:opacity-60">
         <FontAwesomeIcon icon={Icon.FileExcel} className="size-4 mr-2" />
         {pending ? "Memeriksa berkas…" : "Periksa berkas"}
       </button>
@@ -682,10 +595,7 @@ export function ExamForm({
   const [isSimulation, setIsSimulation] = useState(initialData?.name?.startsWith("[SIMULASI]") ?? false);
   const formRef = useRef<HTMLFormElement>(null);
   const selected = competitions.find((row) => row.id === competitionId);
-  const groups = useMemo(
-    () => (selected?.jenjangGroups?.length ? selected.jenjangGroups : []),
-    [selected],
-  );
+  const groups = useMemo(() => (selected?.jenjangGroups?.length ? selected.jenjangGroups : []), [selected]);
   const isEdit = Boolean(examId);
 
   useEffect(() => {
@@ -910,9 +820,7 @@ export function ExamForm({
             setPending(false);
           });
       }}>
-      {competitionsError ? (
-        <p className="rounded-xl border border-dashed border-alert/40 bg-mark px-4 py-3 text-sm text-alert">{competitionsError}</p>
-      ) : null}
+      {competitionsError ? <p className="rounded-xl border border-dashed border-alert/40 bg-mark px-4 py-3 text-sm text-alert">{competitionsError}</p> : null}
 
       {!isEdit ? (
         <div className="flex flex-col gap-1.5">
@@ -920,13 +828,7 @@ export function ExamForm({
             Lomba (OMBN)
           </label>
           <p className="text-xs text-ink-muted">Nama ujian diambil dari nama lomba. Satu lomba boleh punya beberapa ujian.</p>
-          <select
-            id="exam-competition"
-            name="competitionId"
-            required
-            defaultValue={competitionId === "" ? "" : String(competitionId)}
-            className="js-select2 rounded-xl border border-line px-3 py-2.5 text-sm font-normal"
-            data-placeholder="Pilih lomba…">
+          <select id="exam-competition" name="competitionId" required defaultValue={competitionId === "" ? "" : String(competitionId)} className="js-select2 rounded-xl border border-line px-3 py-2.5 text-sm font-normal" data-placeholder="Pilih lomba…">
             <option value="" disabled>
               Pilih lomba…
             </option>
@@ -940,12 +842,7 @@ export function ExamForm({
       ) : null}
 
       <label className="flex items-center gap-2.5 rounded-xl bg-page/80 px-3 py-3 text-sm text-ink">
-        <input
-          type="checkbox"
-          checked={isSimulation}
-          onChange={(e) => setIsSimulation(e.target.checked)}
-          className="size-4 accent-[var(--color-brand)]"
-        />
+        <input type="checkbox" checked={isSimulation} onChange={(e) => setIsSimulation(e.target.checked)} className="size-4 accent-[var(--color-brand)]" />
         Simulasi (tambahkan "[SIMULASI]" di depan nama lomba)
       </label>
 
@@ -954,12 +851,7 @@ export function ExamForm({
           Tingkat Lomba
         </label>
         <p className="text-xs text-ink-muted">Tingkat lomba untuk pengelompokan dan pelaporan.</p>
-        <select
-          id="exam-competition-level"
-          name="competitionLevel"
-          required
-          defaultValue={competitionLevel}
-          className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
+        <select id="exam-competition-level" name="competitionLevel" required defaultValue={competitionLevel} className="rounded-xl border border-line px-3 py-2.5 text-sm font-normal">
           <option value="KABUPATEN">Kabupaten</option>
           <option value="PROVINSI">Provinsi</option>
           <option value="NASIONAL">Nasional</option>
@@ -969,34 +861,15 @@ export function ExamForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink sm:col-span-2">
           Absensi dibuka
-          <input
-            name="attendanceOpensAt"
-            type="datetime-local"
-            required
-            defaultValue={initialData?.attendanceOpensAt}
-            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
+          <input name="attendanceOpensAt" type="datetime-local" required defaultValue={initialData?.attendanceOpensAt} className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Jadwal mulai (rencana)
-          <input
-            name="startsAt"
-            type="datetime-local"
-            required
-            defaultValue={initialData?.startsAt}
-            className="w-full rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
+          <input name="startsAt" type="datetime-local" required defaultValue={initialData?.startsAt} className="w-full rounded-xl border border-line px-3 py-2.5 font-normal" />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Durasi per peserta (menit)
-          <input
-            name="durationMinutes"
-            type="number"
-            min={1}
-            defaultValue={initialData?.durationMinutes ?? 120}
-            required
-            className="rounded-xl border border-line px-3 py-2.5 font-normal"
-          />
+          <input name="durationMinutes" type="number" min={1} defaultValue={initialData?.durationMinutes ?? 120} required className="rounded-xl border border-line px-3 py-2.5 font-normal" />
         </label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
           Status awal
@@ -1014,12 +887,7 @@ export function ExamForm({
           {groups.map((group) => (
             <label key={group} className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
               {group}
-              <select
-                name={`package_${group}`}
-                required
-                defaultValue={initialData?.packages[group] ?? ""}
-                className="js-select2"
-                data-placeholder="Pilih paket…">
+              <select name={`package_${group}`} required defaultValue={initialData?.packages[group] ?? ""} className="js-select2" data-placeholder="Pilih paket…">
                 <option value="" disabled>
                   Pilih paket…
                 </option>
@@ -1043,66 +911,36 @@ export function ExamForm({
         <legend className="px-1 text-sm font-semibold text-ink">Pengacakan</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="shuffleQuestions"
-              defaultChecked={isEdit ? initialData?.shuffleQuestions : true}
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
-            />
+            <input type="checkbox" name="shuffleQuestions" defaultChecked={isEdit ? initialData?.shuffleQuestions : true} className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <span className="font-semibold">Acak urutan soal</span>
           </label>
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="shuffleOptions"
-              defaultChecked={isEdit ? initialData?.shuffleOptions : true}
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
-            />
+            <input type="checkbox" name="shuffleOptions" defaultChecked={isEdit ? initialData?.shuffleOptions : true} className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <span className="font-semibold">Acak urutan opsi</span>
           </label>
         </div>
       </fieldset>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-ink">
-          Mode Kalkulator
-        </label>
+        <label className="text-sm font-semibold text-ink">Mode Kalkulator</label>
         <p className="text-xs text-ink-muted">Kalkulator yang tersedia untuk peserta saat mengerjakan ujian.</p>
         <div className="flex flex-col gap-2">
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input
-              type="radio"
-              name="calculatorMode"
-              value="TIDAK"
-              defaultChecked={isEdit ? initialData?.calculatorMode === "TIDAK" : true}
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
-            />
+            <input type="radio" name="calculatorMode" value="TIDAK" defaultChecked={isEdit ? initialData?.calculatorMode === "TIDAK" : true} className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <div>
               <span className="font-semibold">Tidak ada</span>
               <span className="ml-2 text-xs text-ink-muted">(default)</span>
             </div>
           </label>
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input
-              type="radio"
-              name="calculatorMode"
-              value="DASAR"
-              defaultChecked={isEdit ? initialData?.calculatorMode === "DASAR" : false}
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
-            />
+            <input type="radio" name="calculatorMode" value="DASAR" defaultChecked={isEdit ? initialData?.calculatorMode === "DASAR" : false} className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <div>
               <span className="font-semibold">Dasar</span>
               <span className="ml-2 text-xs text-ink-muted">angka, +, -, ×, ÷, %, √, x², 1/x</span>
             </div>
           </label>
           <label className="flex items-start gap-2.5 text-sm text-ink">
-            <input
-              type="radio"
-              name="calculatorMode"
-              value="SCIENTIFIC"
-              defaultChecked={isEdit ? initialData?.calculatorMode === "SCIENTIFIC" : false}
-              className="mt-0.5 size-4 accent-[var(--color-brand)]"
-            />
+            <input type="radio" name="calculatorMode" value="SCIENTIFIC" defaultChecked={isEdit ? initialData?.calculatorMode === "SCIENTIFIC" : false} className="mt-0.5 size-4 accent-[var(--color-brand)]" />
             <div>
               <span className="font-semibold">Scientific</span>
               <span className="ml-2 text-xs text-ink-muted">semua dasar + trigonometri, logaritma, pangkat, faktorial, konstanta</span>
@@ -1112,10 +950,7 @@ export function ExamForm({
       </div>
 
       <ErrorText error={error} />
-      <button
-        type="submit"
-        disabled={pending || packages.length === 0 || (!competitionId && !isEdit) || (groups.length === 0 && !isEdit) || Boolean(competitionsError)}
-        className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+      <button type="submit" disabled={pending || packages.length === 0 || (!competitionId && !isEdit) || (groups.length === 0 && !isEdit) || Boolean(competitionsError)} className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
         <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
         {pending ? "Menyimpan…" : isEdit ? "Simpan perubahan" : "Buat ujian"}
       </button>
@@ -1134,29 +969,14 @@ type QuestionPick = {
   updatedAt: Date;
 };
 
-export function ExamControlButtons({
-  examId,
-  phase,
-  status,
-  startsAt,
-}: {
-  examId: number;
-  phase: "NOT_STARTED" | "RUNNING" | "ENDED";
-  status: string;
-  startsAt: Date;
-}) {
+export function ExamControlButtons({ examId, phase, status, startsAt }: { examId: number; phase: "NOT_STARTED" | "RUNNING" | "ENDED"; status: string; startsAt: Date }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"start" | "end" | "sync" | null>(null);
   const canControl = status === "PUBLISHED";
-  const canStart = phase === "NOT_STARTED" && new Date() >= startsAt;
+  const canStart = phase === "NOT_STARTED";
 
   return (
     <div className="flex flex-col gap-3">
-      {phase === "NOT_STARTED" && !canStart && (
-        <p className="text-xs text-ink-muted" suppressHydrationWarning>
-          Tombol MULAI akan aktif pada {formatJakarta(startsAt)}
-        </p>
-      )}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -1251,21 +1071,20 @@ export function QuestionPackageForm({
     return questions.filter((q) => picked.includes(q.id));
   }, [editing, picked, questions]);
 
-  const filtered = questions.filter((question) => {
-    const matchesQuery = !deferred || [question.code, stripHtml(question.body), question.categoryName ?? "", question.type ?? ""]
-      .join(" ")
-      .toLowerCase()
-      .includes(deferred);
+  const filtered = questions
+    .filter((question) => {
+      const matchesQuery = !deferred || [question.code, stripHtml(question.body), question.categoryName ?? "", question.type ?? ""].join(" ").toLowerCase().includes(deferred);
 
-    const matchesCategory = !categoryFilter || question.categoryName === categoryFilter;
+      const matchesCategory = !categoryFilter || question.categoryName === categoryFilter;
 
-    const matchesType = !typeFilter || question.type === typeFilter;
+      const matchesType = !typeFilter || question.type === typeFilter;
 
-    return matchesQuery && matchesCategory && matchesType;
-  }).sort((a, b) => {
-    // Sort by updatedAt descending (most recent first)
-    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-  });
+      return matchesQuery && matchesCategory && matchesType;
+    })
+    .sort((a, b) => {
+      // Sort by updatedAt descending (most recent first)
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
 
   const allSelected = filtered.length > 0 && filtered.every((q) => picked.includes(q.id));
   const someSelected = filtered.some((q) => picked.includes(q.id));
@@ -1312,7 +1131,7 @@ export function QuestionPackageForm({
         });
 
         // Sync Select2 changes with React state
-        $el.on("change", function() {
+        $el.on("change", function () {
           const value = $(this).val() as string;
           if (el.name === "categoryFilter") {
             setCategoryFilter(value);
@@ -1402,7 +1221,7 @@ export function QuestionPackageForm({
         });
 
         // Sync Select2 changes with React state
-        $el.on("change", function() {
+        $el.on("change", function () {
           const value = $(this).val() as string;
           if (el.name === "categoryFilter") {
             setCategoryFilter(value);
@@ -1517,124 +1336,93 @@ export function QuestionPackageForm({
 
   return (
     <div className="flex flex-col gap-5">
-      <form
-        ref={formRef}
-        className="flex flex-col gap-5"
-        onSubmit={editing ? handleIdentitySubmit : handleSubmit}>
+      <form ref={formRef} className="flex flex-col gap-5" onSubmit={editing ? handleIdentitySubmit : handleSubmit}>
         <section className="rounded-xl border border-line/80 bg-paper p-5 shadow-sm sm:p-6">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold tracking-tight text-ink">Identitas paket</h2>
-          <p className="mt-0.5 text-sm text-ink-muted">Nama paket dipakai saat memilih di form ujian.</p>
-        </div>
-        <div className="grid gap-4">
-          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-            Nama paket
-            <input
-              name="name"
-              required
-              defaultValue={initial?.name}
-              placeholder="Mis. Paket Matematika Kelas 9"
-              className="rounded-xl border border-line px-3 py-2.5 font-normal"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
-            Deskripsi <span className="font-normal text-ink-muted">(opsional)</span>
-            <input
-              name="description"
-              defaultValue={initial?.description}
-              maxLength={500}
-              className="rounded-xl border border-line px-3 py-2.5 font-normal"
-            />
-          </label>
-          <label className="flex items-center gap-2.5 rounded-xl bg-page/80 px-3 py-3 text-sm text-ink">
-            <input name="isActive" type="checkbox" defaultChecked={initial?.isActive ?? true} className="size-4 accent-[var(--color-brand)]" />
-            Paket aktif dan bisa dipilih di ujian
-          </label>
-        </div>
-      </section>
+          <div className="mb-4">
+            <h2 className="text-base font-semibold tracking-tight text-ink">Identitas paket</h2>
+            <p className="mt-0.5 text-sm text-ink-muted">Nama paket dipakai saat memilih di form ujian.</p>
+          </div>
+          <div className="grid gap-4">
+            <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+              Nama paket
+              <input name="name" required defaultValue={initial?.name} placeholder="Mis. Paket Matematika Kelas 9" className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
+              Deskripsi <span className="font-normal text-ink-muted">(opsional)</span>
+              <input name="description" defaultValue={initial?.description} maxLength={500} className="rounded-xl border border-line px-3 py-2.5 font-normal" />
+            </label>
+            <label className="flex items-center gap-2.5 rounded-xl bg-page/80 px-3 py-3 text-sm text-ink">
+              <input name="isActive" type="checkbox" defaultChecked={initial?.isActive ?? true} className="size-4 accent-[var(--color-brand)]" />
+              Paket aktif dan bisa dipilih di ujian
+            </label>
+          </div>
+        </section>
 
-      <section className="rounded-xl border border-line/80 bg-paper shadow-sm">
-        {editing ? (
-          <>
-            <div className="flex flex-col gap-3 px-4 pt-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div>
-                <h2 className="text-base font-semibold tracking-tight text-ink">
-                  {showPlotting ? "Plotting soal ke paket" : "Soal dalam paket ini"}
-                </h2>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  {showPlotting ? (
-                    <>
-                      <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-digits font-semibold text-ink tabular-nums">{packageQuestions.length}</span> soal
-                    </>
-                  )}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPlotting(!showPlotting)}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
-                <FontAwesomeIcon icon={showPlotting ? Icon.List : Icon.Plus} className="w-4 h-4" />
-                {showPlotting ? "Lihat daftar" : "Plotting soal"}
-              </button>
-            </div>
-
-            {showPlotting ? (
-              <>
-                <div className="flex flex-row gap-2 py-4 px-4 sm:px-5">
-                  <select
-                    name="categoryFilter"
-                    value={categoryFilter}
-                    onChange={(event) => setCategoryFilter(event.target.value)}
-                    className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
-                    data-placeholder="Semua kategori">
-                    <option value="" />
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    name="typeFilter"
-                    value={typeFilter}
-                    onChange={(event) => setTypeFilter(event.target.value)}
-                    className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
-                    data-placeholder="Semua jenis">
-                    <option value="" />
-                    <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
-                    <option value="SHORT_ANSWER">Jawaban singkat</option>
-                    <option value="ESSAY">Uraian</option>
-                  </select>
-                  {(categoryFilter || typeFilter) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCategoryFilter("");
-                        setTypeFilter("");
-                      }}
-                      className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
-                      Reset filter
-                    </button>
-                  )}
+        <section className="rounded-xl border border-line/80 bg-paper shadow-sm">
+          {editing ? (
+            <>
+              <div className="flex flex-col gap-3 px-4 pt-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <div>
+                  <h2 className="text-base font-semibold tracking-tight text-ink">{showPlotting ? "Plotting soal ke paket" : "Soal dalam paket ini"}</h2>
+                  <p className="mt-0.5 text-sm text-ink-muted">
+                    {showPlotting ? (
+                      <>
+                        <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-digits font-semibold text-ink tabular-nums">{packageQuestions.length}</span> soal
+                      </>
+                    )}
+                  </p>
                 </div>
+                <button type="button" onClick={() => setShowPlotting(!showPlotting)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-page px-4 text-sm font-semibold text-ink shadow-sm transition hover:border-brand hover:text-brand">
+                  <FontAwesomeIcon icon={showPlotting ? Icon.List : Icon.Plus} className="w-4 h-4" />
+                  {showPlotting ? "Lihat daftar" : "Plotting soal"}
+                </button>
+              </div>
 
-                {questions.length === 0 ? (
-                  <div className="mx-4 mb-4 rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center sm:mx-5">
-                    <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
-                    <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
-                      Tambah soal
-                    </Link>
+              {showPlotting ? (
+                <>
+                  <div className="flex flex-row gap-2 py-4 px-4 sm:px-5">
+                    <select name="categoryFilter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink" data-placeholder="Semua kategori">
+                      <option value="" />
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                    <select name="typeFilter" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink" data-placeholder="Semua jenis">
+                      <option value="" />
+                      <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
+                      <option value="SHORT_ANSWER">Jawaban singkat</option>
+                      <option value="ESSAY">Uraian</option>
+                    </select>
+                    {(categoryFilter || typeFilter) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategoryFilter("");
+                          setTypeFilter("");
+                        }}
+                        className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
+                        Reset filter
+                      </button>
+                    )}
                   </div>
-                ) : filtered.length === 0 ? (
-                  <div className="mx-4 mb-4 rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted sm:mx-5">
-                    Tidak ada soal yang cocok.
-                  </div>
-                ) : (
-                  <DataTable
+
+                  {questions.length === 0 ? (
+                    <div className="mx-4 mb-4 rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center sm:mx-5">
+                      <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
+                      <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
+                        Tambah soal
+                      </Link>
+                    </div>
+                  ) : filtered.length === 0 ? (
+                    <div className="mx-4 mb-4 rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted sm:mx-5">Tidak ada soal yang cocok.</div>
+                  ) : (
+                    <DataTable
                       headers={["", "Kategori", "Jenis", "Soal", "Bobot", "Aksi"]}
                       rows={filtered.map((question) => {
                         const checked = picked.includes(question.id);
@@ -1648,27 +1436,29 @@ export function QuestionPackageForm({
                               setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
                             }}
                           />,
-                          <span key="cat" className="text-ink-muted">{question.categoryName || "—"}</span>,
-                          question.type === "ESSAY" ? (
-                            <span key="type" className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
-                          ) : question.type === "SHORT_ANSWER" ? (
-                            <span key="type" className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
-                          ) : (
-                            <span key="type" className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand" title={question.code}>Pilihan ganda</span>
-                          ),
-                          <span key="body" className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>,
-                          <span key="weight" className="text-xs text-ink-muted">
-                            {[
-                              `benar ${question.defaultWeight}`,
-                              Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
+                          <span key="cat" className="text-ink-muted">
+                            {question.categoryName || "—"}
                           </span>,
-                          <Link
-                            key="action"
-                            href={`/admin/soal/${question.id}`}
-                            className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+                          question.type === "ESSAY" ? (
+                            <span key="type" className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">
+                              Uraian
+                            </span>
+                          ) : question.type === "SHORT_ANSWER" ? (
+                            <span key="type" className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">
+                              Jawaban singkat
+                            </span>
+                          ) : (
+                            <span key="type" className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand" title={question.code}>
+                              Pilihan ganda
+                            </span>
+                          ),
+                          <span key="body" className="font-semibold text-ink">
+                            {previewQuestionText(question.body, 50)}
+                          </span>,
+                          <span key="weight" className="text-xs text-ink-muted">
+                            {[`benar ${question.defaultWeight}`, Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null].filter(Boolean).join(" · ")}
+                          </span>,
+                          <Link key="action" href={`/admin/soal/${question.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
                             <FontAwesomeIcon icon={Icon.Pencil} className="w-3 h-3" />
                             Edit
                           </Link>,
@@ -1677,212 +1467,174 @@ export function QuestionPackageForm({
                       itemsPerPage={10}
                       searchPlaceholder="Cari soal..."
                     />
-                )}
-              </>
-            ) : (
-              <>
-                {packageQuestions.length === 0 ? (
-                  <div className="mx-4 mb-4 rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center sm:mx-5">
-                    <p className="text-sm font-semibold text-ink">Paket ini belum memiliki soal</p>
-                  </div>
-                ) : (
-                  <DataTable
-                    headers={["Kategori", "Jenis", "Soal", "Bobot", "Aksi"]}
-                    rows={packageQuestions.map((question) => [
-                      <span key="cat" className="text-ink-muted">{question.categoryName || "—"}</span>,
-                      question.type === "ESSAY" ? (
-                        <span key="type" className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
-                      ) : question.type === "SHORT_ANSWER" ? (
-                        <span key="type" className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
-                      ) : (
-                        <span key="type" className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand" title={question.code}>Pilihan ganda</span>
-                      ),
-                      <span key="body" className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>,
-                      <span key="weight" className="text-xs text-ink-muted">
-                        {[
-                          `benar ${question.defaultWeight}`,
-                          Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>,
-                      <Link
-                        key="action"
-                        href={`/admin/soal/${question.id}`}
-                        className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
-                        <FontAwesomeIcon icon={Icon.Pencil} className="w-3 h-3" />
-                        Edit
-                      </Link>,
-                    ])}
-                    itemsPerPage={10}
-                    searchPlaceholder="Cari soal..."
-                  />
-                )}
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold tracking-tight text-ink">Isi soal</h2>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
-                </p>
-              </div>
-              <label className="relative block w-full sm:max-w-xs">
-                <span className="sr-only">Cari soal</span>
-                <svg
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true">
-                  <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-                  <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                </svg>
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Cari teks, kode, atau kategori"
-                  className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper"
-                />
-              </label>
-            </div>
-
-            <div className="mb-4 flex flex-wrap gap-2">
-              <select
-                name="categoryFilter"
-                value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
-                className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
-                data-placeholder="Semua kategori">
-                <option value="" />
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="typeFilter"
-                value={typeFilter}
-                onChange={(event) => setTypeFilter(event.target.value)}
-                className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink"
-                data-placeholder="Semua jenis">
-                <option value="" />
-                <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
-                <option value="SHORT_ANSWER">Jawaban singkat</option>
-                <option value="ESSAY">Uraian</option>
-              </select>
-              {(categoryFilter || typeFilter) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCategoryFilter("");
-                    setTypeFilter("");
-                  }}
-                  className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
-                  Reset filter
-                </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {packageQuestions.length === 0 ? (
+                    <div className="mx-4 mb-4 rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center sm:mx-5">
+                      <p className="text-sm font-semibold text-ink">Paket ini belum memiliki soal</p>
+                    </div>
+                  ) : (
+                    <DataTable
+                      headers={["Kategori", "Jenis", "Soal", "Bobot", "Aksi"]}
+                      rows={packageQuestions.map((question) => [
+                        <span key="cat" className="text-ink-muted">
+                          {question.categoryName || "—"}
+                        </span>,
+                        question.type === "ESSAY" ? (
+                          <span key="type" className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">
+                            Uraian
+                          </span>
+                        ) : question.type === "SHORT_ANSWER" ? (
+                          <span key="type" className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">
+                            Jawaban singkat
+                          </span>
+                        ) : (
+                          <span key="type" className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand" title={question.code}>
+                            Pilihan ganda
+                          </span>
+                        ),
+                        <span key="body" className="font-semibold text-ink">
+                          {previewQuestionText(question.body, 50)}
+                        </span>,
+                        <span key="weight" className="text-xs text-ink-muted">
+                          {[`benar ${question.defaultWeight}`, Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null].filter(Boolean).join(" · ")}
+                        </span>,
+                        <Link key="action" href={`/admin/soal/${question.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+                          <FontAwesomeIcon icon={Icon.Pencil} className="w-3 h-3" />
+                          Edit
+                        </Link>,
+                      ])}
+                      itemsPerPage={10}
+                      searchPlaceholder="Cari soal..."
+                    />
+                  )}
+                </>
               )}
-            </div>
-
-            {questions.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
-                <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
-                <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
-                  Tambah soal
-                </Link>
+            </>
+          ) : (
+            <>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold tracking-tight text-ink">Isi soal</h2>
+                  <p className="mt-0.5 text-sm text-ink-muted">
+                    <span className="font-digits font-semibold text-ink tabular-nums">{picked.length}</span> soal dipilih
+                  </p>
+                </div>
+                <label className="relative block w-full sm:max-w-xs">
+                  <span className="sr-only">Cari soal</span>
+                  <svg className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.7" />
+                    <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  </svg>
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari teks, kode, atau kategori" className="w-full rounded-xl border border-line bg-page/60 py-2.5 pr-3 pl-9 text-sm font-normal placeholder:text-ink-muted focus:border-brand focus:bg-paper" />
+                </label>
               </div>
-            ) : filtered.length === 0 ? (
-              <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
-            ) : (
-              <div className="max-h-96 overflow-auto rounded-xl border border-line/80">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="sticky top-0 bg-page/80 border-b border-line">
-                    <tr className="text-left text-ink-muted">
-                      <th className="px-3 py-2 w-10">
-                        <input
-                          type="checkbox"
-                          checked={allSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = someSelected && !allSelected;
-                          }}
-                          className="size-4 accent-[var(--color-brand)]"
-                          onChange={(event) => {
-                            if (event.target.checked) {
-                              setPicked([...new Set([...picked, ...filtered.map((q) => q.id)])]);
-                            } else {
-                              setPicked(picked.filter((id) => !filtered.some((q) => q.id === id)));
-                            }
-                          }}
-                        />
-                      </th>
-                      <th className="px-3 py-2 font-semibold">Kategori</th>
-                      <th className="px-3 py-2 font-semibold">Jenis</th>
-                      <th className="px-3 py-2 font-semibold">Soal</th>
-                      <th className="px-3 py-2 font-semibold">Bobot</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/70">
-                    {filtered.map((question) => {
-                      const checked = picked.includes(question.id);
-                      const typeLabel =
-                        question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
-                      return (
-                        <tr
-                          key={question.id}
-                          className={`transition-colors hover:bg-brand-soft/30 ${checked ? "bg-brand-soft/40" : "bg-paper"}`}>
-                          <td className="px-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              className="size-4 accent-[var(--color-brand)]"
-                              onChange={(event) => {
-                                setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
-                              }}
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-ink-muted">{question.categoryName || "—"}</td>
-                          <td className="px-3 py-2">
-                            {question.type === "ESSAY" ? (
-                              <span className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span>
-                            ) : question.type === "SHORT_ANSWER" ? (
-                              <span className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span>
-                            ) : (
-                              <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
-                          </td>
-                          <td className="px-3 py-2 text-xs text-ink-muted">
-                            {[
-                              `benar ${question.defaultWeight}`,
-                              Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
-      </section>
 
-      <ErrorText error={error} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
-        <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
-        {pending ? "Menyimpan…" : editing ? "Simpan perubahan" : "Buat paket"}
-      </button>
+              <div className="mb-4 flex flex-wrap gap-2">
+                <select name="categoryFilter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink" data-placeholder="Semua kategori">
+                  <option value="" />
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <select name="typeFilter" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="js-select2 rounded-lg border border-line bg-page/60 px-2.5 py-1.5 text-xs font-medium text-ink" data-placeholder="Semua jenis">
+                  <option value="" />
+                  <option value="MULTIPLE_CHOICE">Pilihan ganda</option>
+                  <option value="SHORT_ANSWER">Jawaban singkat</option>
+                  <option value="ESSAY">Uraian</option>
+                </select>
+                {(categoryFilter || typeFilter) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilter("");
+                      setTypeFilter("");
+                    }}
+                    className="rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-ink hover:border-brand hover:text-brand">
+                    Reset filter
+                  </button>
+                )}
+              </div>
+
+              {questions.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-line-strong/60 px-4 py-8 text-center">
+                  <p className="text-sm font-semibold text-ink">Bank soal masih kosong</p>
+                  <Link href="/admin/soal/baru" className="mt-3 inline-flex text-sm font-semibold text-brand hover:underline">
+                    Tambah soal
+                  </Link>
+                </div>
+              ) : filtered.length === 0 ? (
+                <p className="rounded-xl bg-page/80 px-4 py-6 text-center text-sm text-ink-muted">Tidak ada soal yang cocok.</p>
+              ) : (
+                <div className="max-h-96 overflow-auto rounded-xl border border-line/80">
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="sticky top-0 bg-page/80 border-b border-line">
+                      <tr className="text-left text-ink-muted">
+                        <th className="px-3 py-2 w-10">
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            ref={(el) => {
+                              if (el) el.indeterminate = someSelected && !allSelected;
+                            }}
+                            className="size-4 accent-[var(--color-brand)]"
+                            onChange={(event) => {
+                              if (event.target.checked) {
+                                setPicked([...new Set([...picked, ...filtered.map((q) => q.id)])]);
+                              } else {
+                                setPicked(picked.filter((id) => !filtered.some((q) => q.id === id)));
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="px-3 py-2 font-semibold">Kategori</th>
+                        <th className="px-3 py-2 font-semibold">Jenis</th>
+                        <th className="px-3 py-2 font-semibold">Soal</th>
+                        <th className="px-3 py-2 font-semibold">Bobot</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line/70">
+                      {filtered.map((question) => {
+                        const checked = picked.includes(question.id);
+                        const typeLabel = question.type === "ESSAY" ? "Uraian" : question.type === "SHORT_ANSWER" ? "Jawaban singkat" : question.type === "MULTIPLE_CHOICE" ? "Pilihan ganda" : null;
+                        return (
+                          <tr key={question.id} className={`transition-colors hover:bg-brand-soft/30 ${checked ? "bg-brand-soft/40" : "bg-paper"}`}>
+                            <td className="px-3 py-2">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                className="size-4 accent-[var(--color-brand)]"
+                                onChange={(event) => {
+                                  setPicked(event.target.checked ? [...picked, question.id] : picked.filter((id) => id !== question.id));
+                                }}
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-ink-muted">{question.categoryName || "—"}</td>
+                            <td className="px-3 py-2">{question.type === "ESSAY" ? <span className="inline-flex rounded-md bg-mark px-2 py-1 text-xs font-semibold text-mark-ink">Uraian</span> : question.type === "SHORT_ANSWER" ? <span className="inline-flex rounded-md border border-line bg-page px-2 py-1 text-xs font-semibold text-ink">Jawaban singkat</span> : <span className="inline-flex rounded-md bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">Pilihan ganda</span>}</td>
+                            <td className="px-3 py-2">
+                              <span className="font-semibold text-ink">{previewQuestionText(question.body, 50)}</span>
+                            </td>
+                            <td className="px-3 py-2 text-xs text-ink-muted">{[`benar ${question.defaultWeight}`, Number(question.defaultWrongWeight) > 0 ? `salah −${question.defaultWrongWeight}` : null].filter(Boolean).join(" · ")}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        <ErrorText error={error} />
+        <button type="submit" disabled={pending} className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-60">
+          <FontAwesomeIcon icon={Icon.FloppyDisk} className="size-4 mr-2" />
+          {pending ? "Menyimpan…" : editing ? "Simpan perubahan" : "Buat paket"}
+        </button>
       </form>
     </div>
   );
@@ -1921,7 +1673,6 @@ export function DeletePackageButton({ packageId, usedInExams }: { packageId: num
     </div>
   );
 }
-
 
 export function DeleteExamButton({ examId }: { examId: number }) {
   const [error, setError] = useState<string | null>(null);
