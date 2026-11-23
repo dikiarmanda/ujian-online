@@ -11,12 +11,18 @@ import { redis } from "./redis";
 import { sanitizeRichText } from "./rich-text";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 function toWIBString(date: Date): string {
-  return date.toISOString().replace('Z', '+07:00');
+  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone (untuk Redis)
+  return String(date.getTime());
+}
+
+function toIsoString(date: Date): string {
+  // Untuk response ke frontend, gunakan ISO string
+  return date.toISOString();
 }
 
 export type PublicOption = { id: number; label: string; body: string; imagePath: string | null };
@@ -319,10 +325,10 @@ export async function getAttemptState(attemptId: number, userId: number) {
     examName: attempt.exam.name,
     calculatorMode: attempt.exam.calculatorMode,
     status: attempt.status,
-    serverNow: toWIBString(getWIBDate()),
-    serverTime: toWIBString(getWIBDate()),
-    expiresAt: toWIBString(attempt.expiresAt),
-    deadlineAt: toWIBString(attempt.expiresAt),
+    serverNow: toIsoString(getWIBDate()),
+    serverTime: toIsoString(getWIBDate()),
+    expiresAt: toIsoString(attempt.expiresAt),
+    deadlineAt: toIsoString(attempt.expiresAt),
     lastQuestionIndex: Number(meta.lastQuestionIndex ?? attempt.lastQuestionIndex ?? 0),
     questions,
     answers,
@@ -402,29 +408,7 @@ export async function saveAnswer(
     include: { exam: true },
   });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
-  logWarn("jawaban_debug_attempt", {
-    userId,
-    attemptId,
-    status: attempt.status,
-    startedAt: attempt.startedAt?.toISOString(),
-    expiresAt: attempt.expiresAt?.toISOString(),
-    examId: attempt.examId,
-  });
-
-  const closed = await redis.get(closedKey(attemptId));
-  logWarn("jawaban_debug_closed", {
-    attemptId,
-    closed,
-    closedKey: closedKey(attemptId),
-  });
-
-  if (attempt.status !== "IN_PROGRESS" || closed) {
-    logWarn("jawaban_ditolak_status", {
-      userId,
-      attemptId,
-      status: attempt.status,
-      closed,
-    });
+  if (attempt.status !== "IN_PROGRESS" || (await redis.get(closedKey(attemptId)))) {
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
   }
 
@@ -433,19 +417,8 @@ export async function saveAnswer(
   const cachedExpires = await readAttemptExpires(attempt.examId, userId);
   const effectiveExpires = cachedExpires ?? attempt.expiresAt;
 
-  logWarn("jawaban_cek_waktu", {
-    userId,
-    attemptId,
-    now: now.toISOString(),
-    cachedExpires: cachedExpires?.toISOString(),
-    attemptExpires: attempt.expiresAt?.toISOString(),
-    effectiveExpires: effectiveExpires?.toISOString(),
-    isExpired: !effectiveExpires || now > effectiveExpires,
-  });
-
   if (!effectiveExpires || now > effectiveExpires) {
     await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
-    console.log("DEBUG saveAnswer: finalizing attempt due to expiration");
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
   }
   const order = (attempt.questionOrder as number[]) ?? [];
@@ -701,8 +674,8 @@ export async function getExamStateForParticipant(examId: number, userId: number)
   });
   return {
     phase: state.phase,
-    serverTime: toWIBString(getWIBDate()),
-    expiresAt: attempt?.expiresAt ? toWIBString(attempt.expiresAt) : null,
+    serverTime: toIsoString(getWIBDate()),
+    expiresAt: attempt?.expiresAt ? toIsoString(attempt.expiresAt) : null,
     attended: Boolean(attempt?.attendedAt),
     started: Boolean(attempt?.startedAt),
     status: attempt?.status ?? null,

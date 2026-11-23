@@ -4,12 +4,18 @@ import { AppError } from "@/server/errors";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 function toWIBString(date: Date): string {
-  return date.toISOString().replace('Z', '+07:00');
+  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone (untuk Redis)
+  return String(date.getTime());
+}
+
+function toIsoString(date: Date): string {
+  // Untuk response ke frontend, gunakan ISO string
+  return date.toISOString();
 }
 
 export const runtime = "nodejs";
@@ -59,10 +65,10 @@ export async function GET(req: Request, ctx: Ctx) {
     const attempt = await prisma.examAttempt.findFirst({ where: { id: attemptId, userId: user.userId } });
     if (!attempt) return json({ error: "Pengerjaan tidak ditemukan." }, 404);
     return json({
-      serverNow: toWIBString(getWIBDate()),
-      serverTime: toWIBString(getWIBDate()),
-      deadlineAt: attempt.expiresAt ? toWIBString(attempt.expiresAt) : null,
-      expiresAt: attempt.expiresAt ? toWIBString(attempt.expiresAt) : null,
+      serverNow: toIsoString(getWIBDate()),
+      serverTime: toIsoString(getWIBDate()),
+      deadlineAt: attempt.expiresAt ? toIsoString(attempt.expiresAt) : null,
+      expiresAt: attempt.expiresAt ? toIsoString(attempt.expiresAt) : null,
       status: attempt.status,
     });
   });

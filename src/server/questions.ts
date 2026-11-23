@@ -10,8 +10,8 @@ import { assertUploadPath, sanitizeRichText } from "./rich-text";
 import { validateDeleteOrDeactivateQuestion, validateUpdatePackage } from "./validation";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 const optionSchema = z.object({

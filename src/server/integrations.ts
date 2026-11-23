@@ -17,8 +17,8 @@ import { redis } from "./redis";
 import { clientIp } from "./session";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 const EXAM_BLOCK_KEY = "integration:exam-block";

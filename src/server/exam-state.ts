@@ -3,17 +3,18 @@ import { prisma } from "./db";
 import { redis } from "./redis";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 function toWIBString(date: Date): string {
-  return date.toISOString().replace('Z', '+07:00');
+  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone
+  return String(date.getTime());
 }
 
 function fromWIBString(str: string): Date {
-  // Parse string like "2026-11-23T10:00:00.000+07:00"
-  return new Date(str);
+  // Parse timestamp Unix
+  return new Date(Number(str));
 }
 
 export type ExamStateCache = {

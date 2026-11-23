@@ -10,8 +10,8 @@ import { writeExamState } from "./exam-state";
 import { applyPackageSnapshot, prefetchExamPackages } from "./packages";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 const packageByJenjangSchema = z.record(z.string(), z.number().int().positive());

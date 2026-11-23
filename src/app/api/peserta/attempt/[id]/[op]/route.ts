@@ -7,12 +7,18 @@ import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/
 import { prisma } from "@/server/db";
 
 function getWIBDate(): Date {
-  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
-  return new Date(Date.now() + wibOffset);
+  // Server sudah set TZ=Asia/Jakarta, jadi Date.now() sudah WIB
+  return new Date();
 }
 
 function toWIBString(date: Date): string {
-  return date.toISOString().replace('Z', '+07:00');
+  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone (untuk Redis)
+  return String(date.getTime());
+}
+
+function toIsoString(date: Date): string {
+  // Untuk response ke frontend, gunakan ISO string
+  return date.toISOString();
 }
 
 export const runtime = "nodejs";
@@ -66,7 +72,7 @@ export async function POST(req: Request, ctx: Ctx) {
         });
         throw error;
       }
-      return json({ ok: true, savedAt: toWIBString(getWIBDate()) });
+      return json({ ok: true, savedAt: toIsoString(getWIBDate()) });
     }
     if (op === "selesai") {
       await finalizeAttempt(attemptId, "SUBMITTED", user.userId, ip);
