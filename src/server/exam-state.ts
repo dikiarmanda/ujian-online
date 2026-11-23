@@ -1,5 +1,6 @@
 import type { ExamPhase } from "@/generated/prisma/client";
 import { prisma } from "./db";
+import { parseStoredInstant } from "./exam-rules";
 import { redis } from "./redis";
 
 function getWIBDate(): Date {
@@ -8,13 +9,12 @@ function getWIBDate(): Date {
 }
 
 function toWIBString(date: Date): string {
-  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone
-  return String(date.getTime());
+  // Server sudah WIB, toISOString() akan konversi ke UTC dengan benar
+  return date.toISOString();
 }
 
-function fromWIBString(str: string): Date {
-  // Parse timestamp Unix
-  return new Date(Number(str));
+function fromWIBString(str: string): Date | null {
+  return parseStoredInstant(str);
 }
 
 export type ExamStateCache = {

@@ -11,13 +11,7 @@ function getWIBDate(): Date {
   return new Date();
 }
 
-function toWIBString(date: Date): string {
-  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone (untuk Redis)
-  return String(date.getTime());
-}
-
 function toIsoString(date: Date): string {
-  // Untuk response ke frontend, gunakan ISO string
   return date.toISOString();
 }
 

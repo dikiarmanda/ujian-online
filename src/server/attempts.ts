@@ -3,7 +3,7 @@ import type { JenjangGroup } from "@/lib/jenjang";
 import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
-import { computeDeadline, scoreObjectiveAnswer, type AnswerSnapshot } from "./exam-rules";
+import { computeDeadline, parseStoredInstant, scoreObjectiveAnswer, type AnswerSnapshot } from "./exam-rules";
 import { readAttemptExpires, readExamState, writeAttemptExpires } from "./exam-state";
 import { logEvent, logWarn } from "./logger";
 import { packageCacheKey } from "./packages";
@@ -16,8 +16,8 @@ function getWIBDate(): Date {
 }
 
 function toWIBString(date: Date): string {
-  // Simpan sebagai timestamp Unix untuk menghindari masalah timezone (untuk Redis)
-  return String(date.getTime());
+  // Server sudah WIB,toISOString() akan konversi ke UTC dengan benar
+  return date.toISOString();
 }
 
 function toIsoString(date: Date): string {
@@ -361,7 +361,7 @@ export async function flushAttempt(attemptId: number, force = false): Promise<vo
           const id = Number(questionId);
           const type = types.get(id);
           const gradingState = type === "ESSAY" ? "PENDING" : "NOT_REQUIRED";
-          return Prisma.sql`(${attemptId}, ${id}, ${answer.selectedOptionId}, ${answer.essayText}, ${answer.shortAnswerText ?? null}, ${answer.isDoubtful ? 1 : 0}, ${answer.answeredAt ? new Date(answer.answeredAt) : null}, UTC_TIMESTAMP(3), ${gradingState})`;
+          return Prisma.sql`(${attemptId}, ${id}, ${answer.selectedOptionId}, ${answer.essayText}, ${answer.shortAnswerText ?? null}, ${answer.isDoubtful ? 1 : 0}, ${parseStoredInstant(answer.answeredAt)}, UTC_TIMESTAMP(3), ${gradingState})`;
         });
         await prisma.$executeRaw`
           INSERT INTO attempt_answers
@@ -477,125 +477,130 @@ export async function finalizeAttempt(
   const expiresAt = attempt.expiresAt ?? new Date(0);
   const actual = reason === "SUBMITTED" && expiresAt <= getWIBDate() ? "TIME_EXPIRED" : reason;
   await redis.set(closedKey(attemptId), "1", "EX", 60 * 60 * 24);
-  await flushAttempt(attemptId, true);
-  const order = (attempt.questionOrder as number[]) ?? [];
-  const pack = attempt.exam.packages.find((p) => p.jenjang === attempt.jenjang);
-  const weights = new Map(
-    (pack?.questions ?? []).map((item) => [
-      item.questionId,
-      { weight: Number(item.weight), wrongWeight: Number(item.wrongWeight) },
-    ]),
-  );
-  const questionIds = order.length ? order : [...weights.keys()];
-  const questions = questionIds.length
-    ? await prisma.question.findMany({
-        where: { id: { in: questionIds } },
-        include: { shortAnswerKey: true },
-      })
-    : [];
-  const questionById = new Map(questions.map((question) => [question.id, question]));
-  const answers = await prisma.attemptAnswer.findMany({
-    where: { attemptId },
-    include: { selectedOption: true },
-  });
-  const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]));
-  let mcScore = 0;
-  let blankEssays = 0;
-  let pendingEssays = 0;
-  for (const questionId of questionIds) {
-    const question = questionById.get(questionId);
-    if (!question) continue;
-    const answer = answerByQuestion.get(questionId);
-    const scoring = weights.get(questionId) ?? {
-      weight: Number(question.defaultWeight),
-      wrongWeight: Number(question.defaultWrongWeight),
-    };
-    if (question.type === "ESSAY") {
-      const text = (answer?.essayText ?? "").trim();
-      if (text) {
-        pendingEssays += 1;
+  try {
+    await flushAttempt(attemptId, true);
+    const order = (attempt.questionOrder as number[]) ?? [];
+    const pack = attempt.exam.packages.find((p) => p.jenjang === attempt.jenjang);
+    const weights = new Map(
+      (pack?.questions ?? []).map((item) => [
+        item.questionId,
+        { weight: Number(item.weight), wrongWeight: Number(item.wrongWeight) },
+      ]),
+    );
+    const questionIds = order.length ? order : [...weights.keys()];
+    const questions = questionIds.length
+      ? await prisma.question.findMany({
+          where: { id: { in: questionIds } },
+          include: { shortAnswerKey: true },
+        })
+      : [];
+    const questionById = new Map(questions.map((question) => [question.id, question]));
+    const answers = await prisma.attemptAnswer.findMany({
+      where: { attemptId },
+      include: { selectedOption: true },
+    });
+    const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]));
+    let mcScore = 0;
+    let blankEssays = 0;
+    let pendingEssays = 0;
+    for (const questionId of questionIds) {
+      const question = questionById.get(questionId);
+      if (!question) continue;
+      const answer = answerByQuestion.get(questionId);
+      const scoring = weights.get(questionId) ?? {
+        weight: Number(question.defaultWeight),
+        wrongWeight: Number(question.defaultWrongWeight),
+      };
+      if (question.type === "ESSAY") {
+        const text = (answer?.essayText ?? "").trim();
+        if (text) {
+          pendingEssays += 1;
+          continue;
+        }
+        blankEssays += 1;
+        await prisma.attemptAnswer.upsert({
+          where: { attemptId_questionId: { attemptId, questionId } },
+          create: {
+            attemptId,
+            questionId,
+            essayText: "",
+            score: "0.00",
+            gradingState: "GRADED",
+            gradedAt: getWIBDate(),
+          },
+          update: {
+            score: "0.00",
+            gradingState: "GRADED",
+            gradedAt: getWIBDate(),
+            lockedById: null,
+            lockedAt: null,
+          },
+        });
         continue;
       }
-      blankEssays += 1;
-      await prisma.attemptAnswer.upsert({
-        where: { attemptId_questionId: { attemptId, questionId } },
-        create: {
-          attemptId,
-          questionId,
-          essayText: "",
-          score: "0.00",
-          gradingState: "GRADED",
-          gradedAt: getWIBDate(),
-        },
-        update: {
-          score: "0.00",
-          gradingState: "GRADED",
-          gradedAt: getWIBDate(),
-          lockedById: null,
-          lockedAt: null,
-        },
+      if (question.type !== "MULTIPLE_CHOICE" && question.type !== "SHORT_ANSWER") continue;
+      const result = scoreObjectiveAnswer({
+        type: question.type,
+        selectedOptionId: answer?.selectedOptionId ?? null,
+        optionIsCorrect: answer?.selectedOption?.isCorrect ?? null,
+        shortAnswerText: answer?.shortAnswerText ?? null,
+        answerKey: question.shortAnswerKey?.answerKey ?? null,
+        weight: scoring.weight,
+        wrongWeight: scoring.wrongWeight,
       });
-      continue;
+      mcScore += result.score;
+      const data = {
+        isCorrect: result.isCorrect,
+        score: result.score.toFixed(2),
+        gradingState: "NOT_REQUIRED" as const,
+      };
+      if (answer) {
+        await prisma.attemptAnswer.update({ where: { id: answer.id }, data });
+      } else {
+        await prisma.attemptAnswer.create({ data: { attemptId, questionId, ...data } });
+      }
     }
-    if (question.type !== "MULTIPLE_CHOICE" && question.type !== "SHORT_ANSWER") continue;
-    const result = scoreObjectiveAnswer({
-      type: question.type,
-      selectedOptionId: answer?.selectedOptionId ?? null,
-      optionIsCorrect: answer?.selectedOption?.isCorrect ?? null,
-      shortAnswerText: answer?.shortAnswerText ?? null,
-      answerKey: question.shortAnswerKey?.answerKey ?? null,
-      weight: scoring.weight,
-      wrongWeight: scoring.wrongWeight,
+    const essayCount = blankEssays + pendingEssays;
+    const gradingStatus = essayCount === 0 || pendingEssays === 0 ? "COMPLETED" : blankEssays > 0 ? "PARTIAL" : "NOT_GRADED";
+    await prisma.examAttempt.update({
+      where: { id: attemptId },
+      data: {
+        status: actual,
+        submittedAt: getWIBDate(),
+        mcScore: mcScore.toFixed(2),
+        essayScore: pendingEssays > 0 && blankEssays === 0 ? null : "0.00",
+        totalScore: pendingEssays === 0 ? mcScore.toFixed(2) : null,
+        gradingStatus,
+        lastQuestionIndex: Number((await redis.hget(metaKey(attemptId), "lastQuestionIndex")) ?? 0),
+      },
     });
-    mcScore += result.score;
-    const data = {
-      isCorrect: result.isCorrect,
-      score: result.score.toFixed(2),
-      gradingState: "NOT_REQUIRED" as const,
-    };
-    if (answer) {
-      await prisma.attemptAnswer.update({ where: { id: answer.id }, data });
+    await writeAudit({
+      userId: attempt.userId,
+      action: actual === "TIME_EXPIRED" ? "TIME_EXPIRED" : "SUBMIT",
+      entityType: "exam_attempt",
+      entityId: attemptId,
+      ipAddress,
+    });
+    if (actual === "TIME_EXPIRED") {
+      logEvent("ujian_waktu_habis", {
+        userId: attempt.userId,
+        ujianId: attempt.examId,
+        sesiId: attemptId,
+        ip: ipAddress,
+        msg: "Waktu ujian habis, jawaban otomatis dikirim",
+      });
     } else {
-      await prisma.attemptAnswer.create({ data: { attemptId, questionId, ...data } });
+      logEvent("ujian_selesai", {
+        userId: attempt.userId,
+        ujianId: attempt.examId,
+        sesiId: attemptId,
+        ip: ipAddress,
+        msg: "Ujian dikirim peserta",
+      });
     }
-  }
-  const essayCount = blankEssays + pendingEssays;
-  const gradingStatus = essayCount === 0 || pendingEssays === 0 ? "COMPLETED" : blankEssays > 0 ? "PARTIAL" : "NOT_GRADED";
-  await prisma.examAttempt.update({
-    where: { id: attemptId },
-    data: {
-      status: actual,
-      submittedAt: getWIBDate(),
-      mcScore: mcScore.toFixed(2),
-      essayScore: pendingEssays > 0 && blankEssays === 0 ? null : "0.00",
-      totalScore: pendingEssays === 0 ? mcScore.toFixed(2) : null,
-      gradingStatus,
-      lastQuestionIndex: Number((await redis.hget(metaKey(attemptId), "lastQuestionIndex")) ?? 0),
-    },
-  });
-  await writeAudit({
-    userId: attempt.userId,
-    action: actual === "TIME_EXPIRED" ? "TIME_EXPIRED" : "SUBMIT",
-    entityType: "exam_attempt",
-    entityId: attemptId,
-    ipAddress,
-  });
-  if (actual === "TIME_EXPIRED") {
-    logEvent("ujian_waktu_habis", {
-      userId: attempt.userId,
-      ujianId: attempt.examId,
-      sesiId: attemptId,
-      ip: ipAddress,
-      msg: "Waktu ujian habis, jawaban otomatis dikirim",
-    });
-  } else {
-    logEvent("ujian_selesai", {
-      userId: attempt.userId,
-      ujianId: attempt.examId,
-      sesiId: attemptId,
-      ip: ipAddress,
-      msg: "Ujian dikirim peserta",
-    });
+  } catch (error) {
+    await redis.del(closedKey(attemptId));
+    throw error;
   }
 }
 

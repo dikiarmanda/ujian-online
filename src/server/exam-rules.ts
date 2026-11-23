@@ -36,6 +36,27 @@ export function computeDeadline(
   return result;
 }
 
+/**
+ * Waktu yang disimpan di Redis. Bentuk baru adalah ISO-8601.
+ * Bentuk lama adalah milidetik Unix dalam string; `new Date("1795…")` tidak valid
+ * dan membuat Prisma menolak query saat ujian dikirim.
+ */
+export function parseStoredInstant(value: string | number | null | undefined): Date | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const trimmed = value.trim();
+  if (/^-?\d{12,}$/.test(trimmed)) {
+    const date = new Date(Number(trimmed));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const date = new Date(trimmed);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function parseExamDate(value: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value) && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
     throw new Error("Tanggal ujian tidak valid.");

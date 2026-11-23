@@ -5,6 +5,7 @@ import {
   assertSingleCorrectOption,
   computeDeadline,
   countAnswerStats,
+  parseStoredInstant,
   mapOmbnAdminRole,
   mapOriginRole,
   scoreObjectiveAnswer,
@@ -27,6 +28,18 @@ test("role sistem asal dipetakan", () => {
   assert.equal(mapOriginRole("peserta"), "PARTICIPANT");
   assert.equal(mapOriginRole("admin"), "ADMIN");
   assert.equal(mapOriginRole("petugas"), "GRADER");
+});
+
+test("waktu tersimpan menerima ISO dan milidetik Unix", () => {
+  const iso = parseStoredInstant("2026-11-23T03:34:18.747Z");
+  assert.equal(iso?.toISOString(), "2026-11-23T03:34:18.747Z");
+  const offset = parseStoredInstant("2026-11-23T10:58:30.004+07:00");
+  assert.equal(offset?.toISOString(), "2026-11-23T03:58:30.004Z");
+  const millis = parseStoredInstant("1795404843458");
+  assert.equal(millis?.getTime(), 1795404843458);
+  assert.equal(parseStoredInstant(1795404843458)?.getTime(), 1795404843458);
+  assert.equal(parseStoredInstant(""), null);
+  assert.equal(parseStoredInstant("bukan-tanggal"), null);
 });
 
 test("batas waktu memakai durasi dan jam selesai sesi", () => {
