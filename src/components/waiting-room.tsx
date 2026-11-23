@@ -65,10 +65,12 @@ export function WaitingRoom({
     };
   }, [examId, phase]);
 
-  const clock = new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(startsAt));
+  const clock = (() => {
+    const date = new Date(startsAt);
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  })();
   const step = !present ? 1 : !open ? 2 : 3;
 
   return (
