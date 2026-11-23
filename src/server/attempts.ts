@@ -412,7 +412,7 @@ async function assertCanAnswer(examId: number, userId: number, expiresAt: Date |
   if (!state || state.phase !== "RUNNING") {
     throw new AppError("Ujian tidak sedang berjalan.", 403);
   }
-  const now = new Date();
+  const now = getWIBDate();
   const cachedExpires = (await readAttemptExpires(examId, userId)) ?? expiresAt;
   if (!cachedExpires || now > cachedExpires) {
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 403);
@@ -499,7 +499,7 @@ export async function finalizeAttempt(
   if (userId && attempt.userId !== userId) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   if (attempt.status !== "IN_PROGRESS") return;
   const expiresAt = attempt.expiresAt ?? new Date(0);
-  const actual = reason === "SUBMITTED" && expiresAt <= new Date() ? "TIME_EXPIRED" : reason;
+  const actual = reason === "SUBMITTED" && expiresAt <= getWIBDate() ? "TIME_EXPIRED" : reason;
   await redis.set(closedKey(attemptId), "1", "EX", 60 * 60 * 24);
   await flushAttempt(attemptId, true);
   const order = (attempt.questionOrder as number[]) ?? [];
