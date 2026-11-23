@@ -589,7 +589,7 @@ export async function finalizeAttempt(
     where: { id: attemptId },
     data: {
       status: actual,
-      submittedAt: new Date(),
+      submittedAt: getWIBDate(),
       mcScore: mcScore.toFixed(2),
       essayScore: pendingEssays > 0 && blankEssays === 0 ? null : "0.00",
       totalScore: pendingEssays === 0 ? mcScore.toFixed(2) : null,
