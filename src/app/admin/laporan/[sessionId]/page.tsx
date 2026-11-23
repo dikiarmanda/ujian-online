@@ -7,6 +7,7 @@ import { formatJakarta } from "@/lib/format";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Icon } from "@/lib/icons";
 import { requirePageUser } from "@/server/current-user";
+import { AppError } from "@/server/errors";
 import { sessionReport } from "@/server/reports";
 import { RankButton } from "@/components/rank-button";
 import { SyncButton } from "@/components/sync-button";
@@ -52,8 +53,9 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
   let report;
   try {
     report = await sessionReport(id);
-  } catch {
-    notFound();
+  } catch (error) {
+    if (error instanceof AppError && error.status === 404) notFound();
+    throw error;
   }
 
   const pesertaTerdaftar = await getOmbnPesertaCount(id);
@@ -81,7 +83,7 @@ export default async function LaporanDetailPage({ params }: { params: Promise<{ 
                 <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${state.className}`}>{state.label}</span>
                 <span className="rounded-md bg-page px-2 py-1 text-xs font-semibold text-ink-muted">{report.durationMinutes} menit</span>
               </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{report.examName}</h1>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">{report.examName} {report.jenjangGroups ? `(${JSON.parse(report.jenjangGroups ?? "[]").join(", ")})` : ""}</h1>
               <p className="mt-1.5 text-sm text-ink-muted">
                 Fase {report.phase} · {formatJakarta(report.startsAt)}
               </p>

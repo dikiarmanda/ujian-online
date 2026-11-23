@@ -12,6 +12,7 @@ export async function examReport(examId: number) {
       phase: true,
       durationMinutes: true,
       averageScore: true,
+      jenjangGroups: true,
       packages: {
         include: { questions: { include: { question: true }, orderBy: { sortOrder: "asc" } } },
       },
@@ -88,6 +89,7 @@ export async function examReport(examId: number) {
   return {
     examId: exam.id,
     examName: exam.name,
+    jenjangGroups: exam.jenjangGroups,
     startsAt: exam.startsAt,
     phase: exam.phase,
     durationMinutes: exam.durationMinutes,
