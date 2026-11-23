@@ -279,7 +279,23 @@ export async function getAttemptState(attemptId: number, userId: number) {
       attempt.status = "TIME_EXPIRED";
     }
   }
-  if (attempt.status === "IN_PROGRESS" && attempt.expiresAt <= new Date()) {
+  const now = new Date();
+  // Check database timezone
+  const dbTime = await prisma.$queryRaw<Array<{ now: string }>>`SELECT NOW() as now`;
+  const dbUtc = await prisma.$queryRaw<Array<{ utc: string }>>`SELECT UTC_TIMESTAMP() as utc`;
+  console.log("DEBUG time expired check:", {
+    expiresAt: attempt.expiresAt.toISOString(),
+    expiresAtLocal: attempt.expiresAt.toString(),
+    expiresAtTimestamp: attempt.expiresAt.getTime(),
+    now: now.toISOString(),
+    nowLocal: now.toString(),
+    nowTimestamp: now.getTime(),
+    dbNow: dbTime[0]?.now,
+    dbUtc: dbUtc[0]?.utc,
+    isExpired: attempt.expiresAt.getTime() <= now.getTime(),
+    diffMinutes: (attempt.expiresAt.getTime() - now.getTime()) / 60000,
+  });
+  if (attempt.status === "IN_PROGRESS" && attempt.expiresAt.getTime() <= now.getTime()) {
     await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
     attempt.status = "TIME_EXPIRED";
   }
