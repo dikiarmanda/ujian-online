@@ -158,10 +158,6 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
     throw new AppError("Ujian belum dibuka oleh juri.", 403);
   }
   const now = new Date();
-  if (exam.startsAt && now < exam.startsAt) {
-    logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "belum sampai jam mulai" });
-    throw new AppError("Ujian belum dimulai. Tunggu sampai jam mulai.", 403);
-  }
 
   const existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
   if (!existing?.attendedAt) throw new AppError("Absensi diperlukan sebelum mulai ujian.", 409);
