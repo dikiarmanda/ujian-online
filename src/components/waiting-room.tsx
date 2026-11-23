@@ -64,7 +64,7 @@ export function WaitingRoom({
           .then((data) => {
             if (cancelled) return;
             setPhase(data.phase);
-            if (data.phase === "NOT_STARTED") poll();
+            if (data.phase === "NOT_STARTED" || data.phase === "RUNNING") poll();
           })
           .catch(() => {
             if (!cancelled) poll();
