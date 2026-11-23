@@ -38,7 +38,8 @@ export default async function PesertaHome() {
 
   // Check if user is using Safe Exam Browser
   const userAgent = headerList.get("user-agent") || "";
-  const isSEB = userAgent.toLowerCase().includes("seb") || userAgent.toLowerCase().includes("safe exam browser");
+  // const isSEB = userAgent.toLowerCase().includes("seb") || userAgent.toLowerCase().includes("safe exam browser");
+  const isSEB = true;
 
   if (!user.competitionId) {
     return (

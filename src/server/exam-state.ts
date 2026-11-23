@@ -2,6 +2,20 @@ import type { ExamPhase } from "@/generated/prisma/client";
 import { prisma } from "./db";
 import { redis } from "./redis";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
+function toWIBString(date: Date): string {
+  return date.toISOString().replace('Z', '+07:00');
+}
+
+function fromWIBString(str: string): Date {
+  // Parse string like "2026-11-23T10:00:00.000+07:00"
+  return new Date(str);
+}
+
 export type ExamStateCache = {
   phase: ExamPhase;
   startedAt: string | null;
@@ -36,12 +50,12 @@ export async function readExamState(examId: number): Promise<ExamStateCache | nu
 }
 
 export async function writeAttemptExpires(examId: number, userId: number, expiresAt: Date): Promise<void> {
-  const ttl = Math.max(60, Math.ceil((expiresAt.getTime() - Date.now()) / 1000) + 3600);
-  await redis.set(attemptExpiresKey(examId, userId), expiresAt.toISOString(), "EX", ttl);
+  const ttl = Math.max(60, Math.ceil((expiresAt.getTime() - getWIBDate().getTime()) / 1000) + 3600);
+  await redis.set(attemptExpiresKey(examId, userId), toWIBString(expiresAt), "EX", ttl);
 }
 
 export async function readAttemptExpires(examId: number, userId: number): Promise<Date | null> {
   const raw = await redis.get(attemptExpiresKey(examId, userId));
   if (!raw) return null;
-  return new Date(raw);
+  return fromWIBString(raw);
 }

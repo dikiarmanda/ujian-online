@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { SubmittedNotice } from "@/components/chrome";
 import RichHtml from "@/components/rich-html";
 import { ScientificCalculator } from "@/components/scientific-calculator";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { countAnswerStats, type AnswerSnapshot } from "@/server/exam-rules";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -102,8 +102,10 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
       useExam.getState().setSaveState("saved");
     } catch (error) {
       useExam.getState().setSaveState("error");
-      const message = error instanceof Error ? error.message : "";
-      if (message.includes("habis")) setDone(true);
+      // Only auto-submit if server returns 409 (time expired during save)
+      if (error instanceof ApiError && error.status === 409) {
+        setDone(true);
+      }
     }
   }
 

@@ -385,18 +385,6 @@ export async function enqueueFlush(attemptId: number): Promise<void> {
   }
 }
 
-async function assertCanAnswer(examId: number, userId: number, expiresAt: Date | null) {
-  const state = await readExamState(examId);
-  if (!state || state.phase !== "RUNNING") {
-    throw new AppError("Ujian tidak sedang berjalan.", 403);
-  }
-  const now = getWIBDate();
-  const cachedExpires = (await readAttemptExpires(examId, userId)) ?? expiresAt;
-  if (!cachedExpires || now > cachedExpires) {
-    throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 403);
-  }
-}
-
 export async function saveAnswer(
   attemptId: number,
   userId: number,
@@ -414,14 +402,51 @@ export async function saveAnswer(
     include: { exam: true },
   });
   if (!attempt) throw new AppError("Pengerjaan tidak ditemukan.", 404);
-  if (attempt.status !== "IN_PROGRESS" || (await redis.get(closedKey(attemptId)))) {
+  logWarn("jawaban_debug_attempt", {
+    userId,
+    attemptId,
+    status: attempt.status,
+    startedAt: attempt.startedAt?.toISOString(),
+    expiresAt: attempt.expiresAt?.toISOString(),
+    examId: attempt.examId,
+  });
+
+  const closed = await redis.get(closedKey(attemptId));
+  logWarn("jawaban_debug_closed", {
+    attemptId,
+    closed,
+    closedKey: closedKey(attemptId),
+  });
+
+  if (attempt.status !== "IN_PROGRESS" || closed) {
+    logWarn("jawaban_ditolak_status", {
+      userId,
+      attemptId,
+      status: attempt.status,
+      closed,
+    });
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
   }
-  try {
-    await assertCanAnswer(attempt.examId, userId, attempt.expiresAt);
-  } catch (error) {
-    if (attempt.status === "IN_PROGRESS") await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
-    throw error;
+
+  // Cek waktu expired - gunakan attempt.expiresAt langsung jika cache kosong
+  const now = getWIBDate();
+  const cachedExpires = await readAttemptExpires(attempt.examId, userId);
+  const effectiveExpires = cachedExpires ?? attempt.expiresAt;
+
+  logWarn("jawaban_cek_waktu", {
+    userId,
+    attemptId,
+    now: now.toISOString(),
+    cachedExpires: cachedExpires?.toISOString(),
+    attemptExpires: attempt.expiresAt?.toISOString(),
+    effectiveExpires: effectiveExpires?.toISOString(),
+    isExpired: !effectiveExpires || now > effectiveExpires,
+  });
+
+  if (!effectiveExpires || now > effectiveExpires) {
+    await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
+    console.log("DEBUG saveAnswer: finalizing attempt due to expiration");
+    throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 409);
   }
   const order = (attempt.questionOrder as number[]) ?? [];
   if (!order.includes(input.questionId)) throw new AppError("Soal tidak termasuk paket ujian ini.", 400);
