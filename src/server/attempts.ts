@@ -10,6 +10,11 @@ import { packageCacheKey } from "./packages";
 import { redis } from "./redis";
 import { sanitizeRichText } from "./rich-text";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 export type PublicOption = { id: number; label: string; body: string; imagePath: string | null };
 export type PublicQuestion = {
   id: number;
@@ -119,7 +124,7 @@ export async function attend(
   const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
   if (exam.phase === "ENDED") throw new AppError("Ujian sudah ditutup.", 409);
-  const now = new Date();
+  const now = getWIBDate();
   if (now < exam.attendanceOpensAt) throw new AppError("Absensi belum dibuka.", 409);
 
   const examPack = await resolveExamPackage(examId, jenjangGroup);
@@ -160,7 +165,7 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
   //   logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "ujian belum dibuka" });
   //   throw new AppError("Ujian belum dibuka oleh juri.", 403);
   // }
-  const now = new Date();
+  const now = getWIBDate();
   console.log("DEBUG now timezone:", { now: now.toISOString(), nowLocal: now.toString(), timezoneOffset: now.getTimezoneOffset() });
 
   let existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
@@ -279,7 +284,7 @@ export async function getAttemptState(attemptId: number, userId: number) {
       attempt.status = "TIME_EXPIRED";
     }
   }
-  const now = new Date();
+  const now = getWIBDate();
   // Check database timezone
   const dbTime = await prisma.$queryRaw<Array<{ now: string }>>`SELECT NOW() as now`;
   const dbUtc = await prisma.$queryRaw<Array<{ utc: string }>>`SELECT UTC_TIMESTAMP() as utc`;
