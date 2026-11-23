@@ -9,6 +9,11 @@ import { redis } from "./redis";
 import { assertUploadPath, sanitizeRichText } from "./rich-text";
 import { validateDeleteOrDeactivateQuestion, validateUpdatePackage } from "./validation";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 const optionSchema = z.object({
   label: z.string().trim().min(1).max(5),
   body: z.string().trim().min(1),
@@ -194,7 +199,7 @@ export async function updateQuestion(id: number, input: unknown, actorId: number
 
 export async function deleteQuestion(id: number, actorId: number, ipAddress?: string) {
   await validateDeleteOrDeactivateQuestion(id);
-  await prisma.question.update({ where: { id }, data: { deletedAt: new Date() } });
+  await prisma.question.update({ where: { id }, data: { deletedAt: getWIBDate() } });
   await writeAudit({ userId: actorId, action: "DELETE_QUESTION", entityType: "question", entityId: id, ipAddress });
 }
 
@@ -253,7 +258,7 @@ export async function bulkDeleteQuestions(ids: number[], actorId: number, ipAddr
   }
   await prisma.question.updateMany({
     where: { id: { in: ids } },
-    data: { deletedAt: new Date() },
+    data: { deletedAt: getWIBDate() },
   });
   for (const id of ids) {
     await writeAudit({

@@ -9,6 +9,11 @@ import { parseExamDate, parseJakartaDateTime } from "./exam-rules";
 import { writeExamState } from "./exam-state";
 import { applyPackageSnapshot, prefetchExamPackages } from "./packages";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 const packageByJenjangSchema = z.record(z.string(), z.number().int().positive());
 
 const createExamSchema = z.object({
@@ -284,7 +289,7 @@ export async function startExam(examId: number, actorId: number, ipAddress?: str
     throw new AppError("Ujian tidak dalam kondisi siap mulai.", 409);
   }
 
-  const now = new Date();
+  const now = getWIBDate();
   const updated = await prisma.exam.update({
     where: { id: examId },
     data: { phase: "RUNNING", startedAt: now, startedById: actorId },
@@ -310,7 +315,7 @@ export async function endExam(examId: number, actorId: number, ipAddress?: strin
   if (exam.status !== "PUBLISHED") throw new AppError("Hanya ujian terbit yang dapat diakhiri.", 409);
   if (exam.phase !== "RUNNING") throw new AppError("Ujian tidak sedang berjalan.", 409);
 
-  const now = new Date();
+  const now = getWIBDate();
   const updated = await prisma.exam.update({
     where: { id: examId },
     data: { phase: "ENDED", endedAt: now, endedById: actorId },
@@ -398,7 +403,7 @@ export async function deleteExam(id: number, actorId: number, ipAddress?: string
   if (exam.phase === "RUNNING") {
     throw new AppError("Ujian yang sedang berjalan tidak dapat dihapus.", 409);
   }
-  await prisma.exam.update({ where: { id }, data: { deletedAt: new Date() } });
+  await prisma.exam.update({ where: { id }, data: { deletedAt: getWIBDate() } });
   await writeAudit({ userId: actorId, action: "DELETE_EXAM", entityType: "exam", entityId: id, ipAddress });
 }
 

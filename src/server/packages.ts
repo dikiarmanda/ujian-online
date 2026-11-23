@@ -4,6 +4,11 @@ import { prisma } from "./db";
 import { AppError } from "./errors";
 import { validateScheduleExam, validateUpdatePackage } from "./validation";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 const itemSchema = z.object({
   questionId: z.number().int().positive(),
   weight: z.number().positive(),
@@ -108,7 +113,7 @@ export async function deleteQuestionPackage(id: number, actorId: number, ipAddre
   const used = await prisma.examPackage.count({ where: { packageId: id } });
   // Paket boleh dihapus meski dipakai ujian, karena soal sudah disalin ke exam_package_questions
   // Paket yang sudah dihapus tidak bisa dipilih untuk ujian baru
-  await prisma.questionPackage.update({ where: { id }, data: { deletedAt: new Date() } });
+  await prisma.questionPackage.update({ where: { id }, data: { deletedAt: getWIBDate() } });
   await writeAudit({
     userId: actorId,
     action: "DELETE_PACKAGE",

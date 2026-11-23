@@ -3,6 +3,15 @@ import { attend, getExamStateForParticipant, startAttempt } from "@/server/attem
 import { AppError } from "@/server/errors";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
+function toWIBString(date: Date): string {
+  return date.toISOString().replace('Z', '+07:00');
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -50,10 +59,10 @@ export async function GET(req: Request, ctx: Ctx) {
     const attempt = await prisma.examAttempt.findFirst({ where: { id: attemptId, userId: user.userId } });
     if (!attempt) return json({ error: "Pengerjaan tidak ditemukan." }, 404);
     return json({
-      serverNow: new Date().toISOString(),
-      serverTime: new Date().toISOString(),
-      deadlineAt: attempt.expiresAt?.toISOString() ?? null,
-      expiresAt: attempt.expiresAt?.toISOString() ?? null,
+      serverNow: toWIBString(getWIBDate()),
+      serverTime: toWIBString(getWIBDate()),
+      deadlineAt: attempt.expiresAt ? toWIBString(attempt.expiresAt) : null,
+      expiresAt: attempt.expiresAt ? toWIBString(attempt.expiresAt) : null,
       status: attempt.status,
     });
   });

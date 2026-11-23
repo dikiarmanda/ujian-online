@@ -13,6 +13,11 @@ import { redis } from "../redis";
 import { createSession, resetUserSession } from "../session";
 import { log } from "console";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 const loginSchema = z.object({
   identity: z.string().trim().min(1, "Isi identitas.").max(100),
   password: z.string().min(1, "Isi kata sandi.").max(200),
@@ -216,7 +221,7 @@ async function saveProfile(account: Account) {
       role: account.role,
       groupName: account.groupName,
       nisn: nisn ?? null,
-      lastSyncedAt: new Date(),
+      lastSyncedAt: getWIBDate(),
     },
     update: {
       identity: account.identity,
@@ -225,7 +230,7 @@ async function saveProfile(account: Account) {
       groupName: account.groupName,
       ...(nisn !== undefined ? { nisn } : {}),
       isActive: true,
-      lastSyncedAt: new Date(),
+      lastSyncedAt: getWIBDate(),
     },
   });
 }

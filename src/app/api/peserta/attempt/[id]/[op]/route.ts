@@ -6,6 +6,15 @@ import { hitRateLimit } from "@/server/rate-limit";
 import { json, readBody, requestIp, requireApiUser, withErrors } from "@/server/http";
 import { prisma } from "@/server/db";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
+function toWIBString(date: Date): string {
+  return date.toISOString().replace('Z', '+07:00');
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -57,7 +66,7 @@ export async function POST(req: Request, ctx: Ctx) {
         });
         throw error;
       }
-      return json({ ok: true, savedAt: new Date().toISOString() });
+      return json({ ok: true, savedAt: toWIBString(getWIBDate()) });
     }
     if (op === "selesai") {
       await finalizeAttempt(attemptId, "SUBMITTED", user.userId, ip);

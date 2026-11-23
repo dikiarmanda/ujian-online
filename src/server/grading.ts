@@ -4,6 +4,11 @@ import { prisma } from "./db";
 import { env } from "./env";
 import { AppError } from "./errors";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 async function refreshAttemptScore(attemptId: number) {
   const answers = await prisma.attemptAnswer.findMany({
     where: { attemptId },
@@ -68,7 +73,7 @@ export async function graderView(answerId: number, graderId: number) {
   }
   const pack = answer.attempt.exam.packages.find((p) => p.jenjang === answer.attempt.jenjang);
   const weight = pack?.questions.find((item) => item.questionId === answer.questionId);
-  const lockedAt = answer.lockedAt ?? new Date();
+  const lockedAt = answer.lockedAt ?? getWIBDate();
   return {
     id: answer.id,
     participantName: answer.attempt.user.name,
@@ -102,7 +107,7 @@ export async function gradeAnswer(answerId: number, graderId: number, input: unk
       gradingNote: parsed.data.note?.trim() || null,
       gradingState: "GRADED",
       gradedById: graderId,
-      gradedAt: new Date(),
+      gradedAt: getWIBDate(),
       lockedById: null,
       lockedAt: null,
     },
@@ -129,7 +134,7 @@ export async function releaseLock(answerId: number, actorId: number, graderId?: 
     if (!grader) throw new AppError("Petugas penilai tidak ditemukan.", 404);
     await prisma.attemptAnswer.update({
       where: { id: answerId },
-      data: { gradingState: "LOCKED", lockedById: graderId, lockedAt: new Date() },
+      data: { gradingState: "LOCKED", lockedById: graderId, lockedAt: getWIBDate() },
     });
   } else {
     await prisma.attemptAnswer.update({

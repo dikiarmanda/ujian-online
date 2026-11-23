@@ -4,6 +4,11 @@ import { prisma } from "./db";
 import { AppError } from "./errors";
 import { ombn } from "./ombn-db";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 export async function syncParticipants(triggeredById: number | null, ipAddress?: string) {
   const log = await prisma.syncLog.create({ data: { triggeredById } });
   let successCount = 0;
@@ -57,7 +62,7 @@ export async function syncParticipants(triggeredById: number | null, ipAddress?:
             name: row.nama,
             role: "PARTICIPANT",
             groupName: row.nama_kelompok || row.schools.nama_sekolah || null,
-            lastSyncedAt: new Date(),
+            lastSyncedAt: getWIBDate(),
           },
           update: {
             identity,
@@ -66,7 +71,7 @@ export async function syncParticipants(triggeredById: number | null, ipAddress?:
             role: "PARTICIPANT",
             groupName: row.nama_kelompok || row.schools.nama_sekolah || null,
             isActive: true,
-            lastSyncedAt: new Date(),
+            lastSyncedAt: getWIBDate(),
           },
         });
         successCount += 1;
@@ -83,7 +88,7 @@ export async function syncParticipants(triggeredById: number | null, ipAddress?:
     const message = error instanceof Error ? error.message : "Sinkronisasi terhenti.";
     await prisma.syncLog.update({
       where: { id: log.id },
-      data: { finishedAt: new Date(), successCount, failedCount: failedCount + 1, message },
+      data: { finishedAt: getWIBDate(), successCount, failedCount: failedCount + 1, message },
     });
     throw new AppError("Data peserta OMBN sedang tidak dapat dihubungi. Coba lagi dalam beberapa saat.", 503);
   }
@@ -96,7 +101,7 @@ export async function syncParticipants(triggeredById: number | null, ipAddress?:
   const updated = await prisma.syncLog.update({
     where: { id: log.id },
     data: {
-      finishedAt: new Date(),
+      finishedAt: getWIBDate(),
       successCount,
       failedCount,
       message: failedCount ? "Sebagian data gagal disimpan." : "Sinkronisasi selesai.",
@@ -186,21 +191,21 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
 
         const externalId = `ombn-peserta:${peserta.id.toString()}`;
         const updateData: any = {
-          updated_at: new Date(),
+          updated_at: getWIBDate(),
         };
 
         if (attempt.exam.competitionLevel === "KABUPATEN") {
           updateData.nilai_akhir = attempt.totalScore;
           updateData.urut_kabupaten = attempt.rank;
-          updateData.waktu_akhir_ujian_kabupaten = attempt.submittedAt || new Date();
+          updateData.waktu_akhir_ujian_kabupaten = attempt.submittedAt || getWIBDate();
         } else if (attempt.exam.competitionLevel === "PROVINSI") {
           updateData.nilai_provinsi = attempt.totalScore;
           updateData.urut_provinsi = attempt.rank;
-          updateData.waktu_akhir_ujian_provinsi = attempt.submittedAt || new Date();
+          updateData.waktu_akhir_ujian_provinsi = attempt.submittedAt || getWIBDate();
         } else if (attempt.exam.competitionLevel === "NASIONAL") {
           updateData.peringkat = attempt.rank;
           updateData.nilai_nasional = attempt.totalScore;
-          updateData.waktu_akhir_ujian = attempt.submittedAt || new Date();
+          updateData.waktu_akhir_ujian = attempt.submittedAt || getWIBDate();
         }
 
         await ombn.lomba_peserta.update({
@@ -222,7 +227,7 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
     const message = error instanceof Error ? error.message : "Sinkronisasi hasil ujian terhenti.";
     await prisma.syncLog.update({
       where: { id: log.id },
-      data: { finishedAt: new Date(), successCount, failedCount: failedCount + 1, message },
+      data: { finishedAt: getWIBDate(), successCount, failedCount: failedCount + 1, message },
     });
     throw new AppError("Database OMBN sedang tidak dapat dihubungi. Coba lagi dalam beberapa saat.", 503);
   }
@@ -236,7 +241,7 @@ export async function syncExamResultsToOmbn(examId: number, triggeredById: numbe
   const updated = await prisma.syncLog.update({
     where: { id: log.id },
     data: {
-      finishedAt: new Date(),
+      finishedAt: getWIBDate(),
       successCount,
       failedCount,
       message: failedCount ? "Sebagian data gagal disimpan." : "Sinkronisasi hasil ujian selesai.",

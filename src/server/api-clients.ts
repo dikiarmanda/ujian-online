@@ -4,6 +4,11 @@ import { writeAudit } from "./audit";
 import { prisma } from "./db";
 import { AppError } from "./errors";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 const clientSchema = z.object({
   name: z.string().trim().min(1, "Isi nama klien.").max(150),
   description: z.string().trim().max(500).optional(),
@@ -51,7 +56,7 @@ export async function revokeApiClient(actorId: number, clientId: number, ipAddre
   if (!existing) throw new AppError("Klien tidak ditemukan.", 404);
   await prisma.apiClient.update({
     where: { id: clientId },
-    data: { status: "REVOKED", revokedAt: new Date() },
+    data: { status: "REVOKED", revokedAt: getWIBDate() },
   });
   await writeAudit({
     userId: actorId,
@@ -71,7 +76,7 @@ export async function createClientKey(actorId: number, clientId: number, input: 
     where: {
       clientId,
       revokedAt: null,
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      OR: [{ expiresAt: null }, { expiresAt: { gt: getWIBDate() } }],
     },
   });
   if (active >= 2) throw new AppError("Klien ini sudah memiliki dua kunci aktif.", 422);
@@ -98,7 +103,7 @@ export async function createClientKey(actorId: number, clientId: number, input: 
 export async function revokeClientKey(actorId: number, clientId: number, keyId: number, ipAddress: string) {
   const key = await prisma.apiKey.findUnique({ where: { id: keyId } });
   if (!key || key.clientId !== clientId) throw new AppError("Kunci tidak ditemukan.", 404);
-  await prisma.apiKey.update({ where: { id: keyId }, data: { revokedAt: new Date() } });
+  await prisma.apiKey.update({ where: { id: keyId }, data: { revokedAt: getWIBDate() } });
   await writeAudit({
     userId: actorId,
     action: "REVOKE_API_KEY",

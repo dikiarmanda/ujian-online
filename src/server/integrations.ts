@@ -16,6 +16,11 @@ import {
 import { redis } from "./redis";
 import { clientIp } from "./session";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
 const EXAM_BLOCK_KEY = "integration:exam-block";
 const DUMMY_KEY_HASH = "0".repeat(64);
 
@@ -92,7 +97,8 @@ async function authenticate(req: Request): Promise<ApiActor> {
       })
     : null;
   const matched = keyHashesMatch(row?.keyHash ?? DUMMY_KEY_HASH, token || "invalid");
-  const expired = Boolean(row?.expiresAt && row.expiresAt.getTime() <= Date.now());
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  const expired = Boolean(row?.expiresAt && row.expiresAt.getTime() <= Date.now() + wibOffset);
   if (!row || !matched || row.revokedAt || expired || row.client.status !== "ACTIVE" || row.client.revokedAt) {
     throw new IntegrationError("UNAUTHENTICATED", "API key hilang atau tidak valid.", 401);
   }
@@ -131,7 +137,7 @@ async function assertRateLimit(actor: ApiActor, ipAddress: string): Promise<void
 
 async function assertNoActiveExam(): Promise<void> {
   if (!env().integrationBlockDuringExam) return;
-  const now = new Date();
+  const now = getWIBDate();
   const cached = await redis.get(EXAM_BLOCK_KEY);
   if (cached != null) {
     const until = Number(cached);
@@ -180,7 +186,7 @@ async function recordAccess(req: Request, actor: ApiActor, statusCode: number, s
       console.error("Log akses API gagal", error);
     });
   await prisma.apiKey
-    .update({ where: { id: actor.keyId }, data: { lastUsedAt: new Date() } })
+    .update({ where: { id: actor.keyId }, data: { lastUsedAt: getWIBDate() } })
     .catch(() => undefined);
 }
 

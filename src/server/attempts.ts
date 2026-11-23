@@ -10,6 +10,15 @@ import { packageCacheKey } from "./packages";
 import { redis } from "./redis";
 import { sanitizeRichText } from "./rich-text";
 
+function getWIBDate(): Date {
+  const wibOffset = 7 * 60 * 60 * 1000; // GMT+7 in milliseconds
+  return new Date(Date.now() + wibOffset);
+}
+
+function toWIBString(date: Date): string {
+  return date.toISOString().replace('Z', '+07:00');
+}
+
 export type PublicOption = { id: number; label: string; body: string; imagePath: string | null };
 export type PublicQuestion = {
   id: number;
@@ -119,7 +128,7 @@ export async function attend(
   const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam || exam.status !== "PUBLISHED") throw new AppError("Ujian tidak ditemukan.", 404);
   if (exam.phase === "ENDED") throw new AppError("Ujian sudah ditutup.", 409);
-  const now = new Date();
+  const now = getWIBDate();
   if (now < exam.attendanceOpensAt) throw new AppError("Absensi belum dibuka.", 409);
 
   const examPack = await resolveExamPackage(examId, jenjangGroup);
@@ -152,7 +161,7 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
     throw new AppError("Ujian tidak ditemukan.", 404);
   }
 
-  const now = new Date();
+  const now = getWIBDate();
 
   let existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
   let examPack;
@@ -268,7 +277,7 @@ export async function getAttemptState(attemptId: number, userId: number) {
       attempt.status = "TIME_EXPIRED";
     }
   }
-  const now = new Date();
+  const now = getWIBDate();
   if (attempt.status === "IN_PROGRESS" && attempt.expiresAt.getTime() <= now.getTime()) {
     await finalizeAttempt(attemptId, "TIME_EXPIRED", userId);
     attempt.status = "TIME_EXPIRED";
@@ -310,10 +319,10 @@ export async function getAttemptState(attemptId: number, userId: number) {
     examName: attempt.exam.name,
     calculatorMode: attempt.exam.calculatorMode,
     status: attempt.status,
-    serverNow: new Date().toISOString(),
-    serverTime: new Date().toISOString(),
-    expiresAt: attempt.expiresAt.toISOString(),
-    deadlineAt: attempt.expiresAt.toISOString(),
+    serverNow: toWIBString(getWIBDate()),
+    serverTime: toWIBString(getWIBDate()),
+    expiresAt: toWIBString(attempt.expiresAt),
+    deadlineAt: toWIBString(attempt.expiresAt),
     lastQuestionIndex: Number(meta.lastQuestionIndex ?? attempt.lastQuestionIndex ?? 0),
     questions,
     answers,
@@ -381,7 +390,7 @@ async function assertCanAnswer(examId: number, userId: number, expiresAt: Date |
   if (!state || state.phase !== "RUNNING") {
     throw new AppError("Ujian tidak sedang berjalan.", 403);
   }
-  const now = new Date();
+  const now = getWIBDate();
   const cachedExpires = (await readAttemptExpires(examId, userId)) ?? expiresAt;
   if (!cachedExpires || now > cachedExpires) {
     throw new AppError("Waktu ujian sudah habis. Jawaban tidak dapat diubah.", 403);
@@ -440,7 +449,7 @@ export async function saveAnswer(
     essayText: input.essayText,
     shortAnswerText: input.shortAnswerText,
     isDoubtful: input.isDoubtful,
-    answeredAt: new Date().toISOString(),
+    answeredAt: toWIBString(getWIBDate()),
   };
   await redis.hset(answersKey(attemptId), String(input.questionId), JSON.stringify(payload));
   await redis.hset(metaKey(attemptId), "lastQuestionIndex", String(input.lastQuestionIndex));
@@ -468,7 +477,7 @@ export async function finalizeAttempt(
   if (userId && attempt.userId !== userId) throw new AppError("Pengerjaan tidak ditemukan.", 404);
   if (attempt.status !== "IN_PROGRESS") return;
   const expiresAt = attempt.expiresAt ?? new Date(0);
-  const actual = reason === "SUBMITTED" && expiresAt <= new Date() ? "TIME_EXPIRED" : reason;
+  const actual = reason === "SUBMITTED" && expiresAt <= getWIBDate() ? "TIME_EXPIRED" : reason;
   await redis.set(closedKey(attemptId), "1", "EX", 60 * 60 * 24);
   await flushAttempt(attemptId, true);
   const order = (attempt.questionOrder as number[]) ?? [];
@@ -518,12 +527,12 @@ export async function finalizeAttempt(
           essayText: "",
           score: "0.00",
           gradingState: "GRADED",
-          gradedAt: new Date(),
+          gradedAt: getWIBDate(),
         },
         update: {
           score: "0.00",
           gradingState: "GRADED",
-          gradedAt: new Date(),
+          gradedAt: getWIBDate(),
           lockedById: null,
           lockedAt: null,
         },
@@ -558,7 +567,7 @@ export async function finalizeAttempt(
     where: { id: attemptId },
     data: {
       status: actual,
-      submittedAt: new Date(),
+      submittedAt: getWIBDate(),
       mcScore: mcScore.toFixed(2),
       essayScore: pendingEssays > 0 && blankEssays === 0 ? null : "0.00",
       totalScore: pendingEssays === 0 ? mcScore.toFixed(2) : null,
@@ -667,8 +676,8 @@ export async function getExamStateForParticipant(examId: number, userId: number)
   });
   return {
     phase: state.phase,
-    serverTime: new Date().toISOString(),
-    expiresAt: attempt?.expiresAt?.toISOString() ?? null,
+    serverTime: toWIBString(getWIBDate()),
+    expiresAt: attempt?.expiresAt ? toWIBString(attempt.expiresAt) : null,
     attended: Boolean(attempt?.attendedAt),
     started: Boolean(attempt?.startedAt),
     status: attempt?.status ?? null,
