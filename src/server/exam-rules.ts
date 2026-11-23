@@ -32,7 +32,19 @@ export function computeDeadline(
 ): Date {
   const byDuration = startedAt.getTime() + durationMinutes * 60_000;
   const base = sessionEndsAt ? Math.min(byDuration, sessionEndsAt.getTime()) : byDuration;
-  return new Date(base + extraSeconds * 1000);
+  const result = new Date(base + extraSeconds * 1000);
+  console.log("DEBUG computeDeadline:", {
+    startedAt: startedAt.toISOString(),
+    startedAtLocal: startedAt.toString(),
+    durationMinutes,
+    sessionEndsAt: sessionEndsAt?.toISOString() ?? null,
+    extraSeconds,
+    byDuration: new Date(byDuration).toISOString(),
+    base: new Date(base).toISOString(),
+    result: result.toISOString(),
+    resultLocal: result.toString(),
+  });
+  return result;
 }
 
 export function parseExamDate(value: string): Date {

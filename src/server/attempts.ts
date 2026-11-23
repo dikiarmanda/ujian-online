@@ -161,6 +161,7 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
   //   throw new AppError("Ujian belum dibuka oleh juri.", 403);
   // }
   const now = new Date();
+  console.log("DEBUG now timezone:", { now: now.toISOString(), nowLocal: now.toString(), timezoneOffset: now.getTimezoneOffset() });
 
   let existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
   let examPack;
@@ -219,7 +220,9 @@ export async function startAttempt(examId: number, userId: number, jenjangGroup:
     const ids = item.question.options.map((option) => option.id);
     optionOrder[String(item.questionId)] = exam.shuffleOptions ? shuffle(ids) : ids;
   }
+  console.log("DEBUG computeDeadline:", { now, durationMinutes: exam.durationMinutes, extraSeconds: existing.extraSeconds });
   const expiresAt = computeDeadline(now, exam.durationMinutes, null, existing.extraSeconds);
+  console.log("DEBUG expiresAt:", { expiresAt: expiresAt.toISOString(), isExpired: expiresAt <= now });
 
   // Idempotent: only set startedAt if still null
   const updated = await prisma.examAttempt.updateMany({
