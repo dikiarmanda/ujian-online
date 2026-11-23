@@ -29,6 +29,7 @@ export function WaitingRoom({
   const [entering, setEntering] = useState(false);
   const [present, setPresent] = useState(attended);
   const [phase, setPhase] = useState<Phase>(initialPhase);
+  const [clock, setClock] = useState("");
   const startMs = new Date(startsAt).getTime();
   const timeReached = (now + offset) >= startMs;
   const open = phase === "RUNNING" && timeReached;
@@ -38,6 +39,13 @@ export function WaitingRoom({
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const date = new Date(startsAt);
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    setClock(`${hours}:${minutes}`);
+  }, [startsAt]);
 
   useEffect(() => {
     if (phase !== "NOT_STARTED") return;
@@ -65,12 +73,6 @@ export function WaitingRoom({
     };
   }, [examId, phase]);
 
-  const clock = (() => {
-    const date = new Date(startsAt);
-    const hours = String(date.getUTCHours()).padStart(2, "0");
-    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
-    return `${hours}:${minutes}`;
-  })();
   const step = !present ? 1 : !open ? 2 : 3;
 
   return (
