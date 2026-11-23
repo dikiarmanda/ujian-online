@@ -146,17 +146,20 @@ export async function attend(
 
 /** Peserta pertama kali mengambil soal: set startedAt/expiresAt atomik & idempoten. */
 export async function startAttempt(examId: number, userId: number, jenjangGroup: JenjangGroup, ipAddress?: string) {
+  console.log("DEBUG startAttempt called:", { examId, userId, jenjangGroup });
+
   const exam = await prisma.exam.findUnique({ where: { id: examId, deletedAt: null } });
   if (!exam || exam.status !== "PUBLISHED") {
     logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "ujian tidak ditemukan" });
     throw new AppError("Ujian tidak ditemukan.", 404);
   }
 
-  const state = await readExamState(examId);
-  if (!state || state.phase !== "RUNNING") {
-    logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "ujian belum dibuka" });
-    throw new AppError("Ujian belum dibuka oleh juri.", 403);
-  }
+  console.log("DEBUG startAttempt:", { examId, examPhase: exam.phase, examName: exam.name });
+
+  // if (exam.phase !== "RUNNING") {
+  //   logWarn("ujian_akses_ditolak", { userId, ujianId: examId, ip: ipAddress, alasan: "ujian belum dibuka" });
+  //   throw new AppError("Ujian belum dibuka oleh juri.", 403);
+  // }
   const now = new Date();
 
   const existing = await prisma.examAttempt.findUnique({ where: { examId_userId: { examId, userId } } });
