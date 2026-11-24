@@ -101,11 +101,11 @@ export function ExamRoom({ initial }: { initial: ExamInitial }) {
       });
       useExam.getState().setSaveState("saved");
     } catch (error) {
-      // useExam.getState().setSaveState("error");
+      useExam.getState().setSaveState("error");
       // // Only auto-submit if server returns 409 (time expired during save)
-      // if (error instanceof ApiError && error.status === 409) {
-      //   setDone(true);
-      // }
+      if (error instanceof ApiError && error.status === 409) {
+        setDone(true);
+      }
     }
   }
 
